@@ -71,13 +71,17 @@ export function CrimeChart({ rows }: Props) {
   if (isPie) {
     const total = data.reduce((s, d) => s + d.value, 0);
     const RADIAN = Math.PI / 180;
-    const renderLabel = ({
-      cx, cy, midAngle, innerRadius, outerRadius, percent,
-    }: {
-      cx: number; cy: number; midAngle: number;
-      innerRadius: number; outerRadius: number; percent: number;
+    const renderLabel = (props: {
+      cx?: number | string; cy?: number | string; midAngle?: number;
+      innerRadius?: number; outerRadius?: number; percent?: number;
     }) => {
+      const percent = Number(props.percent ?? 0);
       if (percent < 0.04) return null;
+      const cx = Number(props.cx ?? 0);
+      const cy = Number(props.cy ?? 0);
+      const midAngle = Number(props.midAngle ?? 0);
+      const innerRadius = Number(props.innerRadius ?? 0);
+      const outerRadius = Number(props.outerRadius ?? 0);
       const r = innerRadius + (outerRadius - innerRadius) * 0.55;
       const x = cx + r * Math.cos(-midAngle * RADIAN);
       const y = cy + r * Math.sin(-midAngle * RADIAN);
@@ -110,7 +114,10 @@ export function CrimeChart({ rows }: Props) {
                 <Tooltip
                   contentStyle={TIP_STYLE}
                   labelStyle={TIP_LABEL_STYLE}
-                  formatter={(v: number) => [`${v.toLocaleString()} (${((v / total) * 100).toFixed(1)}%)`, "Count"]}
+                  formatter={(v) => {
+                    const n = Number(v) || 0;
+                    return [`${n.toLocaleString()} (${((n / total) * 100).toFixed(1)}%)`, "Count"];
+                  }}
                 />
               </PieChart>
             </ResponsiveContainer>

@@ -143,7 +143,7 @@ export function CaseDrawer({ caseId, onClose }: { caseId: number | null; onClose
               <Row label="Court" value={c.court} />
             </Section>
 
-            {c.brieffacts && (
+            {Boolean(c.brieffacts) && (
               <Section title="Brief Facts">
                 <p className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>
                   {c.brieffacts as string}
