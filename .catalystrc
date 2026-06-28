@@ -1,0 +1,30 @@
+{
+  "defaults": {
+    "project": 1,
+    "env": 1
+  },
+  "actives": {
+    "project": 1,
+    "env": 1
+  },
+  "projects": [
+    {
+      "idx": 1,
+      "id": "46554000000013049",
+      "name": "KhabriAI",
+      "domain": {
+        "id": "50043461599",
+        "name": "khabriai-60075666170.development"
+      },
+      "timezone": "Asia/Kolkata",
+      "env": [
+        {
+          "idx": 1,
+          "id": "60075666170",
+          "name": "Development",
+          "type": 3
+        }
+      ]
+    }
+  ]
+}

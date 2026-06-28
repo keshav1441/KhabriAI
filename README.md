@@ -10,7 +10,7 @@ Conversational AI for investigators to query crime data in plain English. Type a
 
 | Tool | Version |
 |------|---------|
-| Node.js | 18+ |
+| Node.js | 22+ (AppSail uses the `node22` stack; the deploy start command uses `--env-file-if-exists`) |
 | PostgreSQL | 14+ (local) |
 
 No Ollama. No ngrok. No Groq. LLM runs on Catalyst QuickML.
@@ -156,28 +156,66 @@ Clicking an insight pre-fills the chat with a follow-up question.
 
 ---
 
-## Cloud Deploy — Catalyst
+## Cloud Deploy — Catalyst AppSail
+
+The full Next.js app (frontend + API routes + Prisma) runs as a single **AppSail** service
+using Next.js **standalone output**, so only a slim (~97 MB) bundle is uploaded instead of
+the entire `node_modules` (~684 MB).
+
+### One-time setup
 
 ```bash
-# 1. Install Catalyst CLI
-npm install -g @zohocloud/catalyst-cli
-
-# 2. Login + link project
+# 1. Install Catalyst CLI + login + link the project
+npm install -g zcatalyst-cli
 catalyst login
-catalyst init
-
-# 3. Deploy functions
-catalyst deploy
-
-# 4. Set env vars in Catalyst console (Functions → Environment Variables):
-#    CATALYST_AUTH_TOKEN, CATALYST_PROJECT_ID, DATABASE_URL
-
-# 5. Build + deploy frontend to AppSail
-npm run build
-# Upload .next/ via Catalyst AppSail console
+catalyst init        # creates catalyst.json / .catalystrc (already present in this repo)
 ```
 
-Functions live in `catalyst-functions/chat/index.js` and `catalyst-functions/insights/index.js`.
+Deployment is driven by two config files (already committed):
+
+- **`app-config.json`** — AppSail runtime config:
+  - `build_path: ".next/standalone"` — only the standalone bundle is uploaded.
+  - `command` — starts the bundled server, binds to the Catalyst-assigned port, and loads `.env`:
+    ```
+    sh -c 'HOSTNAME=0.0.0.0 PORT=$X_ZOHO_CATALYST_LISTEN_PORT node --env-file-if-exists=.env server.js'
+    ```
+  - `scripts.predeploy: "npm run build && node ./scripts/prepare-standalone.mjs"` — builds and
+    assembles the bundle automatically before every deploy.
+- **`next.config.ts`** — `output: "standalone"` plus `outputFileTracingIncludes` so the generated
+  Prisma client (`app/generated/prisma`) and its Postgres WASM query engine are bundled.
+
+`scripts/prepare-standalone.mjs` copies the pieces Next leaves out of `.next/standalone`
+(`.next/static`, `public/`, and `.env`) so the server is fully self-contained.
+
+### Deploy / redeploy
+
+Every deploy — first or subsequent — is the **same single command**:
+
+```bash
+catalyst deploy
+```
+
+The `predeploy` hook runs `next build`, prepares the standalone bundle, and uploads it. No need to
+manually build, copy files, or move `node_modules`/`.next` around.
+
+> **Before deploying:** make sure no local server is holding `.next` open — stop any running
+> `npm run dev` and any local `node server.js`. A leftover process locking `.next/standalone`
+> causes `EBUSY: resource busy or locked` during the build. To find/kill it:
+> ```powershell
+> Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Select ProcessId, CommandLine
+> Stop-Process -Id <pid> -Force   # the one running server.js
+> ```
+
+### Environment variables
+
+The runtime reads env vars from the `.env` that gets copied into the bundle (DB URL, Catalyst
+token, model name). For a cleaner setup, instead set them under
+**AppSail → your service → Configuration → Environment Variables** in the Catalyst console and
+remove the `.env` copy step from `scripts/prepare-standalone.mjs`.
+
+### Memory
+
+`app-config.json` requests `1024` MB. If your plan rejects it, lower `memory` to `512`.
 
 ---
 
@@ -204,9 +242,14 @@ khabri-ai/
 ├── prisma/
 │   ├── schema.prisma             26-table KSP FIR schema (official ERD)
 │   └── seed.ts                   5,000 synthetic KSP-calibrated FIR records
-└── catalyst-functions/
-    ├── chat/index.js             Catalyst Function: orchestration
-    └── insights/index.js         Catalyst Function: anomaly queries
+├── catalyst-functions/
+│   ├── chat/index.js             Catalyst Function: orchestration
+│   └── insights/index.js         Catalyst Function: anomaly queries
+├── scripts/
+│   └── prepare-standalone.mjs    Copies static/public/.env into the AppSail bundle
+├── next.config.ts                Standalone output + Prisma file-tracing includes
+├── app-config.json               AppSail runtime config (command, build_path, predeploy)
+└── catalyst.json                 Catalyst project resources
 ```
 
 ---

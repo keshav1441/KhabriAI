@@ -1,0 +1,4 @@
+.git/
+.next/cache/
+.env.local
+*.log
