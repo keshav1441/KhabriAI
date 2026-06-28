@@ -1,0 +1,335 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model State {
+  StateID         Int               @id @default(autoincrement())
+  StateName       String
+  NationalityID   Int?
+  Active          Boolean           @default(true)
+  districts       District[]
+  courts          Court[]           @relation("CourtState")
+  units           Unit[]            @relation("UnitState")
+  arrestsByState  ArrestSurrender[] @relation("ArrestByState")
+}
+
+model District {
+  DistrictID        Int               @id @default(autoincrement())
+  DistrictName      String
+  StateID           Int
+  Active            Boolean           @default(true)
+  state             State             @relation(fields: [StateID], references: [StateID])
+  courts            Court[]
+  units             Unit[]            @relation("UnitDistrict")
+  employees         Employee[]        @relation("EmpDistrict")
+  arrestsByDistrict ArrestSurrender[] @relation("ArrestByDistrict")
+}
+
+model UnitType {
+  UnitTypeID    Int     @id @default(autoincrement())
+  UnitTypeName  String
+  CityDistState String?
+  Hierarchy     Int?
+  Active        Boolean @default(true)
+  units         Unit[]
+}
+
+model Unit {
+  UnitID           Int               @id @default(autoincrement())
+  UnitName         String
+  TypeID           Int?
+  ParentUnit       Int?
+  NationalityID    Int?
+  StateID          Int?
+  DistrictID       Int?
+  Active           Boolean           @default(true)
+  unitType         UnitType?         @relation(fields: [TypeID], references: [UnitTypeID])
+  state            State?            @relation("UnitState", fields: [StateID], references: [StateID])
+  district         District?         @relation("UnitDistrict", fields: [DistrictID], references: [DistrictID])
+  casesAtStation   CaseMaster[]      @relation("CaseMasterStation")
+  employees        Employee[]        @relation("EmpUnit")
+  arrestsAtStation ArrestSurrender[] @relation("ArrestAtStation")
+}
+
+model Rank {
+  RankID    Int        @id @default(autoincrement())
+  RankName  String
+  Hierarchy Int?
+  Active    Boolean    @default(true)
+  employees Employee[]
+}
+
+model Designation {
+  DesignationID   Int        @id @default(autoincrement())
+  DesignationName String
+  Active          Boolean    @default(true)
+  SortOrder       Int?
+  employees       Employee[]
+}
+
+model Employee {
+  EmployeeID           Int                  @id @default(autoincrement())
+  DistrictID           Int?
+  UnitID               Int?
+  RankID               Int?
+  DesignationID        Int?
+  KGID                 String?
+  FirstName            String
+  EmployeeDOB          DateTime?            @db.Date
+  GenderID             Int?
+  BloodGroupID         Int?
+  PhysicallyChallenged Boolean              @default(false)
+  AppointmentDate      DateTime?            @db.Date
+  district             District?            @relation("EmpDistrict", fields: [DistrictID], references: [DistrictID])
+  unit                 Unit?                @relation("EmpUnit", fields: [UnitID], references: [UnitID])
+  rank                 Rank?                @relation(fields: [RankID], references: [RankID])
+  designation          Designation?         @relation(fields: [DesignationID], references: [DesignationID])
+  casesRegistered      CaseMaster[]         @relation("CaseMasterOfficer")
+  arrestsAsIO          ArrestSurrender[]    @relation("ArrestIO")
+  chargesheets         ChargesheetDetails[] @relation("CSByOfficer")
+}
+
+model CaseCategory {
+  CaseCategoryID Int          @id @default(autoincrement())
+  LookupValue    String
+  cases          CaseMaster[]
+}
+
+model GravityOffence {
+  GravityOffenceID Int          @id @default(autoincrement())
+  LookupValue      String
+  cases            CaseMaster[]
+}
+
+model CrimeHead {
+  CrimeHeadID    Int                   @id @default(autoincrement())
+  CrimeGroupName String
+  Active         Boolean               @default(true)
+  subHeads       CrimeSubHead[]
+  majorHeadCases CaseMaster[]          @relation("CaseMasterMajorHead")
+  actSections    CrimeHeadActSection[]
+}
+
+model CrimeSubHead {
+  CrimeSubHeadID Int          @id @default(autoincrement())
+  CrimeHeadID    Int
+  CrimeHeadName  String
+  SeqID          Int?
+  crimeHead      CrimeHead    @relation(fields: [CrimeHeadID], references: [CrimeHeadID])
+  minorHeadCases CaseMaster[] @relation("CaseMasterMinorHead")
+}
+
+model CaseStatusMaster {
+  CaseStatusID   Int          @id @default(autoincrement())
+  CaseStatusName String
+  cases          CaseMaster[]
+}
+
+model Court {
+  CourtID    Int               @id @default(autoincrement())
+  CourtName  String
+  DistrictID Int?
+  StateID    Int?
+  Active     Boolean           @default(true)
+  district   District?         @relation(fields: [DistrictID], references: [DistrictID])
+  state      State?            @relation("CourtState", fields: [StateID], references: [StateID])
+  cases      CaseMaster[]
+  arrests    ArrestSurrender[] @relation("ArrestAtCourt")
+}
+
+model CaseMaster {
+  CaseMasterID        Int       @id @default(autoincrement())
+  CrimeNo             String?
+  CaseNo              String?
+  CrimeRegisteredDate DateTime? @db.Date
+  PolicePersonID      Int?
+  PoliceStationID     Int?
+  CaseCategoryID      Int?
+  GravityOffenceID    Int?
+  CrimeMajorHeadID    Int?
+  CrimeMinorHeadID    Int?
+  CaseStatusID        Int?
+  CourtID             Int?
+  IncidentFromDate    DateTime?
+  IncidentToDate      DateTime?
+  InfoReceivedPSDate  DateTime?
+  latitude            Decimal?
+  longitude           Decimal?
+  BriefFacts          String?
+
+  officer        Employee?         @relation("CaseMasterOfficer", fields: [PolicePersonID], references: [EmployeeID])
+  station        Unit?             @relation("CaseMasterStation", fields: [PoliceStationID], references: [UnitID])
+  caseCategory   CaseCategory?     @relation(fields: [CaseCategoryID], references: [CaseCategoryID])
+  gravityOffence GravityOffence?   @relation(fields: [GravityOffenceID], references: [GravityOffenceID])
+  majorHead      CrimeHead?        @relation("CaseMasterMajorHead", fields: [CrimeMajorHeadID], references: [CrimeHeadID])
+  minorHead      CrimeSubHead?     @relation("CaseMasterMinorHead", fields: [CrimeMinorHeadID], references: [CrimeSubHeadID])
+  caseStatus     CaseStatusMaster? @relation(fields: [CaseStatusID], references: [CaseStatusID])
+  court          Court?            @relation(fields: [CourtID], references: [CourtID])
+
+  victims      Victim[]
+  accused      Accused[]
+  arrests      ArrestSurrender[]
+  complainants ComplainantDetails[]
+  actSections  ActSectionAssociation[]
+  chargesheets ChargesheetDetails[]
+
+  @@index([CrimeRegisteredDate])
+  @@index([PoliceStationID])
+  @@index([CrimeMajorHeadID])
+  @@index([CrimeMinorHeadID])
+  @@index([CaseStatusID])
+}
+
+model Victim {
+  VictimMasterID Int        @id @default(autoincrement())
+  CaseMasterID   Int
+  VictimName     String?
+  AgeYear        Int?
+  GenderID       Int?
+  VictimPolice   String?
+  case           CaseMaster @relation(fields: [CaseMasterID], references: [CaseMasterID])
+
+  @@index([CaseMasterID])
+}
+
+model Accused {
+  AccusedMasterID Int               @id @default(autoincrement())
+  CaseMasterID    Int
+  AccusedName     String?
+  AgeYear         Int?
+  GenderID        Int?
+  PersonID        String?
+  case            CaseMaster        @relation(fields: [CaseMasterID], references: [CaseMasterID])
+  arrests         ArrestSurrender[]
+
+  @@index([CaseMasterID])
+}
+
+model Act {
+  ActCode        String                @id
+  ActDescription String?
+  ShortName      String?
+  Active         Boolean               @default(true)
+  sections       Section[]
+  crimeHeadLinks CrimeHeadActSection[]
+}
+
+model Section {
+  ActCode            String
+  SectionCode        String
+  SectionDescription String?
+  Active             Boolean               @default(true)
+  act                Act                   @relation(fields: [ActCode], references: [ActCode])
+  actSectionAssocs   ActSectionAssociation[]
+
+  @@id([ActCode, SectionCode])
+}
+
+model CrimeHeadActSection {
+  CrimeHeadID Int
+  ActCode     String
+  SectionCode String?
+  crimeHead   CrimeHead @relation(fields: [CrimeHeadID], references: [CrimeHeadID])
+  act         Act       @relation(fields: [ActCode], references: [ActCode])
+
+  @@id([CrimeHeadID, ActCode])
+}
+
+model ActSectionAssociation {
+  CaseMasterID   Int
+  ActCode        String
+  SectionCode    String
+  ActOrderID     Int?
+  SectionOrderID Int?
+  case           CaseMaster @relation(fields: [CaseMasterID], references: [CaseMasterID])
+  section        Section    @relation(fields: [ActCode, SectionCode], references: [ActCode, SectionCode])
+
+  @@id([CaseMasterID, ActCode, SectionCode])
+}
+
+model OccupationMaster {
+  OccupationID   Int                  @id @default(autoincrement())
+  OccupationName String
+  complainants   ComplainantDetails[]
+}
+
+model ReligionMaster {
+  ReligionID   Int                  @id @default(autoincrement())
+  ReligionName String
+  complainants ComplainantDetails[]
+}
+
+model CasteMaster {
+  caste_master_id   Int                  @id @default(autoincrement())
+  caste_master_name String
+  complainants      ComplainantDetails[]
+}
+
+model ComplainantDetails {
+  ComplainantID   Int              @id @default(autoincrement())
+  CaseMasterID    Int
+  ComplainantName String?
+  AgeYear         Int?
+  OccupationID    Int?
+  ReligionID      Int?
+  CasteID         Int?
+  GenderID        Int?
+  case            CaseMaster       @relation(fields: [CaseMasterID], references: [CaseMasterID])
+  occupation      OccupationMaster? @relation(fields: [OccupationID], references: [OccupationID])
+  religion        ReligionMaster?   @relation(fields: [ReligionID], references: [ReligionID])
+  caste           CasteMaster?      @relation(fields: [CasteID], references: [caste_master_id])
+
+  @@index([CaseMasterID])
+}
+
+model ArrestSurrender {
+  ArrestSurrenderID         Int       @id @default(autoincrement())
+  CaseMasterID              Int
+  ArrestSurrenderTypeID     Int?
+  ArrestSurrenderDate       DateTime? @db.Date
+  ArrestSurrenderStateId    Int?
+  ArrestSurrenderDistrictId Int?
+  PoliceStationID           Int?
+  IOID                      Int?
+  CourtID                   Int?
+  AccusedMasterID           Int?
+  IsAccused                 Boolean?  @default(false)
+  IsComplainantAccused      Boolean?  @default(false)
+  case                      CaseMaster  @relation(fields: [CaseMasterID], references: [CaseMasterID])
+  state                     State?      @relation("ArrestByState", fields: [ArrestSurrenderStateId], references: [StateID])
+  district                  District?   @relation("ArrestByDistrict", fields: [ArrestSurrenderDistrictId], references: [DistrictID])
+  station                   Unit?       @relation("ArrestAtStation", fields: [PoliceStationID], references: [UnitID])
+  io                        Employee?   @relation("ArrestIO", fields: [IOID], references: [EmployeeID])
+  court                     Court?      @relation("ArrestAtCourt", fields: [CourtID], references: [CourtID])
+  accused                   Accused?    @relation(fields: [AccusedMasterID], references: [AccusedMasterID])
+
+  @@index([CaseMasterID])
+  @@index([AccusedMasterID])
+}
+
+model ChargesheetDetails {
+  CSID           Int        @id @default(autoincrement())
+  CaseMasterID   Int
+  csdate         DateTime?
+  cstype         String?
+  PolicePersonID Int?
+  case           CaseMaster @relation(fields: [CaseMasterID], references: [CaseMasterID])
+  officer        Employee?  @relation("CSByOfficer", fields: [PolicePersonID], references: [EmployeeID])
+
+  @@index([CaseMasterID])
+}
+
+model KhabriUser {
+  id           Int      @id @default(autoincrement())
+  firstName    String
+  lastName     String
+  email        String   @unique
+  passwordHash String
+  salt         String
+  createdAt    DateTime @default(now())
+}
