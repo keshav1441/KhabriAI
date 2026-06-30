@@ -8,12 +8,12 @@
 /* Light — warm document / case-file paper */
 :root,
 [data-theme="light"] {
-  --bg-base:       #F0EDE7;
-  --bg-surface:    #FAFAF8;
-  --bg-raised:     #F4F1EB;
+  --bg-base:       #EBE6DC;
+  --bg-surface:    #F6F3EE;
+  --bg-raised:     #F0EDE6;
   --bg-input:      #FFFFFF;
-  --border:        #DDD8CE;
-  --border-subtle: #EAE6DF;
+  --border:        #D8D2C6;
+  --border-subtle: #E5E0D8;
 
   --text-primary:  #141210;
   --text-secondary:#5C5751;
@@ -28,16 +28,21 @@
   --blue:          #1D4ED8;
   --blue-dim:      rgba(29, 78, 216, 0.10);
 
+  --ink:           #1B3A5C;
+  --ink-dim:       rgba(27, 58, 92, 0.10);
+  --khaki:         #B8975A;
+  --khaki-dim:     rgba(184, 151, 90, 0.12);
+
   --noise-opacity: 0.02;
 }
 
 /* Dark — deep ink / ops room */
 [data-theme="dark"] {
-  --bg-base:       #08090D;
-  --bg-surface:    #0D1018;
-  --bg-raised:     #131825;
+  --bg-base:       #070B12;
+  --bg-surface:    #0C1019;
+  --bg-raised:     #111826;
   --bg-input:      #0F1420;
-  --border:        #1E2436;
+  --border:        #1C2438;
   --border-subtle: #141929;
 
   --text-primary:  #DDE2F2;
@@ -52,6 +57,11 @@
   --green-dim:     rgba(45, 202, 111, 0.13);
   --blue:          #3B82F6;
   --blue-dim:      rgba(59, 130, 246, 0.13);
+
+  --ink:           #4A8EC4;
+  --ink-dim:       rgba(74, 142, 196, 0.13);
+  --khaki:         #C4A96D;
+  --khaki-dim:     rgba(196, 169, 109, 0.13);
 
   --noise-opacity: 0.035;
 }
@@ -121,6 +131,11 @@ body::before {
 /* ── Mono data font ─────────────────────────────────────── */
 .font-data {
   font-family: var(--font-space-mono, "Courier New", monospace);
+}
+
+/* ── Condensed display font ─────────────────────────────── */
+.font-display {
+  font-family: var(--font-barlow, "Barlow Condensed", sans-serif);
 }
 
 /* ── Fade-up entry ──────────────────────────────────────── */

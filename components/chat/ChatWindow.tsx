@@ -8,10 +8,10 @@ interface Props {
 }
 
 const SUGGESTIONS = [
-  { icon: "◈", text: "Show theft cases in Bengaluru Urban in the last 6 months" },
-  { icon: "◉", text: "Which districts had the most burglary cases this year?" },
-  { icon: "◎", text: "Show burglary hotspots in Mysuru district on map" },
-  { icon: "⬡", text: "Which suspects are linked to more than 2 cases this month?" },
+  "Show theft cases in Bengaluru Urban in the last 6 months",
+  "Which districts had the most burglary cases this year?",
+  "Show burglary hotspots in Mysuru district on map",
+  "Which suspects are linked to more than 2 cases this month?",
 ];
 
 export function ChatWindow({ prefillQuery }: Props) {
@@ -140,7 +140,7 @@ export function ChatWindow({ prefillQuery }: Props) {
           <div className="grid grid-cols-2 gap-1.5 max-w-4xl mx-auto mb-2">
             {SUGGESTIONS.map((s) => (
               <button
-                key={s.text}
+                key={s}
                 className="text-left text-xs px-3 py-2 rounded-md transition-all truncate"
                 style={{
                   background: "var(--bg-raised)",
@@ -148,17 +148,17 @@ export function ChatWindow({ prefillQuery }: Props) {
                   color: "var(--text-secondary)",
                 }}
                 onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.borderColor = "var(--red)";
+                  (e.currentTarget as HTMLElement).style.borderColor = "var(--ink)";
                   (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
                 }}
                 onMouseLeave={(e) => {
                   (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
                   (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)";
                 }}
-                onClick={() => sendMessage(s.text)}
+                onClick={() => sendMessage(s)}
               >
-                <span className="mr-1.5" style={{ color: "var(--red)" }}>{s.icon}</span>
-                {s.text}
+                <span className="mr-1.5 font-data" style={{ color: "var(--text-muted)" }}>›</span>
+                {s}
               </button>
             ))}
           </div>
@@ -200,7 +200,7 @@ export function ChatWindow({ prefillQuery }: Props) {
                 minHeight: "44px",
                 maxHeight: "120px",
               }}
-              onFocus={(e) => { e.target.style.borderColor = "var(--red)"; }}
+              onFocus={(e) => { e.target.style.borderColor = "var(--ink)"; }}
               onBlur={(e) => { e.target.style.borderColor = "var(--border)"; }}
             />
           </div>
@@ -210,7 +210,7 @@ export function ChatWindow({ prefillQuery }: Props) {
             onClick={() => sendMessage(input)}
             disabled={sending || !input.trim()}
             className="shrink-0 w-11 h-11 rounded-md flex items-center justify-center text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ background: "var(--red)" }}
+            style={{ background: "var(--ink)" }}
           >
             {sending ? (
               <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">

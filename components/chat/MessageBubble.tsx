@@ -26,7 +26,7 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
         <div
           className="max-w-[78%] px-4 py-2.5 text-sm rounded-md rounded-tr-none"
           style={{
-            background: "var(--red)",
+            background: "var(--ink)",
             color: "#fff",
           }}
         >
@@ -58,6 +58,8 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
           style={{
             background: "var(--bg-surface)",
             border: "1px solid var(--border)",
+            borderLeftColor: "var(--ink)",
+            borderLeftWidth: "3px",
             color: "var(--text-primary)",
           }}
         >

@@ -139,13 +139,18 @@ export function AboutView() {
           <SectionHeader title="HOW IT WORKS" />
           <div className="grid sm:grid-cols-4 gap-3">
             {FLOW.map((f) => (
-              <div key={f.step} className="rounded-lg p-4 relative"
+              <div key={f.step} className="rounded-lg p-4 relative overflow-hidden"
                    style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
-                <span className="font-data text-3xl font-bold block mb-2" style={{ color: "var(--red-dim)", lineHeight: 1 }}>
+                {/* Large structural number */}
+                <span className="absolute bottom-1 right-3 font-display font-bold select-none pointer-events-none"
+                      style={{ fontSize: "5.5rem", lineHeight: 1, color: "var(--text-primary)", opacity: 0.06 }}>
                   {f.step}
                 </span>
-                <p className="font-semibold text-sm" style={{ color: "var(--text-primary)" }}>{f.title}</p>
-                <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--text-secondary)" }}>{f.desc}</p>
+                <div className="relative z-10">
+                  <span className="font-data text-xs font-bold" style={{ color: "var(--red)" }}>{f.step}</span>
+                  <p className="font-semibold text-sm mt-1" style={{ color: "var(--text-primary)" }}>{f.title}</p>
+                  <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--text-secondary)" }}>{f.desc}</p>
+                </div>
               </div>
             ))}
           </div>
@@ -155,15 +160,15 @@ export function AboutView() {
         <section>
           <SectionHeader title="KEY FEATURES" />
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="rounded-lg p-4 transition-all group"
+            {FEATURES.map((f, i) => (
+              <div key={f.title} className="rounded-lg p-4 transition-all"
                    style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = f.color)}
                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}>
                 <div className="flex items-start gap-3">
-                  <span className="w-8 h-8 rounded-md flex items-center justify-center text-sm font-bold shrink-0"
+                  <span className="w-8 h-8 rounded-md flex items-center justify-center text-xs font-bold shrink-0 font-display"
                         style={{ background: f.bg, color: f.color }}>
-                    {f.icon}
+                    {String(i + 1).padStart(2, "0")}
                   </span>
                   <div>
                     <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{f.title}</p>
@@ -235,8 +240,11 @@ export function AboutView() {
 
 function SectionHeader({ title }: { title: string }) {
   return (
-    <div className="flex items-center gap-3 mb-3">
-      <span className="font-data text-xs font-bold tracking-widest" style={{ color: "var(--red)" }}>{title}</span>
+    <div className="flex items-center gap-4 mb-4">
+      <h2 className="font-display font-bold shrink-0 uppercase"
+          style={{ fontSize: "1.15rem", color: "var(--text-primary)", letterSpacing: "0.06em" }}>
+        {title}
+      </h2>
       <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
     </div>
   );

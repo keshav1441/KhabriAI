@@ -57,7 +57,7 @@ export default function SignupPage() {
           <button
             onClick={() => router.push("/login")}
             className="w-full py-3 rounded-md text-sm font-semibold text-white transition-all"
-            style={{ background: "var(--red)" }}
+            style={{ background: "var(--ink)" }}
           >
             Sign In →
           </button>
@@ -109,7 +109,7 @@ export default function SignupPage() {
             type="submit"
             disabled={loading || !form.firstName || !form.lastName || !form.email || !form.password || !form.confirm}
             className="w-full py-3 rounded-md text-sm font-semibold tracking-wide text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ background: "var(--red)" }}
+            style={{ background: "var(--ink)" }}
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
@@ -124,7 +124,7 @@ export default function SignupPage() {
         <div style={{ borderTop: "1px solid var(--border)", marginTop: "1.5rem", paddingTop: "1.5rem" }}>
           <p className="text-sm text-center" style={{ color: "var(--text-muted)" }}>
             Already registered?{" "}
-            <Link href="/login" style={{ color: "var(--red)" }} className="hover:underline font-medium">
+            <Link href="/login" style={{ color: "var(--ink)" }} className="hover:underline font-medium">
               Sign in
             </Link>
           </p>
@@ -158,7 +158,7 @@ function InputField({
         required={required}
         className="w-full rounded-md px-4 py-3 text-sm font-data outline-none transition-all"
         style={{ background: "var(--bg-input)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
-        onFocus={(e) => { e.target.style.borderColor = "var(--red)"; }}
+        onFocus={(e) => { e.target.style.borderColor = "var(--ink)"; }}
         onBlur={(e) => { e.target.style.borderColor = "var(--border)"; }}
       />
     </div>

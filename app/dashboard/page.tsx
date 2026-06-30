@@ -86,8 +86,9 @@ export default function DashboardPage() {
           <ShieldIcon size={22} />
           {sidebarOpen && (
             <div className="min-w-0">
-              <div className="font-bold text-sm tracking-tight whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
-                KHABRI<span style={{ color: "var(--red)" }}> AI</span>
+              <div className="font-display font-bold tracking-tight whitespace-nowrap uppercase"
+                   style={{ color: "var(--text-primary)", fontSize: "1.1rem", lineHeight: 1.1 }}>
+                KHABRI<span style={{ color: "var(--khaki)" }}> AI</span>
               </div>
               <div className="font-data text-xs" style={{ color: "var(--text-muted)", lineHeight: 1 }}>
                 KSP Intelligence
@@ -103,10 +104,12 @@ export default function DashboardPage() {
             return (
               <button
                 key={item.view}
-                className="w-full flex items-center gap-3 px-2 py-2 rounded-md transition-all text-left"
+                className="w-full flex items-center gap-3 py-2 pr-2 rounded-md transition-all text-left"
                 style={{
-                  background: isActive ? "var(--red-dim)" : "transparent",
-                  color: isActive ? "var(--red)" : "var(--text-muted)",
+                  background: "transparent",
+                  color: isActive ? "var(--text-primary)" : "var(--text-muted)",
+                  borderLeft: `3px solid ${isActive ? "var(--red)" : "transparent"}`,
+                  paddingLeft: "5px",
                 }}
                 onClick={() => setActiveView(item.view)}
                 onMouseEnter={(e) => {
@@ -202,7 +205,11 @@ export default function DashboardPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <span className="badge-classified hidden sm:inline-flex">RESTRICTED SYSTEM</span>
+            <span className="font-display font-bold hidden sm:block uppercase"
+                  style={{ color: "var(--text-primary)", fontSize: "1rem", letterSpacing: "0.04em" }}>
+              {NAV_ITEMS.find((n) => n.view === activeView)?.label}
+            </span>
+            <span className="badge-classified hidden md:inline-flex">RESTRICTED</span>
           </div>
 
           <div className="flex items-center gap-3">

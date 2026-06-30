@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Space_Mono } from "next/font/google";
+import { Space_Grotesk, Space_Mono, Barlow_Condensed } from "next/font/google";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
 
@@ -15,6 +15,12 @@ const spaceMono = Space_Mono({
   weight: ["400", "700"],
 });
 
+const barlowCondensed = Barlow_Condensed({
+  variable: "--font-barlow",
+  subsets: ["latin"],
+  weight: ["600", "700", "800"],
+});
+
 export const metadata: Metadata = {
   title: "Khabri AI — Karnataka Police Crime Intelligence",
   description: "Conversational AI for KSP crime database analysis",
@@ -25,7 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="en"
       data-theme="light"
-      className={`${spaceGrotesk.variable} ${spaceMono.variable} h-full`}
+      className={`${spaceGrotesk.variable} ${spaceMono.variable} ${barlowCondensed.variable} h-full`}
       suppressHydrationWarning
     >
       <head>
