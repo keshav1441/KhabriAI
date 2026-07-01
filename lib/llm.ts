@@ -1,9 +1,7 @@
-// LLM: Groq (local/demo) with Catalyst QuickML fallback on deployment
-// Set GROQ_API_KEY for Groq; set CATALYST_* vars for QuickML (AppSail)
+import { getGroqClient } from "./groq-client";
 
-import Groq from "groq-sdk";
-
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+const GROQ_SQL_MODEL = process.env.GROQ_SQL_MODEL ?? "qwen/qwen3-32b";
+const GROQ_SUMMARY_MODEL = process.env.GROQ_SUMMARY_MODEL ?? "llama-3.1-8b-instant";
 
 const SQL_SYSTEM_PROMPT = `You are an expert PostgreSQL query generator for the Karnataka State Police FIR (First Information Report) database.
 Rules:
@@ -23,10 +21,6 @@ Rules:
 - For arrest queries: use "ArrestSurrender" table joined to "CaseMaster" via "CaseMasterID"
 - GenderID: 1=Male, 2=Female, 3=Transgender`;
 
-function getGroqClient(): Groq {
-  return new Groq({ apiKey: process.env.GROQ_API_KEY });
-}
-
 export async function generateSQL(
   schema: string,
   fewShot: string,
@@ -40,9 +34,9 @@ export async function generateSQL(
 
   const groq = getGroqClient();
   const completion = await groq.chat.completions.create({
-    model: GROQ_MODEL,
+    model: GROQ_SQL_MODEL,
     temperature: 0.1,
-    max_tokens: 512,
+    max_tokens: 2048,
     messages: [
       { role: "system", content: `${SQL_SYSTEM_PROMPT}\n\n${schema}` },
       {
@@ -61,19 +55,19 @@ export async function* streamSummary(
 ): AsyncGenerator<string> {
   const groq = getGroqClient();
   const stream = await groq.chat.completions.create({
-    model: GROQ_MODEL,
+    model: GROQ_SUMMARY_MODEL,
     temperature: 0.3,
-    max_tokens: 200,
+    max_tokens: 120,
     stream: true,
     messages: [
       {
         role: "system",
         content:
-          "You are a concise Karnataka Police crime analyst. Write a 2-3 sentence plain-English summary of the query results. Be factual, cite numbers. No bullet points.",
+          "You are a concise Karnataka Police crime analyst. Write 1-2 short sentences summarizing the query results. Be factual, cite numbers. No bullet points.",
       },
       {
         role: "user",
-        content: `Question: ${question}\n\nData (first 50 rows): ${JSON.stringify(rows.slice(0, 50))}`,
+        content: `Question: ${question}\n\nData (first 15 rows): ${JSON.stringify(rows.slice(0, 15))}`,
       },
     ],
   });

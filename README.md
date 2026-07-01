@@ -14,8 +14,8 @@ Conversational AI for investigators to query crime data in plain English. Sign i
 | Framework | Next.js 16 (App Router, standalone output) |
 | Database | Neon PostgreSQL + Prisma |
 | Auth | PBKDF2-SHA512 (100k iterations) · `KhabriUser` table |
-| LLM | Groq — `llama-3.3-70b-versatile` |
-| Embeddings | `@huggingface/transformers` · `all-MiniLM-L6-v2` (in-process, no extra API key) |
+| LLM | Groq — `qwen/qwen3-32b` (SQL) · `llama-3.1-8b-instant` (summary) |
+| Embeddings | Groq API (`nomic-embed-text-v1.5`) · LLM fallback for example selection |
 | Maps | Leaflet + react-leaflet |
 | Network graph | Cytoscape.js + cose-bilkent |
 | Charts | Recharts |
@@ -31,10 +31,10 @@ Conversational AI for investigators to query crime data in plain English. Sign i
 User question
      │
      ▼
-RAG retrieval — embed question → cosine search 25 Q→SQL examples → top-3 returned
+RAG retrieval — Groq embeddings (`nomic-embed-text-v1.5`) when available, else Groq 8B example selection → top examples returned
      │
      ▼
-Groq llama-3.3-70b — schema + few-shot examples → SQL
+Groq qwen/qwen3-32b — schema + few-shot examples → SQL
      │
      ▼
 Validate (SELECT-only, no mutations) → execute on Neon → classify viz type
@@ -46,7 +46,9 @@ Stream: metadata (rows, vizType) + analyst summary tokens (SSE)
 Persist exchange to ChatSession / ChatMessage (per logged-in user)
 ```
 
-The retrieval step uses `all-MiniLM-L6-v2` running locally. On first cold start the model downloads once (~23 MB ONNX) and is cached to disk. All 25 example embeddings are pre-computed in memory at startup and reused across requests.
+Retrieval runs entirely on **Groq** (no local ONNX/HuggingFace). On startup the app probes the Groq embeddings API; if available it uses `nomic-embed-text-v1.5` with cached example vectors in `lib/rag-embeddings-cache.json`. If embeddings are not enabled on your Groq account, it falls back to `llama-3.1-8b-instant` picking the best matching examples.
+
+Force a mode with `RAG_MODE=embed` or `RAG_MODE=llm` in `.env`.
 
 SQL is generated and stored server-side but **not shown in the chat UI** — investigators see the narrative summary, table/chart/map, and CSV export only.
 
@@ -108,7 +110,8 @@ Open **http://localhost:3000** → sign up or log in → dashboard.
 Runs all 25 RAG examples through the full pipeline (embed → retrieve → generate SQL → execute) and reports execution accuracy:
 
 ```bash
-npx tsx eval/run.ts --holdout
+npx tsx eval/run.ts --holdout          # Groq RAG (default)
+npx tsx eval/run.ts --holdout --keywords  # keyword Jaccard baseline
 ```
 
 Use `--holdout` to exclude each question's own example from retrieval (honest generalization test). Without the flag, the exact Q→SQL pair can be retrieved and scores are inflated.
@@ -138,7 +141,10 @@ components/
   views/            Map, Reports, About panels
   viz/              CrimeMap, NetworkGraph, ResultsTable, CrimeChart
 lib/
-  embeddings.ts     HuggingFace pipeline + cosine similarity retrieval
+  rag.ts                Groq RAG router (embeddings → LLM fallback)
+  embeddings-groq.ts    Groq embedding API + on-disk cache
+  rag-llm.ts            Groq 8B example selection fallback
+  rag-keywords.ts       Keyword Jaccard (eval baseline only)
   rag-examples.json 25 Q→SQL pairs (the RAG knowledge base)
   llm.ts            generateSQL() + streamSummary() via Groq
   prompt-builder.ts KSP database schema (injected into every prompt)
@@ -166,7 +172,11 @@ scripts/
 |----------|----------|-------------|
 | `DATABASE_URL` | Yes | Neon PostgreSQL connection string |
 | `GROQ_API_KEY` | Yes | Groq API key |
-| `HF_HOME` | No | HuggingFace cache directory — set to `/app/.cache` on AppSail |
+| `GROQ_SQL_MODEL` | No | SQL model (default `qwen/qwen3-32b`) |
+| `GROQ_EMBED_MODEL` | No | Embedding model (default `nomic-embed-text-v1.5`) |
+| `GROQ_RAG_MODEL` | No | LLM example-picker fallback (default `llama-3.1-8b-instant`) |
+| `RAG_MODE` | No | `embed` or `llm` to force retrieval mode |
+| `GROQ_SUMMARY_MODEL` | No | Summary model (default `llama-3.1-8b-instant`) |
 
 ---
 
@@ -176,13 +186,10 @@ scripts/
 catalyst deploy
 ```
 
-The `predeploy` hook runs `next build`, prepares the standalone bundle, and uploads it. The standalone output in `.next/standalone` is what AppSail serves — only ~97 MB instead of the full `node_modules`.
-
-**Before deploying:** stop any running `npm run dev` or local `node server.js` — a locked `.next` causes `EBUSY` errors during build.
+The `predeploy` hook runs `next build`, prepares the standalone bundle, and uploads it. The standalone output in `.next/standalone` is what AppSail serves (~170 MB). Catalyst rejects uploads over **250 MB** (HTTP 413).
 
 **AppSail env vars to set:**
 - `DATABASE_URL`, `GROQ_API_KEY`
-- `HF_HOME=/app/.cache` — so the model cache survives container restarts
 
 Memory: `app-config.json` requests 1024 MB. Lower to 512 if your plan rejects it.
 
@@ -217,7 +224,11 @@ Memory: `app-config.json` requests 1024 MB. Lower to 512 if your plan rejects it
 
 **Groq 401** — `GROQ_API_KEY` is missing or invalid.
 
-**POST /api/chats returns 500** — Stale Prisma client in a long-running dev server. Run `npx prisma generate` and restart `npm run dev`. After schema changes, `lib/db.ts` recreates the client when new models are missing.
+**POST /api/chats returns 500** — Stale Prisma client in a long-running dev server. Run `npx prisma generate` and restart `npm run dev`.
+
+**Deploy HTTP 413** — Upload exceeds Catalyst's 250 MB limit. Production builds exclude HuggingFace/ONNX; run `npm run build` and confirm `.next/standalone` is under 250 MB before `catalyst deploy`.
+
+**Before deploying:** stop any running `npm run dev` — a locked `.next` causes `EBUSY` errors during build. After schema changes, `lib/db.ts` recreates the client when new models are missing.
 
 **Map doesn't render** — Leaflet is client-only, already wrapped in `dynamic(..., { ssr: false })`. Check browser console for tile errors.
 

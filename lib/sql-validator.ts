@@ -23,6 +23,10 @@ export function validateSQL(sql: string): { valid: boolean; error?: string } {
 }
 
 export function sanitizeSQL(sql: string): string {
-  // Strip trailing semicolons — Prisma $queryRawUnsafe doesn't need them
-  return sql.replace(/;+\s*$/, "").trim();
+  // strip complete thinking blocks, then fall back to extracting from first SELECT
+  // (handles truncated blocks when max_tokens cuts off before </think>)
+  let s = sql.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  const selectIdx = s.search(/\bSELECT\b/i);
+  if (selectIdx > 0) s = s.slice(selectIdx);
+  return s.replace(/;+\s*$/, "").trim();
 }

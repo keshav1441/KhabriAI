@@ -123,13 +123,15 @@ export function ChatWindow() {
     let finalAsst: ChatMessage | null = null;
 
     try {
-      sessionId = await ensureSession();
-
-      const res = await fetch("/api/chat", {
+      const sessionPromise = ensureSession();
+      const chatPromise = fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, history }),
       });
+
+      const [sessionResult, res] = await Promise.all([sessionPromise, chatPromise]);
+      sessionId = sessionResult;
 
       if (!res.body) throw new Error("No response body");
 
@@ -192,7 +194,7 @@ export function ChatWindow() {
     } finally {
       setSending(false);
       if (sessionId && finalAsst) {
-        await persistExchange(
+        void persistExchange(
           sessionId,
           { id: userMsgId, role: "user", content: text },
           finalAsst,

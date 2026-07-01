@@ -5,7 +5,6 @@ import { join } from "path";
 
 // ponytail: dynamic imports so env is set before Groq/Prisma clients initialize
 import { validateSQL, sanitizeSQL } from "../lib/sql-validator";
-import { findSimilar } from "../lib/embeddings";
 import { DB_SCHEMA } from "../lib/prompt-builder";
 
 type Example = { question: string; sql: string };
@@ -28,15 +27,20 @@ function jaccard(a: string, b: string): number {
 
 const holdout = process.argv.includes("--holdout");
 
+const useKeywords = process.argv.includes("--keywords");
+
 async function run() {
   const { generateSQL } = await import("../lib/llm");
   const { prisma } = await import("../lib/db");
+  const findSimilar = useKeywords
+    ? (await import("../lib/rag-keywords")).findSimilarKeyword
+    : (await import("../lib/rag")).findSimilar;
 
   const examples: Example[] = JSON.parse(
     readFileSync(join(process.cwd(), "lib/rag-examples.json"), "utf-8")
   );
 
-  console.log(`\nRunning eval on ${examples.length} questions${holdout ? " [holdout mode]" : ""}...\n`);
+  console.log(`\nRunning eval on ${examples.length} questions${holdout ? " [holdout mode]" : ""}${useKeywords ? " [keywords]" : " [groq]"}...\n`);
   const results: Result[] = [];
 
   for (let idx = 0; idx < examples.length; idx++) {
