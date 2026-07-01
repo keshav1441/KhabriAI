@@ -1,21 +1,25 @@
 "use client";
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useChatStore, type VizType } from "@/store/chat";
+import { useChatStore, type VizType, type ChatMessage } from "@/store/chat";
 import { MessageBubble } from "./MessageBubble";
+import { chatHeaders } from "@/lib/chat-api";
+import { useRefreshChatSessions } from "./ChatHistory";
 
-interface Props {
-  prefillQuery?: string;
+function sessionTitle(text: string): string {
+  const t = text.trim();
+  return t.length > 50 ? `${t.slice(0, 50)}…` : t;
 }
 
-const SUGGESTIONS = [
-  "Show theft cases in Bengaluru Urban in the last 6 months",
-  "Which districts had the most burglary cases this year?",
-  "Show burglary hotspots in Mysuru district on map",
-  "Which suspects are linked to more than 2 cases this month?",
-];
-
-export function ChatWindow({ prefillQuery }: Props) {
-  const { messages, addMessage, updateMessage } = useChatStore();
+export function ChatWindow() {
+  const {
+    messages,
+    activeSessionId,
+    setActiveSessionId,
+    addMessage,
+    updateMessage,
+    upsertSession,
+  } = useChatStore();
+  const refreshSessions = useRefreshChatSessions();
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [listening, setListening] = useState(false);
@@ -43,8 +47,60 @@ export function ChatWindow({ prefillQuery }: Props) {
     setListening(true);
   }, []);
 
-  useEffect(() => { if (prefillQuery) setInput(prefillQuery); }, [prefillQuery]);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  const ensureSession = async (): Promise<string | null> => {
+    if (activeSessionId) return activeSessionId;
+    const res = await fetch("/api/chats", { method: "POST", headers: chatHeaders() });
+    if (!res.ok) return null;
+    const data = await res.json();
+    setActiveSessionId(data.session.id);
+    upsertSession(data.session);
+    return data.session.id as string;
+  };
+
+  const persistExchange = async (
+    sessionId: string,
+    userMsg: ChatMessage,
+    asstMsg: ChatMessage,
+    isFirstExchange: boolean
+  ) => {
+    const body: {
+      title?: string;
+      messages: Array<{
+        role: string;
+        content: string;
+        sql?: string;
+        rows?: Record<string, unknown>[];
+        vizType?: string;
+        sqlError?: string | null;
+      }>;
+    } = {
+      messages: [
+        { role: "user", content: userMsg.content },
+        {
+          role: "assistant",
+          content: asstMsg.content,
+          sql: asstMsg.sql,
+          rows: asstMsg.rows,
+          vizType: asstMsg.vizType,
+          sqlError: asstMsg.sqlError,
+        },
+      ],
+    };
+    if (isFirstExchange) body.title = sessionTitle(userMsg.content);
+
+    const res = await fetch(`/api/chats/${sessionId}`, {
+      method: "PATCH",
+      headers: chatHeaders(),
+      body: JSON.stringify(body),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      upsertSession(data.session);
+      await refreshSessions();
+    }
+  };
 
   const sendMessage = async (text: string) => {
     if (!text.trim() || sending) return;
@@ -53,6 +109,7 @@ export function ChatWindow({ prefillQuery }: Props) {
 
     const userMsgId = `u-${Date.now()}`;
     const asstMsgId = `a-${Date.now()}`;
+    const isFirstExchange = messages.length === 0;
 
     addMessage({ id: userMsgId, role: "user", content: text });
     addMessage({ id: asstMsgId, role: "assistant", content: "", loading: true });
@@ -62,7 +119,12 @@ export function ChatWindow({ prefillQuery }: Props) {
       .slice(-6)
       .map((m) => ({ role: m.role, content: m.content }));
 
+    let sessionId: string | null = null;
+    let finalAsst: ChatMessage | null = null;
+
     try {
+      sessionId = await ensureSession();
+
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -74,6 +136,7 @@ export function ChatWindow({ prefillQuery }: Props) {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let summary = "";
+      let meta: Partial<ChatMessage> = {};
 
       while (true) {
         const { value, done } = await reader.read();
@@ -84,26 +147,63 @@ export function ChatWindow({ prefillQuery }: Props) {
           try {
             const parsed = JSON.parse(line.slice(6));
             if (parsed.type === "meta") {
-              updateMessage(asstMsgId, { sql: parsed.sql, rows: parsed.rows, vizType: parsed.vizType as VizType, sqlError: parsed.sqlError });
+              meta = {
+                sql: parsed.sql,
+                rows: parsed.rows,
+                vizType: parsed.vizType as VizType,
+                sqlError: parsed.sqlError,
+              };
+              updateMessage(asstMsgId, meta);
             } else if (parsed.type === "token") {
               summary += parsed.token;
               updateMessage(asstMsgId, { content: summary });
             } else if (parsed.type === "done") {
               updateMessage(asstMsgId, { loading: false, content: summary });
+              finalAsst = {
+                id: asstMsgId,
+                role: "assistant",
+                content: summary,
+                ...meta,
+                loading: false,
+              };
             }
           } catch {}
         }
       }
+
+      if (!finalAsst) {
+        finalAsst = {
+          id: asstMsgId,
+          role: "assistant",
+          content: summary || "No response.",
+          ...meta,
+          loading: false,
+        };
+        updateMessage(asstMsgId, { loading: false, content: finalAsst.content });
+      }
     } catch {
       updateMessage(asstMsgId, { content: "Connection error. Please try again.", loading: false });
+      finalAsst = {
+        id: asstMsgId,
+        role: "assistant",
+        content: "Connection error. Please try again.",
+        loading: false,
+      };
     } finally {
       setSending(false);
+      if (sessionId && finalAsst) {
+        await persistExchange(
+          sessionId,
+          { id: userMsgId, role: "user", content: text },
+          finalAsst,
+          isFirstExchange
+        );
+      }
     }
   };
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto min-h-0 px-4 py-6 space-y-5">
         {messages.length === 0 && (
           <div className="min-h-full flex flex-col items-center justify-center text-center animate-fade-up">
@@ -130,42 +230,11 @@ export function ChatWindow({ prefillQuery }: Props) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
       <div
         className="shrink-0 px-4 pt-2 pb-3"
         style={{ borderTop: "1px solid var(--border)", background: "var(--bg-surface)" }}
       >
-        {/* Suggestion chips — collapse after first message */}
-        {messages.length === 0 && (
-          <div className="grid grid-cols-2 gap-1.5 max-w-4xl mx-auto mb-2">
-            {SUGGESTIONS.map((s) => (
-              <button
-                key={s}
-                className="text-left text-xs px-3 py-2 rounded-md transition-all truncate"
-                style={{
-                  background: "var(--bg-raised)",
-                  border: "1px solid var(--border)",
-                  color: "var(--text-secondary)",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.borderColor = "var(--ink)";
-                  (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
-                  (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)";
-                }}
-                onClick={() => sendMessage(s)}
-              >
-                <span className="mr-1.5 font-data" style={{ color: "var(--text-muted)" }}>›</span>
-                {s}
-              </button>
-            ))}
-          </div>
-        )}
-
         <div className="flex gap-2 items-center max-w-4xl mx-auto">
-          {/* Mic */}
           <button
             onClick={startVoice}
             disabled={sending}
@@ -182,7 +251,6 @@ export function ChatWindow({ prefillQuery }: Props) {
             </svg>
           </button>
 
-          {/* Textarea */}
           <div className="flex-1 relative">
             <textarea
               ref={textareaRef}
@@ -205,7 +273,6 @@ export function ChatWindow({ prefillQuery }: Props) {
             />
           </div>
 
-          {/* Send */}
           <button
             onClick={() => sendMessage(input)}
             disabled={sending || !input.trim()}
@@ -219,7 +286,7 @@ export function ChatWindow({ prefillQuery }: Props) {
               </svg>
             ) : (
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M12 5l7 7-7 7" />
               </svg>
             )}
           </button>

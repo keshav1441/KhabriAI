@@ -325,11 +325,39 @@ model ChargesheetDetails {
 }
 
 model KhabriUser {
-  id           Int      @id @default(autoincrement())
+  id           Int           @id @default(autoincrement())
   firstName    String
   lastName     String
-  email        String   @unique
+  email        String        @unique
   passwordHash String
   salt         String
-  createdAt    DateTime @default(now())
+  createdAt    DateTime      @default(now())
+  chatSessions ChatSession[]
+}
+
+model ChatSession {
+  id        String        @id @default(cuid())
+  userId    Int
+  title     String        @default("New chat")
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  user      KhabriUser    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  ChatMessage[]
+
+  @@index([userId, updatedAt])
+}
+
+model ChatMessage {
+  id        String      @id @default(cuid())
+  sessionId String
+  role      String
+  content   String      @db.Text
+  sql       String?     @db.Text
+  rows      Json?
+  vizType   String?
+  sqlError  String?
+  createdAt DateTime    @default(now())
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
 }

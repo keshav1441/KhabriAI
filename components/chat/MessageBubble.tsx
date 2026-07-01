@@ -1,5 +1,4 @@
 "use client";
-import { useState } from "react";
 import { StreamingText } from "./StreamingText";
 import { ResultsTable } from "../viz/ResultsTable";
 import { CrimeChart } from "../viz/CrimeChart";
@@ -18,8 +17,6 @@ function exportCSV(rows: Record<string, unknown>[], filename = "khabri-export.cs
 }
 
 export function MessageBubble({ message }: { message: ChatMessage }) {
-  const [showSQL, setShowSQL] = useState(false);
-
   if (message.role === "user") {
     return (
       <div className="flex justify-end">
@@ -87,15 +84,9 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
 
             {/* Toolbar */}
             <div className="flex items-center gap-4">
-              <button
-                onClick={() => setShowSQL((v) => !v)}
-                className="text-xs font-medium transition-colors font-data"
-                style={{ color: "var(--text-muted)" }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--red)"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
-              >
-                {showSQL ? "▾" : "▸"} SQL · {message.rows!.length} rows
-              </button>
+              <span className="text-xs font-data" style={{ color: "var(--text-muted)" }}>
+                {message.rows!.length} rows
+              </span>
               <button
                 onClick={() => exportCSV(message.rows!)}
                 className="text-xs font-medium transition-colors font-data"
@@ -106,20 +97,6 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
                 ↓ Export CSV
               </button>
             </div>
-
-            {showSQL && (
-              <pre
-                className="text-xs p-3 rounded-md overflow-x-auto font-data"
-                style={{
-                  background: "var(--bg-surface)",
-                  border: "1px solid var(--border)",
-                  color: "var(--green)",
-                  lineHeight: 1.6,
-                }}
-              >
-                {message.sql}
-              </pre>
-            )}
           </div>
         )}
       </div>

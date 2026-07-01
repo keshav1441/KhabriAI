@@ -29,7 +29,7 @@ function getGroqClient(): Groq {
 
 export async function generateSQL(
   schema: string,
-  _fewShot: string,
+  fewShot: string,
   question: string,
   history: Array<{ role: "user" | "assistant"; content: string }> = []
 ): Promise<string> {
@@ -47,7 +47,7 @@ export async function generateSQL(
       { role: "system", content: `${SQL_SYSTEM_PROMPT}\n\n${schema}` },
       {
         role: "user",
-        content: `${historyContext}Generate a PostgreSQL query for: ${question}`,
+        content: `${fewShot ? `Similar examples:\n${fewShot}\n\n` : ""}${historyContext}Generate a PostgreSQL query for: ${question}`,
       },
     ],
   });

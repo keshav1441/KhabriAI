@@ -3,6 +3,7 @@ import { generateSQL, streamSummary } from "@/lib/llm";
 import { DB_SCHEMA } from "@/lib/prompt-builder";
 import { validateSQL, sanitizeSQL } from "@/lib/sql-validator";
 import { classifyQuery } from "@/lib/query-classifier";
+import { findSimilar } from "@/lib/embeddings";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +35,9 @@ export async function POST(req: NextRequest) {
   let sqlError: string | null = null;
 
   try {
-    const rawSQL = await generateSQL(DB_SCHEMA, "", message, history);
+    const examples = await findSimilar(message);
+    const fewShot = examples.map((e) => `-- Q: ${e.question}\n${e.sql}`).join("\n\n");
+    const rawSQL = await generateSQL(DB_SCHEMA, fewShot, message, history);
     sql = sanitizeSQL(rawSQL);
     sql = fixGroupByConflict(sql);
 

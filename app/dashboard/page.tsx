@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChatWindow } from "@/components/chat/ChatWindow";
-import { InsightPanel } from "@/components/insights/InsightPanel";
+import { ChatHistory } from "@/components/chat/ChatHistory";
 import { MapView } from "@/components/views/MapView";
 import { ReportsView } from "@/components/views/ReportsView";
 import { AboutView } from "@/components/views/AboutView";
@@ -17,18 +17,10 @@ const NAV_ITEMS: Array<{ icon: React.ReactNode; label: string; view: View }> = [
   { icon: <InfoIcon />, label: "About Project", view: "about" },
 ];
 
-const QUICK_QUERIES = [
-  "Top 5 districts by crime count this year",
-  "All unsolved murder cases in Bengaluru",
-  "Repeat offenders with 3+ cases",
-  "Arrests made last 30 days by district",
-];
-
 export default function DashboardPage() {
   const router = useRouter();
   const { theme, toggle } = useTheme();
   const [activeView, setActiveView] = useState<View>("chat");
-  const [prefillQuery, setPrefillQuery] = useState<string | undefined>();
   const [authed, setAuthed] = useState(false);
   const [time, setTime] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -52,12 +44,6 @@ export default function DashboardPage() {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, []);
-
-  const handleInsightQuery = (q: string) => {
-    setActiveView("chat");
-    setPrefillQuery(q);
-    setTimeout(() => setPrefillQuery(undefined), 100);
-  };
 
   if (!authed) return null;
 
@@ -98,7 +84,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 py-3 space-y-0.5 px-2 overflow-y-auto">
+        <nav className="flex-1 flex flex-col min-h-0 py-3 px-2">
+          <div className="shrink-0 space-y-0.5">
           {NAV_ITEMS.map((item) => {
             const isActive = item.view === activeView;
             return (
@@ -133,34 +120,9 @@ export default function DashboardPage() {
             );
           })}
 
-          {/* Quick queries (chat view only) */}
-          {sidebarOpen && activeView === "chat" && (
-            <div className="pt-4">
-              <p className="text-xs font-bold tracking-widest uppercase px-2 mb-2 font-data" style={{ color: "var(--text-muted)" }}>
-                Quick Queries
-              </p>
-              <div className="space-y-0.5">
-                {QUICK_QUERIES.map((q) => (
-                  <button
-                    key={q}
-                    onClick={() => setPrefillQuery(q)}
-                    className="w-full text-left text-xs px-2 py-1.5 rounded transition-all"
-                    style={{ color: "var(--text-secondary)" }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLElement).style.background = "var(--bg-raised)";
-                      (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLElement).style.background = "transparent";
-                      (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)";
-                    }}
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          </div>
+
+          {sidebarOpen && activeView === "chat" && <ChatHistory />}
         </nav>
 
         {/* User info */}
@@ -260,14 +222,9 @@ export default function DashboardPage() {
         {/* View content */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {activeView === "chat" && (
-            <>
-              <div className="shrink-0">
-                <InsightPanel onQuerySelect={handleInsightQuery} />
-              </div>
-              <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                <ChatWindow prefillQuery={prefillQuery} />
-              </div>
-            </>
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              <ChatWindow />
+            </div>
           )}
           {activeView === "map" && <MapView />}
           {activeView === "reports" && <ReportsView />}
