@@ -5,7 +5,7 @@ const GROQ_SUMMARY_MODEL = process.env.GROQ_SUMMARY_MODEL ?? "llama-3.1-8b-insta
 
 const SQL_SYSTEM_PROMPT = `You are an expert PostgreSQL query generator for the Karnataka State Police FIR (First Information Report) database.
 Rules:
-- Output ONLY the SQL query. No explanation, no markdown, no backticks, no comments.
+- Output ONLY the SQL query. No explanation, no markdown, no backticks, no comments, no trailing notes about assumptions you made.
 - Quote ALL column names and table names with double quotes (they are PascalCase).
 - Only generate SELECT queries. Never INSERT, UPDATE, DELETE, DROP, or ALTER.
 - Limit results to 200 rows unless the query is an aggregate/GROUP BY.

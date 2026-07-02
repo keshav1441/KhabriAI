@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useChatStore, type VizType, type ChatMessage } from "@/store/chat";
 import { MessageBubble } from "./MessageBubble";
 import { chatHeaders } from "@/lib/chat-api";
@@ -9,6 +9,17 @@ function sessionTitle(text: string): string {
   const t = text.trim();
   return t.length > 50 ? `${t.slice(0, 50)}…` : t;
 }
+
+const QUERY_POOL = [
+  "Which district had the most FIRs last month?",
+  "List top 5 repeat accused by number of cases",
+  "How many cases are still under investigation?",
+  "Which crime head has the highest chargesheet rate?",
+  "Show districts with rising crime this quarter",
+  "List accused with cases in more than one district",
+  "What's the average time to chargesheet by district?",
+  "Show victim demographics for cases filed this year",
+];
 
 export function ChatWindow() {
   const {
@@ -22,30 +33,15 @@ export function ChatWindow() {
   const refreshSessions = useRefreshChatSessions();
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [listening, setListening] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
-  const startVoice = useCallback(() => {
-    if (typeof window === "undefined") return;
-    const SR =
-      (window as typeof window & { SpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition ??
-      (window as typeof window & { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition;
-    if (!SR) return;
-    const rec = new SR();
-    rec.lang = "en-IN";
-    rec.interimResults = false;
-    rec.onresult = (e: SpeechRecognitionEvent) => {
-      const t = e.results[0][0].transcript;
-      setInput((prev) => (prev ? `${prev} ${t}` : t));
-    };
-    rec.onend = () => setListening(false);
-    rec.onerror = () => setListening(false);
-    recognitionRef.current = rec;
-    rec.start();
-    setListening(true);
-  }, []);
+  const generateQuery = () => {
+    const pool = QUERY_POOL.filter((q) => q !== input);
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    setInput(pick);
+    textareaRef.current?.focus();
+  };
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
@@ -236,24 +232,24 @@ export function ChatWindow() {
         className="shrink-0 px-4 pt-2 pb-3"
         style={{ borderTop: "1px solid var(--border)", background: "var(--bg-surface)" }}
       >
-        <div className="flex gap-2 items-center max-w-4xl mx-auto">
+        <div className="flex flex-nowrap gap-2 items-center max-w-4xl mx-auto">
           <button
-            onClick={startVoice}
+            onClick={generateQuery}
             disabled={sending}
-            title="Voice input"
+            title="Generate a query"
             className="shrink-0 w-11 h-11 rounded-md flex items-center justify-center transition-all"
             style={{
-              background: listening ? "var(--red-dim)" : "var(--bg-raised)",
-              border: `1px solid ${listening ? "var(--red)" : "var(--border)"}`,
-              color: listening ? "var(--red)" : "var(--text-muted)",
+              background: "var(--bg-raised)",
+              border: "1px solid var(--border)",
+              color: "var(--text-muted)",
             }}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4M4 19h4M13 3l2.5 6.5L22 12l-6.5 2.5L13 21l-2.5-6.5L4 12l6.5-2.5L13 3z" />
             </svg>
           </button>
 
-          <div className="flex-1 relative">
+          <div className="flex-1 min-w-0 relative">
             <textarea
               ref={textareaRef}
               rows={1}

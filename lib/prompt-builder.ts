@@ -3,6 +3,7 @@ export const DB_SCHEMA = `
 
 CREATE TABLE "State" ("StateID" SERIAL PRIMARY KEY, "StateName" VARCHAR);
 CREATE TABLE "District" ("DistrictID" SERIAL PRIMARY KEY, "DistrictName" VARCHAR, "StateID" INT REFERENCES "State");
+-- Common abbreviations: BLR/Bangalore/Bengaluru -> 'Bengaluru Urban' (use ILIKE '%Bengaluru%' if unsure between Urban/Rural)
 CREATE TABLE "Unit" ("UnitID" SERIAL PRIMARY KEY, "UnitName" VARCHAR, "DistrictID" INT REFERENCES "District", "StateID" INT);
 CREATE TABLE "Employee" ("EmployeeID" SERIAL PRIMARY KEY, "FirstName" VARCHAR, "DistrictID" INT, "UnitID" INT, "RankID" INT, "GenderID" INT);
 CREATE TABLE "Rank" ("RankID" SERIAL PRIMARY KEY, "RankName" VARCHAR, "Hierarchy" INT);

@@ -26,7 +26,18 @@ export function sanitizeSQL(sql: string): string {
   // strip complete thinking blocks, then fall back to extracting from first SELECT
   // (handles truncated blocks when max_tokens cuts off before </think>)
   let s = sql.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+
+  const fence = s.match(/```(?:sql)?\s*([\s\S]*?)```/i);
+  if (fence) s = fence[1].trim();
+
   const selectIdx = s.search(/\bSELECT\b/i);
   if (selectIdx > 0) s = s.slice(selectIdx);
+
+  // model sometimes appends trailing prose after the query ("Note: I have assumed...")
+  // with no clean separator — cut it off at the first statement boundary or blank line
+  const semiIdx = s.indexOf(";");
+  if (semiIdx !== -1) s = s.slice(0, semiIdx);
+  s = s.split(/\n\s*\n/)[0];
+
   return s.replace(/;+\s*$/, "").trim();
 }

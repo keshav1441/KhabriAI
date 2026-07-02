@@ -57,7 +57,8 @@ export async function POST(req: NextRequest) {
       });
     }
   } catch (e) {
-    sqlError = e instanceof Error ? e.message : "Query failed";
+    console.error("chat query failed:", sql, e);
+    sqlError = "Query execution failed";
   }
 
   const encoder = new TextEncoder();
