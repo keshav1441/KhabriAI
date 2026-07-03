@@ -70,6 +70,7 @@ export function ChatWindow() {
         rows?: Record<string, unknown>[];
         vizType?: string;
         sqlError?: string | null;
+        relatedCases?: ChatMessage["relatedCases"];
       }>;
     } = {
       messages: [
@@ -81,6 +82,7 @@ export function ChatWindow() {
           rows: asstMsg.rows,
           vizType: asstMsg.vizType,
           sqlError: asstMsg.sqlError,
+          relatedCases: asstMsg.relatedCases,
         },
       ],
     };
@@ -150,6 +152,7 @@ export function ChatWindow() {
                 rows: parsed.rows,
                 vizType: parsed.vizType as VizType,
                 sqlError: parsed.sqlError,
+                relatedCases: parsed.relatedCases,
               };
               updateMessage(asstMsgId, meta);
             } else if (parsed.type === "token") {

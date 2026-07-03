@@ -4,6 +4,15 @@ import type { ChatSessionSummary } from "@/lib/chat-api";
 
 export type VizType = "table" | "chart" | "graph";
 
+export interface RelatedCase {
+  id: number;
+  crimeNo: string | null;
+  briefFacts: string | null;
+  crimeGroup: string | null;
+  district: string | null;
+  score: number;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -12,6 +21,7 @@ export interface ChatMessage {
   rows?: Record<string, unknown>[];
   vizType?: VizType;
   sqlError?: string | null;
+  relatedCases?: RelatedCase[];
   loading?: boolean;
 }
 

@@ -40,6 +40,7 @@ export async function GET(req: NextRequest, { params }: Params) {
         rows: m.rows as Record<string, unknown>[] | undefined,
         vizType: m.vizType as "table" | "chart" | "graph" | undefined,
         sqlError: m.sqlError,
+        relatedCases: m.relatedCases as Record<string, unknown>[] | undefined,
       })),
     },
   });
@@ -63,6 +64,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       rows?: Record<string, unknown>[];
       vizType?: string;
       sqlError?: string | null;
+      relatedCases?: Record<string, unknown>[];
     }>;
   };
 
@@ -76,6 +78,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         rows: m.rows != null ? (m.rows as Prisma.InputJsonValue) : undefined,
         vizType: m.vizType ?? null,
         sqlError: m.sqlError ?? null,
+        relatedCases: m.relatedCases != null ? (m.relatedCases as Prisma.InputJsonValue) : undefined,
       })),
     });
   }

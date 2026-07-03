@@ -51,9 +51,15 @@ export async function generateSQL(
 
 export async function* streamSummary(
   question: string,
-  rows: Record<string, unknown>[]
+  rows: Record<string, unknown>[],
+  relatedNarratives: string[] = []
 ): AsyncGenerator<string> {
   const groq = getGroqClient();
+  const narrativeContext =
+    relatedNarratives.length > 0
+      ? `\n\nRelated case narratives (reference these if directly relevant): ${relatedNarratives.map((n, i) => `[${i + 1}] ${n}`).join(" ")}`
+      : "";
+
   const stream = await groq.chat.completions.create({
     model: GROQ_SUMMARY_MODEL,
     temperature: 0.3,
@@ -67,7 +73,7 @@ export async function* streamSummary(
       },
       {
         role: "user",
-        content: `Question: ${question}\n\nData (first 15 rows): ${JSON.stringify(rows.slice(0, 15))}`,
+        content: `Question: ${question}\n\nData (first 15 rows): ${JSON.stringify(rows.slice(0, 15))}${narrativeContext}`,
       },
     ],
   });

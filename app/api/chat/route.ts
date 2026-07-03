@@ -4,6 +4,7 @@ import { DB_SCHEMA } from "@/lib/prompt-builder";
 import { validateSQL, sanitizeSQL } from "@/lib/sql-validator";
 import { classifyQuery } from "@/lib/query-classifier";
 import { findSimilar, warmupEmbeddings } from "@/lib/rag";
+import { findSimilarCases, type RelatedCase } from "@/lib/case-retrieval";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +34,9 @@ export async function POST(req: NextRequest) {
   let rows: Record<string, unknown>[] = [];
   let vizType = "table";
   let sqlError: string | null = null;
+  let relatedCases: RelatedCase[] = [];
+
+  const relatedCasesPromise = findSimilarCases(message, 5).catch(() => [] as RelatedCase[]);
 
   try {
     await warmupEmbeddings();
@@ -61,18 +65,21 @@ export async function POST(req: NextRequest) {
     sqlError = "Query execution failed";
   }
 
+  relatedCases = await relatedCasesPromise;
+
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
       controller.enqueue(
         encoder.encode(
-          `data: ${JSON.stringify({ type: "meta", sql, rows, vizType, sqlError })}\n\n`
+          `data: ${JSON.stringify({ type: "meta", sql, rows, vizType, sqlError, relatedCases })}\n\n`
         )
       );
 
       if (rows.length > 0 && !sqlError) {
         try {
-          for await (const token of streamSummary(message, rows)) {
+          const narratives = relatedCases.slice(0, 3).map((c) => c.briefFacts).filter((n): n is string => !!n);
+          for await (const token of streamSummary(message, rows, narratives)) {
             controller.enqueue(
               encoder.encode(`data: ${JSON.stringify({ type: "token", token })}\n\n`)
             );

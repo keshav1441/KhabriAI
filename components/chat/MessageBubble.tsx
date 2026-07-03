@@ -3,6 +3,7 @@ import { StreamingText } from "./StreamingText";
 import { ResultsTable } from "../viz/ResultsTable";
 import { CrimeChart } from "../viz/CrimeChart";
 import { NetworkGraph } from "../viz/NetworkGraph";
+import { RelatedCases } from "./RelatedCases";
 import type { ChatMessage } from "@/store/chat";
 
 function exportCSV(rows: Record<string, unknown>[], filename = "khabri-export.csv") {
@@ -67,6 +68,8 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
             </p>
           )}
         </div>
+
+        {!message.loading && <RelatedCases cases={message.relatedCases} />}
 
         {/* Data visualization */}
         {!message.loading && hasData && (
