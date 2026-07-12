@@ -1,17 +1,26 @@
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join } from "path";
-import { getGroqClient } from "./groq-client";
 import { cacheGet, cacheSet } from "./catalyst-cache";
 
-const EMBED_MODEL = process.env.GROQ_EMBED_MODEL ?? "nomic-embed-text-v1.5";
+// Groq has no embeddings endpoint on this account (verified: groq.models.list()
+// returns zero embedding models) — Gemini is the real embedding backend.
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const EMBED_MODEL = "gemini-embedding-2";
+export const EMBED_DIM = 768;
+const BATCH_SIZE = 100;
+
 const CACHE_PATH = join(process.cwd(), "lib/rag-embeddings-cache.json");
-const CATALYST_CACHE_KEY = "rag:embeddings:v1";
+const CATALYST_CACHE_KEY = "rag:embeddings:v3";
 const CATALYST_CACHE_TTL_MINUTES = 10080; // 7 days — examples change rarely
 
 type Example = { question: string; sql: string };
 type CachedExample = { question: string; sql: string; embedding: number[] };
 
 let exampleVectors: CachedExample[] | null = null;
+
+export function embeddingAvailable(): boolean {
+  return Boolean(GEMINI_API_KEY);
+}
 
 function cosine(a: number[], b: number[]): number {
   let dot = 0, na = 0, nb = 0;
@@ -27,20 +36,35 @@ function loadExamples(): Example[] {
   return JSON.parse(readFileSync(join(process.cwd(), "lib/rag-examples.json"), "utf-8"));
 }
 
-async function embedTexts(texts: string[]): Promise<number[][]> {
-  const groq = getGroqClient();
-  const res = await groq.embeddings.create({
-    model: EMBED_MODEL,
-    input: texts,
-    encoding_format: "float",
-  });
-  return res.data.map((d) => {
-    if (!Array.isArray(d.embedding)) throw new Error("Unexpected embedding format");
-    return d.embedding;
-  });
+export async function embedTexts(texts: string[]): Promise<number[][]> {
+  if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
+  const out: number[][] = [];
+
+  for (let i = 0; i < texts.length; i += BATCH_SIZE) {
+    const chunk = texts.slice(i, i + BATCH_SIZE);
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${EMBED_MODEL}:batchEmbedContents?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requests: chunk.map((text) => ({
+            model: `models/${EMBED_MODEL}`,
+            content: { parts: [{ text }] },
+            outputDimensionality: EMBED_DIM,
+          })),
+        }),
+      }
+    );
+    if (!res.ok) throw new Error(`Gemini embed batch failed: ${res.status} ${await res.text()}`);
+    const data = (await res.json()) as { embeddings: { values: number[] }[] };
+    out.push(...data.embeddings.map((e) => e.values));
+  }
+
+  return out;
 }
 
-async function embedText(text: string): Promise<number[]> {
+export async function embedText(text: string): Promise<number[]> {
   const [vec] = await embedTexts([text]);
   return vec;
 }

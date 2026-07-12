@@ -398,6 +398,11 @@ async function main() {
     console.log(`  Chargesheets: ${csRows.length}`);
 
     console.log(`\nSeed complete — ${TOTAL_CASES} FIR cases in Neon.`);
+    console.log(
+      "Note: BriefFactsEmbedding is empty for all new rows (reseeding invalidates old vectors). " +
+      "Run `npx tsx backfill-embeddings.ts` to repopulate — Gemini's free tier caps this at ~90/min, so it takes a few hours. " +
+      "Not run automatically here since that would make every reseed take hours; related-case search falls back to full-text search until it's done."
+    );
   } finally {
     client.release();
     await pool.end();

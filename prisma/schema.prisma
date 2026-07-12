@@ -161,6 +161,7 @@ model CaseMaster {
   latitude            Decimal?
   longitude           Decimal?
   BriefFacts          String?
+  BriefFactsEmbedding Unsupported("vector(768)")?
 
   officer        Employee?         @relation("CaseMasterOfficer", fields: [PolicePersonID], references: [EmployeeID])
   station        Unit?             @relation("CaseMasterStation", fields: [PoliceStationID], references: [UnitID])

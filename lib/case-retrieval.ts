@@ -1,4 +1,5 @@
 import { prisma } from "./db";
+import { embedText, embeddingAvailable } from "./embeddings-gemini";
 
 export interface RelatedCase {
   id: number;
@@ -29,7 +30,8 @@ function toOrQuery(words: string[]): string {
 // among candidates that already clear this bar.
 const MIN_OVERLAP = 2;
 
-export async function findSimilarCases(query: string, topK = 5): Promise<RelatedCase[]> {
+/** Keyword full-text search — misses paraphrases ("theft" vs "stolen") but needs no embedding call. */
+async function findSimilarCasesFTS(query: string, topK: number): Promise<RelatedCase[]> {
   const queryWords = tokenize(query);
   const tsq = toOrQuery(queryWords);
   if (!tsq) return [];
@@ -58,4 +60,37 @@ export async function findSimilarCases(query: string, topK = 5): Promise<Related
       return overlap >= minOverlap;
     })
     .slice(0, topK);
+}
+
+/** Semantic similarity via pgvector cosine distance on Gemini embeddings — catches paraphrases FTS misses. */
+async function findSimilarCasesVector(query: string, topK: number): Promise<RelatedCase[]> {
+  const embedding = await embedText(query);
+  const vectorLiteral = `[${embedding.join(",")}]`;
+
+  return prisma.$queryRawUnsafe<RelatedCase[]>(
+    `SELECT cm."CaseMasterID" as id, cm."CrimeNo" as "crimeNo", cm."BriefFacts" as "briefFacts",
+            ch."CrimeGroupName" as "crimeGroup", d."DistrictName" as district,
+            1 - (cm."BriefFactsEmbedding" <=> $1::vector) as score
+     FROM "CaseMaster" cm
+     LEFT JOIN "CrimeHead" ch ON ch."CrimeHeadID" = cm."CrimeMajorHeadID"
+     LEFT JOIN "Unit" u ON u."UnitID" = cm."PoliceStationID"
+     LEFT JOIN "District" d ON d."DistrictID" = u."DistrictID"
+     WHERE cm."BriefFactsEmbedding" IS NOT NULL
+     ORDER BY cm."BriefFactsEmbedding" <=> $1::vector
+     LIMIT $2`,
+    vectorLiteral,
+    topK
+  );
+}
+
+export async function findSimilarCases(query: string, topK = 5): Promise<RelatedCase[]> {
+  if (embeddingAvailable()) {
+    try {
+      const results = await findSimilarCasesVector(query, topK);
+      if (results.length > 0) return results;
+    } catch (e) {
+      console.error("vector case search failed, falling back to FTS:", e);
+    }
+  }
+  return findSimilarCasesFTS(query, topK);
 }
