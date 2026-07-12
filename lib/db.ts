@@ -1,12 +1,13 @@
-import { Pool } from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/app/generated/prisma/client";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 function createPrismaClient() {
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-  const adapter = new PrismaPg(pool);
+  // Pass config, not a pg.Pool instance: the standalone bundle ships two copies
+  // of pg, so the adapter's `instanceof pg.Pool` check fails and it mangles the
+  // pool into a connection config. Let the adapter own the pool instead.
+  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
   return new PrismaClient({ adapter, log: ["error"] });
 }
 

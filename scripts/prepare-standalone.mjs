@@ -25,8 +25,13 @@ if (existsSync("public")) {
   cpSync("public", `${standalone}/public`, { recursive: true });
 }
 
+// Read at runtime via readFileSync(cwd()/lib/...) — file tracing misses it.
+cpSync("lib/rag-examples.json", `${standalone}/lib/rag-examples.json`);
+
+// Non-hidden name: the Catalyst CLI drops dotfiles from the upload zip,
+// which left DATABASE_URL undefined in the container.
 if (existsSync(".env")) {
-  cpSync(".env", `${standalone}/.env`);
+  cpSync(".env", `${standalone}/appsail.env`);
 }
 
 let dereferenced = 0;

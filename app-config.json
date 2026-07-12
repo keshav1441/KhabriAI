@@ -1,5 +1,5 @@
 {
-	"command": "sh -c 'HOSTNAME=0.0.0.0 PORT=$X_ZOHO_CATALYST_LISTEN_PORT node --env-file-if-exists=.env server.js'",
+	"command": "sh -c 'HOSTNAME=0.0.0.0 PORT=$X_ZOHO_CATALYST_LISTEN_PORT node --env-file-if-exists=appsail.env server.js'",
 	"build_path": ".next/standalone",
 	"stack": "node22",
 	"env_variables": {},
