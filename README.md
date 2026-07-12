@@ -3,7 +3,7 @@
 **Karnataka Police Crime Intelligence Assistant**
 Datathon 2026 — KSP × Hack2Skill Challenge 1
 
-Conversational AI for investigators to query crime data in plain English. Sign in, ask a question → RAG retrieves similar examples → LLM generates SQL → results stream back with a plain-English analyst summary, chart, map, or network graph — alongside a **Related Cases** panel citing real FIR narratives that match the question semantically. Chat history is saved per user in Neon.
+Conversational AI for investigators to query crime data in plain English. Sign in, ask a question → an **agent orchestrator** (Groq `llama-3.3-70b-versatile`) plans tool calls — SQL generation via RAG, full-text case search, precomputed anomaly insights, network/map data, QuickML risk prediction — and streams each step live to a **Case Board** in the chat, followed by an analyst narrative. Answers render as tables, charts, or network graphs, alongside a **Related Cases** panel citing real FIR narratives. Chat history is saved per user in Neon.
 
 ---
 
@@ -13,8 +13,10 @@ Conversational AI for investigators to query crime data in plain English. Sign i
 |-------|-----------|
 | Framework | Next.js 16 (App Router, standalone output) |
 | Database | Neon PostgreSQL + Prisma |
-| Auth | PBKDF2-SHA512 (100k iterations) · `KhabriUser` table |
+| Auth | PBKDF2-SHA512 (100k iterations) · HMAC-signed session cookie (7 days) |
+| Agent | Groq `llama-3.3-70b-versatile` orchestrator + 5 tools (see below) |
 | LLM | Groq — `qwen/qwen3-32b` (SQL) · `llama-3.1-8b-instant` (summary) |
+| Catalyst services | Cache (insights TTL) · Data Store (`AgentAuditLog`) · QuickML (chargesheet risk) — all optional, local fallbacks outside AppSail |
 | Embeddings | Groq API (`nomic-embed-text-v1.5`) · LLM fallback for example selection |
 | Case retrieval | Postgres full-text search (`tsvector`/`ts_rank`) over `CaseMaster.BriefFacts` |
 | Maps | Leaflet + react-leaflet |
@@ -28,31 +30,29 @@ Conversational AI for investigators to query crime data in plain English. Sign i
 
 ## How it works
 
+Every chat message runs through an agent loop (`lib/agent/orchestrator.ts`): a Groq `llama-3.3-70b-versatile` planner decides which tools to call (up to 4 iterations, first turn forced to call at least one tool so it can't answer from parametric memory), executes them in parallel, streams each step to the UI as it happens, then synthesizes a 2–4 sentence analyst narrative from the gathered results.
+
 ```
 User question
      │
-     ├─────────────────────────────────────┐
-     ▼                                      ▼
-RAG retrieval — Groq embeddings         Case retrieval — Postgres full-text
-(`nomic-embed-text-v1.5`) when          search (`ts_rank`) over BriefFacts,
-available, else Groq 8B example         gated by ≥2 literal content-word
-selection → top few-shot examples       overlap → Related Cases citations
-     │                                      │
-     ▼                                      │
-Groq qwen/qwen3-32b — schema +              │
-few-shot examples → SQL                     │
-     │                                      │
-     ▼                                      │
-Validate (SELECT-only, no mutations)        │
-→ execute on Neon → classify viz type       │
-     │                                      │
-     └──────────────────┬───────────────────┘
-                         ▼
-     Stream: metadata (rows, vizType, relatedCases) + analyst summary tokens (SSE)
-                         │
-                         ▼
-     Persist exchange to ChatSession / ChatMessage (per logged-in user)
+     ▼
+Planner (llama-3.3-70b-versatile) ──► tool calls, streamed live to the Case Board
+     │
+     ├─ queryDatabase        RAG few-shot examples → qwen/qwen3-32b generates SQL
+     │                       → validate (SELECT-only) → execute on Neon → classify viz
+     ├─ searchRelatedCases   Postgres full-text search over FIR narratives → citations
+     ├─ checkInsights        Precomputed anomalies (spikes, repeat accused, surges)
+     ├─ getNetworkOrMapData  Accused-linkage graph / per-district case counts
+     └─ predictRisk          Catalyst QuickML — chargesheet likelihood (AppSail only)
+     │
+     ▼
+Stream: step events + metadata (rows, vizType, relatedCases) + narrative tokens (SSE)
+     │
+     ▼
+Persist to ChatSession / ChatMessage · audit trail to Catalyst Data Store (AgentAuditLog)
 ```
+
+Each tool call is fire-and-forget audited to a Catalyst Data Store table (`AgentAuditLog`) when running on AppSail — locally the writes are skipped and chat works without it.
 
 Few-shot **example** retrieval (picking which Q→SQL pairs to show the SQL generator) runs entirely on **Groq** (no local ONNX/HuggingFace). On startup the app probes the Groq embeddings API; if available it uses `nomic-embed-text-v1.5` with cached example vectors in `lib/rag-embeddings-cache.json`. If embeddings are not enabled on your Groq account, it falls back to `llama-3.1-8b-instant` picking the best matching examples.
 
@@ -69,8 +69,9 @@ SQL is generated and stored server-side but **not shown in the chat UI** — inv
 | `GROUP BY … Accused … COUNT` | Network graph (Cytoscape.js) |
 | `GROUP BY district/unit` | Bar chart |
 | `GROUP BY date/month/week` | Line chart (Recharts) |
-| `latitude` / `longitude` in SELECT | Hotspot map (Leaflet) |
 | Everything else | Data table |
+
+Hotspot maps (Leaflet) live in the dedicated **Map** view, not in chat.
 
 ---
 
@@ -130,10 +131,11 @@ Open **http://localhost:3000** → sign up or log in → dashboard.
 ## Auth & chat history
 
 - **Sign up / log in** at `/signup` and `/login`. Credentials are hashed with PBKDF2-SHA512 and stored in `KhabriUser`.
-- **Session** is client-side (`sessionStorage`) — the dashboard redirects to `/login` if not authenticated.
+- **Session** is an HMAC-SHA256-signed cookie (`khabri_session`, 7-day expiry, `lib/session.ts`). Set `SESSION_SECRET` in production — without it a dev fallback secret is used (with a console warning).
+- **Log out** via `POST /api/auth/logout` (clears the cookie).
 - **Chat history** is stored in Neon (`ChatSession`, `ChatMessage`) and listed in the sidebar under **Recent chats**.
 - **New chat** starts a fresh thread; the first message auto-titles the session.
-- Chat API routes use the `X-User-Email` header (from `sessionStorage`) to scope data to the logged-in user.
+- API routes resolve the user from the session cookie (`lib/chat-auth.ts`).
 
 ---
 
@@ -160,19 +162,26 @@ app/
   (auth)/signup/    Sign up page
   dashboard/        Main app shell (sidebar, chat, map, reports, about)
   api/
-    auth/login/       Credential check
+    auth/login/       Credential check → sets session cookie
+    auth/logout/      Clears session cookie
     auth/signup/      User registration
     chats/            List / create chat sessions
     chats/[id]/       Load, append messages, delete session
-    chat/             SSE — RAG + SQL generation + case retrieval + streaming summary
+    chat/             SSE — agent loop: tool steps + metadata + streaming narrative
+    insights/         Anomaly insight cards (Catalyst Cache-backed)
+    cron/insights/    Precompute target for scheduled insight refresh
     map-data/         Crime locations with lat/lng
     network-data/     Accused co-occurrence graph
     reports/          Pre-aggregated insight cards
 components/
-  chat/             ChatWindow, MessageBubble, RelatedCases (citations dropdown), ChatHistory sidebar
-  views/            Map, Reports, About panels
-  viz/              CrimeMap, NetworkGraph, ResultsTable, CrimeChart, CaseDrawer
+  chat/             ChatWindow, MessageBubble, CaseBoard (live tool steps), RelatedCases, ChatHistory
+  views/            Map, Network, Reports, About panels
+  viz/              NetworkGraph, ResultsTable, CrimeChart, CaseDrawer
 lib/
+  agent/
+    orchestrator.ts   Agent loop — Groq 70B planner, tool execution, SSE event stream
+    tools.ts          5 tool implementations + JSON schemas
+    audit-log.ts      Fire-and-forget audit trail to Catalyst Data Store
   rag.ts                Groq RAG router (embeddings → LLM fallback) — few-shot SQL examples only
   embeddings-groq.ts    Groq embedding API + on-disk cache
   rag-llm.ts            Groq 8B example selection fallback
@@ -183,11 +192,16 @@ lib/
   prompt-builder.ts KSP database schema (injected into every prompt)
   sql-validator.ts  SELECT-only guard, multi-statement block
   query-classifier.ts  SQL → vizType (table / chart / graph)
-  chat-auth.ts      Resolve user from X-User-Email header
+  insights-compute.ts  The 3 anomaly-detection queries (spikes, repeat accused, surges)
+  insights-cache.ts    Insight cache keys/TTL over catalyst-cache
+  catalyst-client.ts   Request-scoped Catalyst SDK init + timeout guard (null outside AppSail)
+  catalyst-cache.ts    Catalyst Cache get/set with local fallback
+  session.ts        HMAC-signed session cookie create/verify
+  chat-auth.ts      Resolve user from session cookie
   chat-api.ts       Client helpers for chat API calls
   db.ts             Prisma client (pg adapter)
 store/
-  chat.ts           Zustand — messages, active session, session list
+  chat.ts           Zustand — messages, Case Board steps, active session, session list
 prisma/
   schema.prisma     KSP FIR schema + KhabriUser + ChatSession + ChatMessage
   seed.ts           20,000 synthetic KSP-calibrated FIR records
@@ -195,7 +209,7 @@ prisma/
 eval/
   run.ts            Offline accuracy harness
 scripts/
-  prepare-standalone.mjs  Copies static/public into the AppSail bundle
+  prepare-standalone.mjs  Copies static/public/rag-examples.json + .env into the AppSail bundle, dereferences symlinks
   enrich-briefs.ts        LLM-expands templated BriefFacts into real FIR narratives
 ```
 
@@ -212,6 +226,10 @@ scripts/
 | `GROQ_RAG_MODEL` | No | LLM example-picker fallback (default `llama-3.1-8b-instant`) |
 | `RAG_MODE` | No | `embed` or `llm` to force retrieval mode |
 | `GROQ_SUMMARY_MODEL` | No | Summary model (default `llama-3.1-8b-instant`) |
+| `GROQ_ORCH_MODEL` | No | Agent orchestrator model (default `llama-3.3-70b-versatile`) |
+| `SESSION_SECRET` | Prod | HMAC key for session cookies — required in production |
+| `CATALYST_AUTOML_MODEL_ID` | No | QuickML model ID for the `predictRisk` tool (AppSail only) |
+| `CRON_SECRET` | No | Bearer token guarding `/api/cron/insights` precompute |
 
 ---
 
@@ -224,7 +242,13 @@ catalyst deploy
 The `predeploy` hook runs `next build`, prepares the standalone bundle, and uploads it. The standalone output in `.next/standalone` is what AppSail serves (~170 MB). Catalyst rejects uploads over **250 MB** (HTTP 413).
 
 **AppSail env vars to set:**
-- `DATABASE_URL`, `GROQ_API_KEY`
+- `DATABASE_URL`, `GROQ_API_KEY`, `SESSION_SECRET`
+- Optional: `CATALYST_AUTOML_MODEL_ID` (QuickML risk tool), `CRON_SECRET` (insights precompute)
+
+**Optional Catalyst console setup** (features degrade gracefully without them):
+- Data Store table `AgentAuditLog` — agent audit trail (columns per `lib/agent/audit-log.ts`)
+- QuickML classifier — enables the `predictRisk` tool
+- Job Scheduling — hit `/api/cron/insights` (Bearer `CRON_SECRET`) every ~3h to keep insight cards warm
 
 Memory: `app-config.json` requests 1024 MB. Lower to 512 if your plan rejects it.
 
@@ -244,8 +268,8 @@ Memory: `app-config.json` requests 1024 MB. Lower to 512 if your plan rejects it
 4. "Which accused have more than 2 cases in the last 30 days?"
    → network graph
 
-5. "Show cybercrime hotspots across Karnataka with coordinates"
-   → Leaflet map with incident pins
+5. Open the Map view from the sidebar
+   → Leaflet hotspot map of incidents across Karnataka
 
 6. Refresh the page → open a saved chat from the sidebar
    → history and results restore from Neon
@@ -265,7 +289,7 @@ Memory: `app-config.json` requests 1024 MB. Lower to 512 if your plan rejects it
 
 **Deploy HTTP 413** — Upload exceeds Catalyst's 250 MB limit. Production builds exclude HuggingFace/ONNX; run `npm run build` and confirm `.next/standalone` is under 250 MB before `catalyst deploy`.
 
-**Before deploying:** stop any running `npm run dev` — a locked `.next` causes `EBUSY` errors during build. After schema changes, `lib/db.ts` recreates the client when new models are missing.
+**Build fails with `EBUSY: resource busy, rmdir .next/standalone`** — a node process is still running from inside that folder. `catalyst serve` can leave its server alive even after the CLI prints its shutdown message; check `tasklist | grep node` and `taskkill //PID <pid> //F` before building or deploying. Same applies to a running `npm run dev`.
 
 **Map doesn't render** — Leaflet is client-only, already wrapped in `dynamic(..., { ssr: false })`. Check browser console for tile errors.
 
