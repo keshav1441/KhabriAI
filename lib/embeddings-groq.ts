@@ -1,9 +1,12 @@
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join } from "path";
 import { getGroqClient } from "./groq-client";
+import { cacheGet, cacheSet } from "./catalyst-cache";
 
 const EMBED_MODEL = process.env.GROQ_EMBED_MODEL ?? "nomic-embed-text-v1.5";
 const CACHE_PATH = join(process.cwd(), "lib/rag-embeddings-cache.json");
+const CATALYST_CACHE_KEY = "rag:embeddings:v1";
+const CATALYST_CACHE_TTL_MINUTES = 10080; // 7 days — examples change rarely
 
 type Example = { question: string; sql: string };
 type CachedExample = { question: string; sql: string; embedding: number[] };
@@ -42,7 +45,7 @@ async function embedText(text: string): Promise<number[]> {
   return vec;
 }
 
-function loadCache(): CachedExample[] | null {
+function loadLocalFileCache(): CachedExample[] | null {
   if (!existsSync(CACHE_PATH)) return null;
   try {
     return JSON.parse(readFileSync(CACHE_PATH, "utf-8")) as CachedExample[];
@@ -51,15 +54,35 @@ function loadCache(): CachedExample[] | null {
   }
 }
 
-function saveCache(data: CachedExample[]) {
+function saveLocalFileCache(data: CachedExample[]) {
   writeFileSync(CACHE_PATH, JSON.stringify(data));
 }
 
-async function getExampleVectors(): Promise<CachedExample[]> {
+// Catalyst Cache is the primary store; the local file is a secondary
+// fallback so lookups keep working even when Catalyst is unreachable
+// (e.g. local dev, which runs outside the AppSail proxy entirely).
+async function loadCache(req?: Request): Promise<CachedExample[] | null> {
+  const remote = await cacheGet(CATALYST_CACHE_KEY, req);
+  if (remote) {
+    try {
+      return JSON.parse(remote) as CachedExample[];
+    } catch {
+      /* fall through to local file */
+    }
+  }
+  return loadLocalFileCache();
+}
+
+async function saveCache(data: CachedExample[], req?: Request): Promise<void> {
+  saveLocalFileCache(data);
+  await cacheSet(CATALYST_CACHE_KEY, JSON.stringify(data), CATALYST_CACHE_TTL_MINUTES, req);
+}
+
+async function getExampleVectors(req?: Request): Promise<CachedExample[]> {
   if (exampleVectors) return exampleVectors;
 
   const examples = loadExamples();
-  const cached = loadCache();
+  const cached = await loadCache(req);
   if (cached?.length === examples.length) {
     exampleVectors = cached;
     return exampleVectors;
@@ -71,15 +94,15 @@ async function getExampleVectors(): Promise<CachedExample[]> {
     sql: ex.sql,
     embedding: embeddings[i],
   }));
-  saveCache(exampleVectors);
+  await saveCache(exampleVectors, req);
   return exampleVectors;
 }
 
 let warmupPromise: Promise<void> | null = null;
 
-export function warmupEmbeddings(): Promise<void> {
+export function warmupEmbeddings(req?: Request): Promise<void> {
   if (!warmupPromise) {
-    warmupPromise = getExampleVectors().then(() => undefined);
+    warmupPromise = getExampleVectors(req).then(() => undefined);
   }
   return warmupPromise;
 }
@@ -87,10 +110,11 @@ export function warmupEmbeddings(): Promise<void> {
 export async function findSimilarEmbeddings(
   question: string,
   topK = 3,
-  excludeIndex?: number
+  excludeIndex?: number,
+  req?: Request
 ): Promise<Array<Example & { score: number }>> {
   const examples = loadExamples();
-  const [qEmb, vectors] = await Promise.all([embedText(question), getExampleVectors()]);
+  const [qEmb, vectors] = await Promise.all([embedText(question), getExampleVectors(req)]);
   const byQuestion = new Map(vectors.map((v) => [v.question, v.embedding]));
 
   return examples

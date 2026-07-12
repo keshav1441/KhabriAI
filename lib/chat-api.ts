@@ -1,16 +1,7 @@
-export function getUserEmail(): string | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const user = JSON.parse(sessionStorage.getItem("khabri_user") ?? "{}");
-    return user.email ?? null;
-  } catch {
-    return null;
-  }
-}
-
+// Auth is carried by the httpOnly `khabri_session` cookie, sent automatically
+// on same-origin requests — no header needed here.
 export function chatHeaders(): HeadersInit {
-  const email = getUserEmail();
-  return email ? { "Content-Type": "application/json", "X-User-Email": email } : { "Content-Type": "application/json" };
+  return { "Content-Type": "application/json" };
 }
 
 export type ChatSessionSummary = {

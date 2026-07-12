@@ -6,21 +6,22 @@ const TECH_STACK = [
     color: "var(--blue)",
     bg: "var(--blue-dim)",
     items: [
-      { name: "Next.js 15", desc: "App Router · Turbopack · SSR + RSC" },
-      { name: "React 19", desc: "Client components · Hooks · Context" },
+      { name: "Next.js 16", desc: "App Router · Turbopack · SSR + RSC" },
+      { name: "React 19", desc: "Client components · Hooks · Zustand store" },
       { name: "Tailwind CSS v4", desc: "CSS variables · Custom variants" },
       { name: "Space Grotesk", desc: "Variable font · Space Mono for data" },
     ],
   },
   {
-    category: "AI & Intelligence",
+    category: "Agentic AI",
     color: "var(--red)",
     bg: "var(--red-dim)",
     items: [
-      { name: "Groq LPU", desc: "llama-3.3-70b-versatile · Sub-second SQL" },
-      { name: "Text-to-SQL", desc: "Schema-in-prompt · Few-shot examples" },
-      { name: "SSE Streaming", desc: "Token-by-token AI narrative delivery" },
-      { name: "NL Summaries", desc: "Contextual explanation of query results" },
+      { name: "Groq LPU", desc: "llama-3.3-70b-versatile orchestrator · 8b-instant narrator" },
+      { name: "Tool-Calling Orchestrator", desc: "Bounded agent loop (max 4 iterations), tools run in parallel" },
+      { name: "5 Investigation Tools", desc: "SQL query · related-case search · insights · network/map data · risk prediction" },
+      { name: "Catalyst QuickML", desc: "AutoML classifier — charge-sheet likelihood, trained on arrest + gravity + elapsed time" },
+      { name: "SSE Streaming", desc: "Live reasoning steps + token-by-token narrative over one connection" },
     ],
   },
   {
@@ -31,7 +32,8 @@ const TECH_STACK = [
       { name: "Neon PostgreSQL", desc: "Serverless · Connection pooling · PgBouncer" },
       { name: "Prisma v7", desc: "Driver adapter · Raw SQL · Type-safe ORM" },
       { name: "KSP Crime DB", desc: "Real Karnataka Police data schema" },
-      { name: "Node.js Crypto", desc: "PBKDF2-SHA512 · 100k iterations · Custom auth" },
+      { name: "Zoho Catalyst", desc: "Cache (embeddings + insights) · Cron precompute · Data Store audit log" },
+      { name: "Signed Session Auth", desc: "HMAC-SHA256 cookie · PBKDF2-SHA512 password hashing" },
     ],
   },
   {
@@ -52,29 +54,36 @@ const FEATURES = [
     icon: "◈",
     color: "var(--red)",
     bg: "var(--red-dim)",
-    title: "Natural Language → SQL",
-    desc: "Ask questions in plain English. Groq LLM generates parameterised SQL, validates it read-only, executes it on the live KSP database.",
+    title: "Agentic Investigation Copilot",
+    desc: "Ask a question in plain English. Groq plans which tools to call — SQL query, related-case search, insights, network/map data — then synthesizes a grounded narrative.",
+  },
+  {
+    icon: "📌",
+    color: "var(--amber)",
+    bg: "var(--amber-dim)",
+    title: "Live Case Board",
+    desc: "Every tool call the agent makes pins to a reasoning-trace panel in real time — pending, done, or failed — so investigators see exactly how an answer was derived.",
   },
   {
     icon: "⚡",
-    color: "var(--amber)",
-    bg: "var(--amber-dim)",
+    color: "var(--blue)",
+    bg: "var(--blue-dim)",
     title: "Streaming Intelligence",
-    desc: "AI narrative streams token-by-token via Server-Sent Events. Results appear as the model thinks — no waiting for full response.",
+    desc: "Reasoning steps and the AI narrative both stream over one Server-Sent Events connection — no waiting for the full response.",
   },
   {
     icon: "◉",
-    color: "var(--blue)",
-    bg: "var(--blue-dim)",
+    color: "var(--green)",
+    bg: "var(--green-dim)",
     title: "Proactive Briefings",
-    desc: "On every load, three background queries detect crime spikes, repeat accuseds, and weekly surges — surfaced automatically.",
+    desc: "Crime spikes, repeat accuseds, and weekly surges are precomputed on a Zoho Catalyst Cron schedule and served from Catalyst Cache.",
   },
   {
     icon: "▦",
-    color: "var(--green)",
-    bg: "var(--green-dim)",
+    color: "var(--amber)",
+    bg: "var(--amber-dim)",
     title: "Smart Visualisation",
-    desc: "Query classifier auto-selects bar, pie, or line chart. District queries open on OpenStreetMap with Google Maps deep-links.",
+    desc: "Query classifier auto-selects bar, pie, line, or network-graph rendering. District queries open on OpenStreetMap with Google Maps deep-links.",
   },
   {
     icon: "⬡",
@@ -85,18 +94,18 @@ const FEATURES = [
   },
   {
     icon: "◎",
-    color: "var(--amber)",
-    bg: "var(--amber-dim)",
+    color: "var(--blue)",
+    bg: "var(--blue-dim)",
     title: "Responsible AI",
-    desc: "Read-only database role. Every AI response shows the generated SQL. Runtime GROUP BY safety net strips invalid aggregates.",
+    desc: "Read-only database role. Generated SQL is parsed into an AST and rejected unless it's a single SELECT statement — no regex blocklist to evade. Sessions are HMAC-signed httpOnly cookies, not a spoofable header.",
   },
 ];
 
 const FLOW = [
-  { step: "01", title: "You ask", desc: "Type or speak a question in plain English about Karnataka crime data" },
-  { step: "02", title: "Groq generates SQL", desc: "llama-3.3-70b converts your question to safe, parameterised PostgreSQL using schema-in-prompt" },
-  { step: "03", title: "Neon executes", desc: "Query runs on the live KSP database via Prisma with a read-only connection" },
-  { step: "04", title: "AI explains", desc: "Groq streams a narrative summary of the results, token by token, with auto-selected chart" },
+  { step: "01", title: "You ask", desc: "Type a question in plain English about Karnataka crime data" },
+  { step: "02", title: "Agent plans", desc: "Groq decides which tools to call — SQL, related cases, insights, network/map, risk prediction — and calls them in parallel" },
+  { step: "03", title: "Tools ground it", desc: "SQL runs read-only on Neon via an AST-validated query; results, cases, and insights come back live" },
+  { step: "04", title: "AI synthesizes", desc: "Groq streams a narrative citing the real numbers, while each step pins to the live Case Board" },
 ];
 
 export function AboutView() {
@@ -217,9 +226,10 @@ export function AboutView() {
                 <p className="font-bold text-sm" style={{ color: "var(--text-primary)" }}>Responsible AI Design</p>
                 <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
                   Khabri AI operates on a <strong>read-only database role</strong> — no query can modify, insert, or delete data.
-                  Every AI response shows the exact SQL generated, giving investigators full transparency into the source of insights.
-                  A runtime sanitiser strips invalid GROUP BY clauses before execution, preventing SQL errors from reaching the database.
-                  Auth uses PBKDF2-SHA512 (100k iterations) stored in Neon — no third-party auth services.
+                  Generated SQL is parsed into an AST (node-sql-parser) and rejected unless it resolves to a single SELECT statement,
+                  closing the gaps a regex blocklist can miss. Every AI response shows the exact SQL generated, giving investigators
+                  full transparency into the source of insights. Sessions are HMAC-SHA256-signed httpOnly cookies verified server-side —
+                  not a client-supplied header. Passwords use PBKDF2-SHA512 (100k iterations) stored in Neon — no third-party auth services.
                 </p>
               </div>
             </div>

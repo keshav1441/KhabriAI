@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChatWindow } from "@/components/chat/ChatWindow";
+import { CaseBoard } from "@/components/chat/CaseBoard";
 import { ChatHistory } from "@/components/chat/ChatHistory";
 import { MapView } from "@/components/views/MapView";
 import { ReportsView } from "@/components/views/ReportsView";
@@ -212,7 +213,12 @@ export default function DashboardPage() {
               style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--red)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--red)"; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
-              onClick={() => { sessionStorage.removeItem("khabri_auth"); sessionStorage.removeItem("khabri_user"); router.push("/login"); }}
+              onClick={() => {
+                fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+                sessionStorage.removeItem("khabri_auth");
+                sessionStorage.removeItem("khabri_user");
+                router.push("/login");
+              }}
             >
               Sign out
             </button>
@@ -222,8 +228,11 @@ export default function DashboardPage() {
         {/* View content */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {activeView === "chat" && (
-            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-              <ChatWindow />
+            <div className="flex-1 flex min-h-0 overflow-hidden">
+              <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                <ChatWindow />
+              </div>
+              <CaseBoard />
             </div>
           )}
           {activeView === "map" && <MapView />}

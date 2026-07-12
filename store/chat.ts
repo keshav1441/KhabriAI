@@ -25,10 +25,19 @@ export interface ChatMessage {
   loading?: boolean;
 }
 
+export interface CaseBoardStep {
+  id: string;
+  tool: string;
+  args: Record<string, unknown>;
+  result: unknown;
+  status: "ok" | "error" | "pending";
+}
+
 interface ChatStore {
   sessions: ChatSessionSummary[];
   activeSessionId: string | null;
   messages: ChatMessage[];
+  caseBoardSteps: CaseBoardStep[];
   setSessions: (sessions: ChatSessionSummary[]) => void;
   upsertSession: (session: ChatSessionSummary) => void;
   removeSession: (id: string) => void;
@@ -37,12 +46,15 @@ interface ChatStore {
   addMessage: (msg: ChatMessage) => void;
   updateMessage: (id: string, patch: Partial<ChatMessage>) => void;
   resetToNewChat: () => void;
+  resetCaseBoard: () => void;
+  upsertCaseBoardStep: (step: CaseBoardStep) => void;
 }
 
 export const useChatStore = create<ChatStore>((set) => ({
   sessions: [],
   activeSessionId: null,
   messages: [],
+  caseBoardSteps: [],
   setSessions: (sessions) => set({ sessions }),
   upsertSession: (session) =>
     set((state) => {
@@ -63,5 +75,14 @@ export const useChatStore = create<ChatStore>((set) => ({
     set((state) => ({
       messages: state.messages.map((m) => (m.id === id ? { ...m, ...patch } : m)),
     })),
-  resetToNewChat: () => set({ activeSessionId: null, messages: [] }),
+  resetToNewChat: () => set({ activeSessionId: null, messages: [], caseBoardSteps: [] }),
+  resetCaseBoard: () => set({ caseBoardSteps: [] }),
+  upsertCaseBoardStep: (step) =>
+    set((state) => {
+      const idx = state.caseBoardSteps.findIndex((s) => s.id === step.id);
+      if (idx === -1) return { caseBoardSteps: [...state.caseBoardSteps, step] };
+      const next = state.caseBoardSteps.slice();
+      next[idx] = step;
+      return { caseBoardSteps: next };
+    }),
 }));

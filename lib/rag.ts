@@ -31,14 +31,15 @@ async function groqEmbeddingsAvailable(): Promise<boolean> {
 export async function findSimilar(
   question: string,
   topK = 3,
-  excludeIndex?: number
+  excludeIndex?: number,
+  req?: Request
 ): Promise<RagExample[]> {
   if (await groqEmbeddingsAvailable()) {
-    return findSimilarEmbeddings(question, topK, excludeIndex);
+    return findSimilarEmbeddings(question, topK, excludeIndex, req);
   }
   return findSimilarLlm(question, topK, excludeIndex);
 }
 
-export function warmupEmbeddings(): Promise<void> {
-  return groqEmbeddingsAvailable().then((ok) => (ok ? warmupGroq() : Promise.resolve()));
+export function warmupEmbeddings(req?: Request): Promise<void> {
+  return groqEmbeddingsAvailable().then((ok) => (ok ? warmupGroq(req) : Promise.resolve()));
 }

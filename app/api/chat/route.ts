@@ -1,111 +1,37 @@
 import { NextRequest } from "next/server";
-import { generateSQL, streamSummary } from "@/lib/llm";
-import { DB_SCHEMA } from "@/lib/prompt-builder";
-import { validateSQL, sanitizeSQL } from "@/lib/sql-validator";
-import { classifyQuery } from "@/lib/query-classifier";
-import { findSimilar, warmupEmbeddings } from "@/lib/rag";
-import { findSimilarCases, type RelatedCase } from "@/lib/case-retrieval";
-import { prisma } from "@/lib/db";
+import { runAgent } from "@/lib/agent/orchestrator";
+import type { ChatTurn } from "@/lib/agent/tools";
 
 export const dynamic = "force-dynamic";
 
-// Remove CaseMasterID from SELECT when query uses GROUP BY — prevents 42803 error
-function fixGroupByConflict(sql: string): string {
-  if (!/\bGROUP\s+BY\b/i.test(sql)) return sql;
-  // Strip cm."CaseMasterID", (with optional alias) from SELECT clause
-  return sql.replace(/cm\."CaseMasterID"(\s+AS\s+\w+)?\s*,\s*/gi, "")
-            .replace(/,\s*cm\."CaseMasterID"(\s+AS\s+\w+)?/gi, "");
-}
-
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-}
-
 export async function POST(req: NextRequest) {
-  const { message, history = [] }: { message: string; history: Message[] } =
-    await req.json();
+  const { message, history = [] }: { message: string; history: ChatTurn[] } = await req.json();
 
   if (!message?.trim()) {
     return Response.json({ error: "Empty message" }, { status: 400 });
   }
 
-  let sql = "";
-  let rows: Record<string, unknown>[] = [];
-  let vizType = "table";
-  let sqlError: string | null = null;
-  let relatedCases: RelatedCase[] = [];
-
-  const relatedCasesPromise = findSimilarCases(message, 5).catch(() => [] as RelatedCase[]);
-
-  try {
-    await warmupEmbeddings();
-    const examples = await findSimilar(message, 2);
-    const fewShot = examples.map((e) => `-- Q: ${e.question}\n${e.sql}`).join("\n\n");
-    const rawSQL = await generateSQL(DB_SCHEMA, fewShot, message, history);
-    sql = sanitizeSQL(rawSQL);
-    sql = fixGroupByConflict(sql);
-
-    const validation = validateSQL(sql);
-    if (!validation.valid) {
-      sqlError = validation.error ?? "Invalid SQL";
-    } else {
-      vizType = classifyQuery(sql);
-      const result = await prisma.$queryRawUnsafe(sql);
-      rows = (result as Record<string, unknown>[]).map((r) => {
-        const out: Record<string, unknown> = {};
-        for (const [k, v] of Object.entries(r)) {
-          out[k] = typeof v === "bigint" ? Number(v) : v;
-        }
-        return out;
-      });
-    }
-  } catch (e) {
-    console.error("chat query failed:", sql, e);
-    sqlError = "Query execution failed";
-  }
-
-  relatedCases = await relatedCasesPromise;
-
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
-      controller.enqueue(
-        encoder.encode(
-          `data: ${JSON.stringify({ type: "meta", sql, rows, vizType, sqlError, relatedCases })}\n\n`
-        )
-      );
-
-      if (rows.length > 0 && !sqlError) {
-        try {
-          const narratives = relatedCases.slice(0, 3).map((c) => c.briefFacts).filter((n): n is string => !!n);
-          for await (const token of streamSummary(message, rows, narratives)) {
-            controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify({ type: "token", token })}\n\n`)
-            );
-          }
-        } catch {
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ type: "token", token: `Found ${rows.length} result(s) matching your query.` })}\n\n`
-            )
-          );
+      try {
+        for await (const event of runAgent(message, history, req)) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
         }
-      } else if (sqlError) {
+      } catch (e) {
+        console.error("agent run failed:", e);
         controller.enqueue(
           encoder.encode(
-            `data: ${JSON.stringify({ type: "token", token: "Could not generate a valid query for that question. Please try rephrasing." })}\n\n`
+            `data: ${JSON.stringify({ type: "meta", sql: "", rows: [], vizType: "table", sqlError: "Agent run failed", relatedCases: [] })}\n\n`
           )
         );
-      } else {
         controller.enqueue(
           encoder.encode(
-            `data: ${JSON.stringify({ type: "token", token: "No records found matching your query." })}\n\n`
+            `data: ${JSON.stringify({ type: "token", token: "Something went wrong processing your request." })}\n\n`
           )
         );
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done" })}\n\n`));
       }
-
-      controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done" })}\n\n`));
       controller.close();
     },
   });

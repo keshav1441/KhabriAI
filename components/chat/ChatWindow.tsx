@@ -29,6 +29,8 @@ export function ChatWindow() {
     addMessage,
     updateMessage,
     upsertSession,
+    resetCaseBoard,
+    upsertCaseBoardStep,
   } = useChatStore();
   const refreshSessions = useRefreshChatSessions();
   const [input, setInput] = useState("");
@@ -111,6 +113,7 @@ export function ChatWindow() {
 
     addMessage({ id: userMsgId, role: "user", content: text });
     addMessage({ id: asstMsgId, role: "assistant", content: "", loading: true });
+    resetCaseBoard();
 
     const history = messages
       .filter((m) => m.role === "user" || (m.role === "assistant" && !m.loading))
@@ -146,7 +149,15 @@ export function ChatWindow() {
           if (!line.startsWith("data: ")) continue;
           try {
             const parsed = JSON.parse(line.slice(6));
-            if (parsed.type === "meta") {
+            if (parsed.type === "step") {
+              upsertCaseBoardStep({
+                id: parsed.id,
+                tool: parsed.tool,
+                args: parsed.args,
+                result: parsed.result,
+                status: parsed.status,
+              });
+            } else if (parsed.type === "meta") {
               meta = {
                 sql: parsed.sql,
                 rows: parsed.rows,

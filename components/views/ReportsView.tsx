@@ -72,19 +72,34 @@ export function ReportsView() {
             onBlur={(e) => { (e.target as HTMLInputElement).style.borderColor = "var(--border)"; }}
           />
         </div>
-        <span className="font-data text-xs" style={{ color: "var(--text-muted)" }}>
-          {loading ? "Loading…" : `${cases.length} cases`}
-        </span>
+        {loading ? (
+          <span className="inline-block h-3 w-16 rounded animate-pulse" style={{ background: "var(--bg-raised)" }} />
+        ) : (
+          <span className="font-data text-xs" style={{ color: "var(--text-muted)" }}>
+            {`${cases.length} cases`}
+          </span>
+        )}
       </div>
 
       {/* Table */}
       <div className="flex-1 overflow-auto">
         {loading ? (
-          <div className="flex items-center justify-center h-40">
-            <span className="font-data text-sm" style={{ color: "var(--text-muted)" }}>
-              Retrieving case records…
-            </span>
-          </div>
+          <table className="w-full text-xs border-collapse">
+            <tbody>
+              {Array.from({ length: 8 }).map((_, i) => (
+                <tr key={i} style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                  {[70, 55, 110, 80, 60, 50].map((w, j) => (
+                    <td key={j} className="px-4 py-3">
+                      <span
+                        className="inline-block h-3 rounded animate-pulse"
+                        style={{ background: "var(--bg-raised)", width: w, animationDelay: `${i * 40}ms` }}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         ) : cases.length === 0 ? (
           <div className="flex items-center justify-center h-40">
             <span className="text-sm" style={{ color: "var(--text-muted)" }}>No cases found.</span>

@@ -247,7 +247,6 @@ async function main() {
 
     console.log(`Generating ${TOTAL_CASES} cases in memory...`);
     const weights = crimeHeadData.map(c => c.weight);
-    const statusWeights = [40, 25, 30, 5];
 
     const caseMasterRows: unknown[][] = [];
     const victimRows:     unknown[][] = [];
@@ -264,7 +263,7 @@ async function main() {
     const allCaseIDs: number[] = [];
 
     // Store metadata per case for dependent inserts
-    const caseMeta: { unit: typeof units[0]; ch: typeof crimeHeadData[0]; subIdx: number; statusIdx: number; crimeDate: Date; empID: number; courtID: number | null }[] = [];
+    const caseMeta: { unit: typeof units[0]; ch: typeof crimeHeadData[0]; subIdx: number; statusIdx: number; crimeDate: Date; empID: number; courtID: number | null; arrested: boolean }[] = [];
 
     for (let i = 0; i < TOTAL_CASES; i++) {
       const unit = pick(units);
@@ -276,7 +275,20 @@ async function main() {
       const serial = String(i + 1).padStart(5, "0");
       const emp = employees.find(e => e.UnitID === unit.UnitID) ?? pick(employees);
       const courtID = courtByDistrict[unit.DistrictID] ?? null;
-      const statusIdx = weightedIdx(statusWeights);
+
+      // Real causal structure for the QuickML target: an arrest is the
+      // practical precondition for a chargesheet, and more elapsed time
+      // means more chance investigation has concluded. Heinous cases get
+      // a modest arrest-priority bump. Without this, CaseStatus was drawn
+      // from fixed global weights independent of every other field, which
+      // made the seeded data unlearnable (AutoML: "columns does not
+      // contribute much to the given target").
+      const arrested = Math.random() < (ch.heinous ? 0.42 : 0.28);
+      const daysElapsed = (Date.now() - crimeDate.getTime()) / (24 * 3600 * 1000);
+      const timeFactor = Math.min(daysElapsed / 180, 1);
+      const statusIdx = arrested
+        ? weightedIdx([25, 20 + 60 * timeFactor, 20, 3]) // Under Investigation, Charge Sheeted, Closed, False Case
+        : weightedIdx([55, 2, 30, 13]);
 
       caseMasterRows.push([
         `1${String(unit.DistrictID).padStart(4,"0")}${String(unit.UnitID).padStart(4,"0")}${year}${serial}`,
@@ -297,7 +309,7 @@ async function main() {
         randFloat(unit.lng, 0.15),
         `${ch.subs[subIdx]} reported at station ${unit.UnitID}.`,
       ]);
-      caseMeta.push({ unit, ch, subIdx, statusIdx, crimeDate, empID: emp.EmployeeID, courtID });
+      caseMeta.push({ unit, ch, subIdx, statusIdx, crimeDate, empID: emp.EmployeeID, courtID, arrested });
     }
 
     // Batch insert CaseMaster, collect returned IDs
@@ -332,7 +344,7 @@ async function main() {
       const sectionCode = m.ch.sections[m.subIdx % m.ch.sections.length];
       actSectionRows.push([caseID, m.ch.actCode, sectionCode, 1, 1]);
 
-      if (Math.random() < 0.3) {
+      if (m.arrested) {
         arrestRows.push([caseID, 1, new Date(m.crimeDate.getTime() + Math.random()*30*24*3600*1000), 1, m.unit.DistrictID, m.unit.UnitID, m.empID, m.courtID]);
       }
 

@@ -73,9 +73,13 @@ export function CaseDrawer({ caseId, onClose }: { caseId: number | null; onClose
                 #{caseId}
               </span>
             </div>
-            <h2 className="font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
-              {loading ? "Loading…" : (c?.crime_no as string) || `Case #${caseId}`}
-            </h2>
+            {loading ? (
+              <span className="inline-block h-5 w-32 rounded animate-pulse" style={{ background: "var(--bg-raised)" }} />
+            ) : (
+              <h2 className="font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
+                {(c?.crime_no as string) || `Case #${caseId}`}
+              </h2>
+            )}
           </div>
           <button
             onClick={onClose}
