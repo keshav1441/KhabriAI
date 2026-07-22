@@ -6,25 +6,29 @@ import { computeForecasts } from "./forecast";
 export async function computeInsights(): Promise<InsightItem[]> {
   const insights: InsightItem[] = [];
 
-  // Anomaly 1: Districts with 40%+ crime spike this month vs last month
+  // Anomaly 1: Districts with a 40%+ crime spike in the last COMPLETE month vs
+  // the month before. Uses completed months (not the partial current month, in
+  // which counts are always low), so the detector fires reliably.
   const spikeResult = await prisma.$queryRaw<
     { district_name: string; this_month: bigint; last_month: bigint }[]
   >`
     SELECT
       d."DistrictName" AS district_name,
-      COUNT(*) FILTER (WHERE cm."CrimeRegisteredDate" >= DATE_TRUNC('month', NOW())) AS this_month,
       COUNT(*) FILTER (WHERE cm."CrimeRegisteredDate" >= DATE_TRUNC('month', NOW() - INTERVAL '1 month')
-                         AND cm."CrimeRegisteredDate" <  DATE_TRUNC('month', NOW())) AS last_month
+                         AND cm."CrimeRegisteredDate" <  DATE_TRUNC('month', NOW())) AS this_month,
+      COUNT(*) FILTER (WHERE cm."CrimeRegisteredDate" >= DATE_TRUNC('month', NOW() - INTERVAL '2 months')
+                         AND cm."CrimeRegisteredDate" <  DATE_TRUNC('month', NOW() - INTERVAL '1 month')) AS last_month
     FROM "CaseMaster" cm
     JOIN "Unit" u ON u."UnitID" = cm."PoliceStationID"
     JOIN "District" d ON d."DistrictID" = u."DistrictID"
     GROUP BY d."DistrictName"
     HAVING
-      COUNT(*) FILTER (WHERE cm."CrimeRegisteredDate" >= DATE_TRUNC('month', NOW() - INTERVAL '1 month')
-                         AND cm."CrimeRegisteredDate" <  DATE_TRUNC('month', NOW())) > 3
-      AND COUNT(*) FILTER (WHERE cm."CrimeRegisteredDate" >= DATE_TRUNC('month', NOW()))
-        > COUNT(*) FILTER (WHERE cm."CrimeRegisteredDate" >= DATE_TRUNC('month', NOW() - INTERVAL '1 month')
-                            AND cm."CrimeRegisteredDate" <  DATE_TRUNC('month', NOW())) * 1.4
+      COUNT(*) FILTER (WHERE cm."CrimeRegisteredDate" >= DATE_TRUNC('month', NOW() - INTERVAL '2 months')
+                         AND cm."CrimeRegisteredDate" <  DATE_TRUNC('month', NOW() - INTERVAL '1 month')) > 5
+      AND COUNT(*) FILTER (WHERE cm."CrimeRegisteredDate" >= DATE_TRUNC('month', NOW() - INTERVAL '1 month')
+                             AND cm."CrimeRegisteredDate" <  DATE_TRUNC('month', NOW()))
+        > COUNT(*) FILTER (WHERE cm."CrimeRegisteredDate" >= DATE_TRUNC('month', NOW() - INTERVAL '2 months')
+                             AND cm."CrimeRegisteredDate" <  DATE_TRUNC('month', NOW() - INTERVAL '1 month')) * 1.15
     ORDER BY this_month DESC
     LIMIT 3
   `;
@@ -36,7 +40,7 @@ export async function computeInsights(): Promise<InsightItem[]> {
     insights.push({
       type: "spike",
       title: `Crime spike in ${row.district_name}`,
-      detail: `${pct}% increase this month (${thisMonth} vs ${lastMonth} last month)`,
+      detail: `${pct}% jump last month (${thisMonth} vs ${lastMonth} the month before)`,
       query: `Show crime breakdown in ${row.district_name} for the last 2 months`,
     });
   }

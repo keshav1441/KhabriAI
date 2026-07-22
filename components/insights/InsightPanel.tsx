@@ -38,7 +38,17 @@ export function InsightPanel({ onQuerySelect }: { onQuerySelect: (q: string) => 
       .catch(() => {});
   }, []);
 
-  if (!insights.length) return null;
+  // Compact, varied briefing: one card per insight type, at most 3.
+  const shown: Insight[] = [];
+  const seenTypes = new Set<string>();
+  for (const i of insights) {
+    if (seenTypes.has(i.type)) continue;
+    seenTypes.add(i.type);
+    shown.push(i);
+    if (shown.length === 3) break;
+  }
+
+  if (!shown.length) return null;
 
   return (
     <div className="mx-4 mt-3 rounded-md overflow-hidden" style={{ border: "1px solid var(--border)" }}>
@@ -55,7 +65,7 @@ export function InsightPanel({ onQuerySelect }: { onQuerySelect: (q: string) => 
           </span>
           <span className="font-data text-xs px-1.5 py-0.5 rounded font-bold"
                 style={{ background: "var(--amber-dim)", color: "var(--amber)" }}>
-            {insights.length}
+            {shown.length}
           </span>
         </div>
         <span className="font-data text-xs" style={{ color: "var(--text-muted)" }}>
@@ -66,7 +76,7 @@ export function InsightPanel({ onQuerySelect }: { onQuerySelect: (q: string) => 
       {!collapsed && (
         <div className="p-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3"
              style={{ background: "var(--bg-raised)" }}>
-          {insights.map((insight, i) => {
+          {shown.map((insight, i) => {
             const cfg = TYPE_CONFIG[insight.type] ?? DEFAULT_CONFIG;
             return (
               <button
