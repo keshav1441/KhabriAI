@@ -80,12 +80,12 @@ export default function DashboardPage() {
           <ShieldIcon size={22} />
           {sidebarOpen && (
             <div className="min-w-0">
-              <div className="font-display font-bold tracking-tight whitespace-nowrap uppercase"
-                   style={{ color: "var(--text-primary)", fontSize: "1.1rem", lineHeight: 1.1 }}>
+              <div className="font-display font-bold tracking-tight whitespace-nowrap"
+                   style={{ color: "var(--text-primary)", fontSize: "1.2rem", lineHeight: 1.05 }}>
                 KHABRI<span style={{ color: "var(--khaki)" }}> AI</span>
               </div>
-              <div className="font-data text-xs" style={{ color: "var(--text-muted)", lineHeight: 1 }}>
-                KSP Intelligence
+              <div className="whitespace-nowrap" style={{ color: "var(--text-muted)", lineHeight: 1.2, fontSize: "0.64rem", letterSpacing: "0.02em" }}>
+                ಗುಪ್ತಚರ ದಳ · KSP INTELLIGENCE
               </div>
             </div>
           )}

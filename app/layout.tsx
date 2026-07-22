@@ -1,24 +1,29 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Space_Mono, Barlow_Condensed } from "next/font/google";
+import { Anek_Kannada, Noto_Sans_Kannada, IBM_Plex_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import "./globals.css";
 
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-space-grotesk",
-  subsets: ["latin"],
+// Display — Anek Kannada carries both Kannada and Latin, so the bilingual
+// masthead and section headers share one voice.
+const anekKannada = Anek_Kannada({
+  variable: "--font-display",
+  subsets: ["kannada", "latin"],
+  weight: ["400", "500", "600", "700", "800"],
+});
+
+// Body — Noto Sans Kannada: neutral, institutional, and bilingual (Kannada +
+// Latin) in one face. Government-form legibility without feeling generic.
+const notoKannada = Noto_Sans_Kannada({
+  variable: "--font-body",
+  subsets: ["kannada", "latin"],
   weight: ["300", "400", "500", "600", "700"],
 });
 
-const spaceMono = Space_Mono({
-  variable: "--font-space-mono",
+// Data — case numbers, SQL, timestamps, seals.
+const plexMono = IBM_Plex_Mono({
+  variable: "--font-data",
   subsets: ["latin"],
-  weight: ["400", "700"],
-});
-
-const barlowCondensed = Barlow_Condensed({
-  variable: "--font-barlow",
-  subsets: ["latin"],
-  weight: ["600", "700", "800"],
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -31,7 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="en"
       data-theme="light"
-      className={`${spaceGrotesk.variable} ${spaceMono.variable} ${barlowCondensed.variable} h-full`}
+      className={`${anekKannada.variable} ${notoKannada.variable} ${plexMono.variable} h-full`}
       suppressHydrationWarning
     >
       <head>

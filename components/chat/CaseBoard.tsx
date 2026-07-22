@@ -102,7 +102,7 @@ export function CaseBoard() {
         </span>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-2">
+      <div className={`flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-2 ${steps.length > 1 ? "evidence-thread pl-5" : ""}`}>
         {steps.length === 0 && (
           <p className="text-xs font-data px-1" style={{ color: "var(--text-muted)", opacity: 0.6 }}>
             Reasoning steps will pin here as the agent investigates.

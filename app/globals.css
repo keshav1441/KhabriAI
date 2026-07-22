@@ -5,65 +5,68 @@
    JavaScript can freely toggle without React fighting us
    ──────────────────────────────────────────────────────── */
 
-/* Light — warm document / case-file paper */
+/* Light — manila dossier / case file. Buff paper, indigo form-ink, oxblood
+   evidence-red, brass state emblem, verdigris. Government-issue, not cream. */
 :root,
 [data-theme="light"] {
-  --bg-base:       #EBE6DC;
-  --bg-surface:    #F6F3EE;
-  --bg-raised:     #F0EDE6;
-  --bg-input:      #FFFFFF;
-  --border:        #D8D2C6;
-  --border-subtle: #E5E0D8;
+  --bg-base:       #DED6C4;
+  --bg-surface:    #EAE3D2;
+  --bg-raised:     #E3DBC8;
+  --bg-input:      #F7F2E6;
+  --border:        #C7BBA0;
+  --border-subtle: #D6CCB4;
 
-  --text-primary:  #141210;
-  --text-secondary:#5C5751;
-  --text-muted:    #9C948A;
+  --text-primary:  #211C14;
+  --text-secondary:#57503F;
+  --text-muted:    #938974;
 
-  --red:           #C8202E;
-  --red-dim:       rgba(200, 32, 46, 0.10);
-  --amber:         #B86E00;
-  --amber-dim:     rgba(184, 110, 0, 0.10);
-  --green:         #167A46;
-  --green-dim:     rgba(22, 122, 70, 0.10);
-  --blue:          #1D4ED8;
-  --blue-dim:      rgba(29, 78, 216, 0.10);
+  --red:           #B21F26;
+  --red-dim:       rgba(178, 31, 38, 0.10);
+  --amber:         #9A6410;
+  --amber-dim:     rgba(154, 100, 16, 0.11);
+  --green:         #2C6B57;
+  --green-dim:     rgba(44, 107, 87, 0.11);
+  --blue:          #26356E;
+  --blue-dim:      rgba(38, 53, 110, 0.10);
 
-  --ink:           #1B3A5C;
-  --ink-dim:       rgba(27, 58, 92, 0.10);
-  --khaki:         #B8975A;
-  --khaki-dim:     rgba(184, 151, 90, 0.12);
+  --ink:           #26356E;
+  --ink-dim:       rgba(38, 53, 110, 0.10);
+  --khaki:         #A67C34;
+  --khaki-dim:     rgba(166, 124, 52, 0.13);
 
-  --noise-opacity: 0.02;
+  --thread:        #B21F26;
+  --noise-opacity: 0.028;
 }
 
-/* Dark — deep ink / ops room */
+/* Dark — night watch / evidence room. Warm oxblood-charcoal, NOT cold blue. */
 [data-theme="dark"] {
-  --bg-base:       #070B12;
-  --bg-surface:    #0C1019;
-  --bg-raised:     #111826;
-  --bg-input:      #0F1420;
-  --border:        #1C2438;
-  --border-subtle: #141929;
+  --bg-base:       #191410;
+  --bg-surface:    #221A15;
+  --bg-raised:     #2A211A;
+  --bg-input:      #1E1712;
+  --border:        #3B2F26;
+  --border-subtle: #2C231C;
 
-  --text-primary:  #DDE2F2;
-  --text-secondary:#6E7894;
-  --text-muted:    #3D4460;
+  --text-primary:  #EFE7D6;
+  --text-secondary:#B2A288;
+  --text-muted:    #6E6250;
 
-  --red:           #E63946;
-  --red-dim:       rgba(230, 57, 70, 0.13);
-  --amber:         #F0A500;
-  --amber-dim:     rgba(240, 165, 0, 0.13);
-  --green:         #2DCA6F;
-  --green-dim:     rgba(45, 202, 111, 0.13);
-  --blue:          #3B82F6;
-  --blue-dim:      rgba(59, 130, 246, 0.13);
+  --red:           #E24B45;
+  --red-dim:       rgba(226, 75, 69, 0.14);
+  --amber:         #E0952A;
+  --amber-dim:     rgba(224, 149, 42, 0.14);
+  --green:         #4FB894;
+  --green-dim:     rgba(79, 184, 148, 0.14);
+  --blue:          #7C8CE0;
+  --blue-dim:      rgba(124, 140, 224, 0.14);
 
-  --ink:           #4A8EC4;
-  --ink-dim:       rgba(74, 142, 196, 0.13);
-  --khaki:         #C4A96D;
-  --khaki-dim:     rgba(196, 169, 109, 0.13);
+  --ink:           #7C8CE0;
+  --ink-dim:       rgba(124, 140, 224, 0.14);
+  --khaki:         #C99B4E;
+  --khaki-dim:     rgba(201, 155, 78, 0.15);
 
-  --noise-opacity: 0.035;
+  --thread:        #E24B45;
+  --noise-opacity: 0.04;
 }
 
 /* ── Global resets ──────────────────────────────────────── */
@@ -73,7 +76,7 @@ html, body { height: 100%; }
 body {
   background: var(--bg-base);
   color: var(--text-primary);
-  font-family: var(--font-space-grotesk, ui-sans-serif, system-ui, sans-serif);
+  font-family: var(--font-body, ui-sans-serif, system-ui, sans-serif);
   -webkit-font-smoothing: antialiased;
   transition: background 0.2s, color 0.2s;
 }
@@ -115,27 +118,50 @@ body::before {
   animation: ping-slow 2s ease-in-out infinite;
 }
 
-/* ── Classification badge ───────────────────────────────── */
+/* ── Classification stamp ───────────────────────────────── */
+/* Angled rubber-stamp, not a pill — reads as an official seal. */
 .badge-classified {
-  font-family: var(--font-space-mono, monospace);
+  font-family: var(--font-data, monospace);
   font-size: 0.6rem;
-  letter-spacing: 0.12em;
+  font-weight: 700;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   padding: 2px 7px;
   border-radius: 2px;
-  background: var(--red-dim);
+  background: transparent;
   color: var(--red);
-  border: 1px solid var(--red);
+  border: 1.5px solid var(--red);
+  transform: rotate(-3deg);
+  opacity: 0.88;
 }
 
 /* ── Mono data font ─────────────────────────────────────── */
 .font-data {
-  font-family: var(--font-space-mono, "Courier New", monospace);
+  font-family: var(--font-data, "IBM Plex Mono", "Courier New", monospace);
 }
 
-/* ── Condensed display font ─────────────────────────────── */
+/* ── Display font ───────────────────────────────────────── */
 .font-display {
-  font-family: var(--font-barlow, "Barlow Condensed", sans-serif);
+  font-family: var(--font-display, "Anek Kannada", sans-serif);
+}
+
+/* ── Evidence thread ─────────────────────────────────────
+   The signature: the string-and-pins investigation board, digital.
+   A thin red line that ties reasoning steps together. */
+.evidence-thread {
+  position: relative;
+}
+.evidence-thread::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0.4rem; bottom: 0.4rem;
+  width: 1.5px;
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--thread) 0 6px,
+    transparent 6px 11px
+  );
+  opacity: 0.55;
 }
 
 /* ── Fade-up entry ──────────────────────────────────────── */
@@ -148,7 +174,7 @@ body::before {
 /* ── Leaflet overrides ──────────────────────────────────── */
 .leaflet-container {
   background: var(--bg-raised) !important;
-  font-family: var(--font-space-grotesk, sans-serif) !important;
+  font-family: var(--font-body, sans-serif) !important;
 }
 .leaflet-tile-pane {
   filter: brightness(0.7) saturate(0.5) hue-rotate(180deg) invert(0.05);
