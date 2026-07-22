@@ -1,6 +1,7 @@
 import { getGroqClient } from "./groq-client";
 
-const GROQ_SQL_MODEL = process.env.GROQ_SQL_MODEL ?? "qwen/qwen3-32b";
+// qwen/qwen3-32b was removed from Groq; qwen/qwen3.6-27b is the available successor.
+const GROQ_SQL_MODEL = process.env.GROQ_SQL_MODEL ?? "qwen/qwen3.6-27b";
 const GROQ_SUMMARY_MODEL = process.env.GROQ_SUMMARY_MODEL ?? "llama-3.1-8b-instant";
 
 const SQL_SYSTEM_PROMPT = `You are an expert PostgreSQL query generator for the Karnataka State Police FIR (First Information Report) database.

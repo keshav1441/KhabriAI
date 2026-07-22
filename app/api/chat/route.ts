@@ -6,7 +6,16 @@ import { getUserFromRequest } from "@/lib/chat-auth";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  const user = await getUserFromRequest(req);
+  let user;
+  try {
+    user = await getUserFromRequest(req);
+  } catch (e) {
+    // getUserFromRequest hits the DB; a stale Prisma client in a long-running
+    // dev server throws here. Return a clean, diagnosable error instead of an
+    // unhandled 500 — and restart the dev server (see README troubleshooting).
+    console.error("auth lookup failed (restart dev server / run prisma generate):", e);
+    return Response.json({ error: "Auth service unavailable — restart the dev server." }, { status: 503 });
+  }
   if (!user) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }

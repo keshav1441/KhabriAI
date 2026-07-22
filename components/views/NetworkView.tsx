@@ -24,17 +24,22 @@ export function NetworkView() {
         style={{ borderBottom: "1px solid var(--border)" }}
       >
         <div>
-          <h2 className="font-bold text-sm tracking-tight" style={{ color: "var(--text-primary)" }}>
-            CRIMINAL NETWORK GRAPH
+          <h2 className="font-display font-bold tracking-tight" style={{ color: "var(--text-primary)", fontSize: "1.05rem" }}>
+            ಅಪರಾಧಿ ಜಾಲ · CRIMINAL NETWORK
           </h2>
           <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-            Accused with 2+ linked cases · Green = suspect · Yellow = crime type
+            Repeat accused (2+ cases) linked to every crime group they operate in. Click a node to isolate its network.
           </p>
         </div>
         {!loading && (
-          <span className="font-data text-xs" style={{ color: "var(--text-muted)" }}>
-            {rows.length} suspects mapped
-          </span>
+          <div className="text-right shrink-0">
+            <div className="font-display font-bold" style={{ color: "var(--ink)", fontSize: "1.4rem", lineHeight: 1 }}>
+              {rows.length}
+            </div>
+            <div className="font-data" style={{ color: "var(--text-muted)", fontSize: "0.6rem", letterSpacing: "0.1em" }}>
+              SUSPECTS MAPPED
+            </div>
+          </div>
         )}
       </div>
 
@@ -67,13 +72,14 @@ export function NetworkView() {
       {/* Legend */}
       {!loading && rows.length > 0 && (
         <div
-          className="shrink-0 px-6 py-2 flex items-center gap-6"
+          className="shrink-0 px-6 py-2 flex items-center gap-5 flex-wrap"
           style={{ borderTop: "1px solid var(--border)" }}
         >
-          <LegendDot color="#2DCA6F" label="Accused (size = case count)" />
-          <LegendDot color="#F0A500" shape="diamond" label="Crime type" />
-          <p className="ml-auto text-xs" style={{ color: "var(--text-muted)" }}>
-            Click nodes to select · Drag to pan
+          <LegendDot color="var(--ink)" label="Accused · size = case count" />
+          <LegendDot color="var(--khaki)" shape="diamond" label="Crime group" />
+          <LegendDot color="var(--red)" ring label="Priority · top 10 most-linked" />
+          <p className="ml-auto text-xs font-data" style={{ color: "var(--text-muted)" }}>
+            Click a node to isolate · Drag to pan
           </p>
         </div>
       )}
@@ -81,13 +87,15 @@ export function NetworkView() {
   );
 }
 
-function LegendDot({ color, shape, label }: { color: string; shape?: string; label: string }) {
+function LegendDot({ color, shape, ring, label }: { color: string; shape?: string; ring?: boolean; label: string }) {
   return (
     <div className="flex items-center gap-1.5">
       <span
-        className="inline-block w-3 h-3 rounded-sm shrink-0"
+        className="inline-block w-3 h-3 shrink-0"
         style={{
-          background: color,
+          background: ring ? "transparent" : color,
+          border: ring ? `2px solid ${color}` : undefined,
+          borderRadius: shape === "diamond" ? "2px" : "50%",
           transform: shape === "diamond" ? "rotate(45deg)" : undefined,
         }}
       />

@@ -327,13 +327,17 @@ export function ChatWindow() {
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
               disabled={sending}
               placeholder={t("chat.placeholder", lang)}
-              className="w-full resize-none rounded-md px-4 py-3 text-sm outline-none transition-all"
+              className="block w-full resize-none rounded-md px-4 text-sm outline-none transition-all"
               style={{
                 background: "var(--bg-input)",
                 border: "1px solid var(--border)",
                 color: "var(--text-primary)",
-                minHeight: "44px",
-                maxHeight: "120px",
+                height: "44px",
+                lineHeight: "20px",
+                paddingTop: "11px",
+                paddingBottom: "11px",
+                maxHeight: "44px",
+                overflowY: "auto",
               }}
               onFocus={(e) => { e.target.style.borderColor = "var(--ink)"; }}
               onBlur={(e) => { e.target.style.borderColor = "var(--border)"; }}

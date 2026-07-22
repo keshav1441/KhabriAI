@@ -15,7 +15,7 @@ Conversational AI for investigators to query crime data in plain English. Sign i
 | Database | Neon PostgreSQL + Prisma |
 | Auth | PBKDF2-SHA512 (100k iterations) · HMAC-signed session cookie (7 days) |
 | Agent | Groq `llama-3.3-70b-versatile` orchestrator + 5 tools (see below) |
-| LLM | Groq — `qwen/qwen3-32b` (SQL) · `llama-3.1-8b-instant` (summary) |
+| LLM | Groq — `qwen/qwen3.6-27b` (SQL) · `llama-3.1-8b-instant` (summary) |
 | Catalyst services | Cache (insights TTL) · Data Store (`AgentAuditLog`) · QuickML (chargesheet risk) — all optional, local fallbacks outside AppSail |
 | Embeddings | Groq API (`nomic-embed-text-v1.5`) · LLM fallback for example selection |
 | Case retrieval | Postgres full-text search (`tsvector`/`ts_rank`) over `CaseMaster.BriefFacts` |
@@ -38,7 +38,7 @@ User question
      ▼
 Planner (llama-3.3-70b-versatile) ──► tool calls, streamed live to the Case Board
      │
-     ├─ queryDatabase        RAG few-shot examples → qwen/qwen3-32b generates SQL
+     ├─ queryDatabase        RAG few-shot examples → qwen/qwen3.6-27b generates SQL
      │                       → validate (SELECT-only) → execute on Neon → classify viz
      ├─ searchRelatedCases   Postgres full-text search over FIR narratives → citations
      ├─ checkInsights        Precomputed anomalies (spikes, repeat accused, surges)
@@ -221,7 +221,7 @@ scripts/
 |----------|----------|-------------|
 | `DATABASE_URL` | Yes | Neon PostgreSQL connection string |
 | `GROQ_API_KEY` | Yes | Groq API key |
-| `GROQ_SQL_MODEL` | No | SQL model (default `qwen/qwen3-32b`) |
+| `GROQ_SQL_MODEL` | No | SQL model (default `qwen/qwen3.6-27b`) |
 | `GROQ_EMBED_MODEL` | No | Embedding model (default `nomic-embed-text-v1.5`) |
 | `GROQ_RAG_MODEL` | No | LLM example-picker fallback (default `llama-3.1-8b-instant`) |
 | `RAG_MODE` | No | `embed` or `llm` to force retrieval mode |
