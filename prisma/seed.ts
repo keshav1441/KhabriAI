@@ -325,6 +325,40 @@ async function main() {
     }
     console.log();
 
+    // ── Offender identity pool + crews ────────────────────────────────────
+    // Real repeat-offenders and co-offenders need persons that recur across
+    // cases. Build a fixed pool with stable PersonIDs; a prolific minority are
+    // drawn far more often, and ~600 belong to crews that co-offend together —
+    // this is what makes the criminal-network graph show clusters, not noise.
+    const POOL_SIZE = 5000;
+    type Person = { personId: string; name: string; gender: number; age: number };
+    const persons: Person[] = [];
+    const drawBag: number[] = []; // expanded index bag → O(1) weighted draw
+    for (let i = 0; i < POOL_SIZE; i++) {
+      persons.push({
+        personId: `KSP-P-${String(i + 1).padStart(5, "0")}`,
+        name: randName(),
+        gender: Math.random() > 0.15 ? 1 : 2,
+        age: randAge(18, 63),
+      });
+      const weight = Math.random() < 0.12 ? 6 : 1; // ~12% prolific
+      for (let w = 0; w < weight; w++) drawBag.push(i);
+    }
+    const personById: Record<string, Person> = {};
+    persons.forEach((p) => (personById[p.personId] = p));
+    const drawPerson = (): Person => persons[drawBag[Math.floor(Math.random() * drawBag.length)]];
+
+    // Crews: partition the first ~900 persons into cliques — mostly small
+    // crews of 2–3, plus ~15% larger "gangs" of 5–6 that produce the dense
+    // clusters an analyst wants to see.
+    const crewMates: Record<string, string[]> = {};
+    for (let idx = 0; idx < 900; ) {
+      const size = Math.random() < 0.15 ? 5 + Math.floor(Math.random() * 2) : 2 + Math.floor(Math.random() * 2);
+      const crew = persons.slice(idx, idx + size);
+      for (const p of crew) crewMates[p.personId] = crew.filter((q) => q !== p).map((q) => q.personId);
+      idx += size;
+    }
+
     // Build dependent rows using real CaseMasterIDs
     const firstAccusedByCaseID: Record<number, number> = {};
 
@@ -334,9 +368,25 @@ async function main() {
 
       victimRows.push([caseID, randName(), randAge(15, 75), Math.random() > 0.35 ? 1 : 2, "0"]);
 
-      const numAccused = Math.random() < 0.3 ? 2 : 1;
-      for (let a = 0; a < numAccused; a++) {
-        accusedRows.push([caseID, randName(), randAge(18, 63), Math.random() > 0.15 ? 1 : 2, `A${a+1}`]);
+      const primary = drawPerson();
+      const mates = crewMates[primary.personId];
+      // Crew members co-offend often (pairs and trios) → dense clusters; loners
+      // mostly act alone. This is what gives the network real gang structure.
+      let numAccused: number;
+      if (mates?.length) {
+        const r = Math.random();
+        numAccused = r < 0.45 ? 1 : r < 0.85 ? 2 : 3;
+      } else {
+        numAccused = Math.random() < 0.15 ? 2 : 1;
+      }
+      const used = new Set([primary.personId]);
+      accusedRows.push([caseID, primary.name, primary.age, primary.gender, primary.personId]);
+      for (let a = 1; a < numAccused; a++) {
+        const pool = mates?.filter((m) => !used.has(m)) ?? [];
+        const person = pool.length && Math.random() < 0.85 ? personById[pick(pool)] : drawPerson();
+        if (used.has(person.personId)) continue;
+        used.add(person.personId);
+        accusedRows.push([caseID, person.name, person.age, person.gender, person.personId]);
       }
 
       complainantRows.push([caseID, randName(), randAge(20, 70), pick(occupIds), pick(relIds), pick(casteIds), Math.random() > 0.4 ? 1 : 2]);

@@ -13,6 +13,7 @@ const TYPE_CONFIG: Record<string, { label: string; color: string }> = {
   spike:          { label: "SPIKE",          color: "var(--red)"   },
   repeat_suspect: { label: "REPEAT SUSPECT", color: "var(--amber)" },
   weekly_surge:   { label: "SURGE",          color: "var(--amber)" },
+  forecast:       { label: "⚠ FORECAST",     color: "var(--ink)"   },
 };
 const DEFAULT_CONFIG = { label: "ALERT", color: "var(--amber)" };
 

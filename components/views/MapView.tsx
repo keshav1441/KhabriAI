@@ -52,7 +52,10 @@ export function MapView() {
     if (loading || !mapRef.current || !districts.length) return;
     if (typeof window === "undefined") return;
 
+    let cancelled = false; // guard against the dynamic import resolving post-unmount
+
     import("leaflet").then(({ default: L }) => {
+      if (cancelled || !mapRef.current) return;
       if (mapInstance.current) { mapInstance.current.remove(); mapInstance.current = null; }
 
       const map = L.map(mapRef.current!, { zoomControl: true, scrollWheelZoom: true });
@@ -64,7 +67,9 @@ export function MapView() {
 
       // Fit to Karnataka bounds — don't use setView which shows all of India
       map.fitBounds([[11.5, 74.0], [18.5, 78.5]], { padding: [20, 20] });
-      setTimeout(() => map.invalidateSize(), 200);
+      // Only resize if this map is still the mounted instance — else Leaflet
+      // throws "_leaflet_pos" on a removed map when the tab switches fast.
+      setTimeout(() => { if (mapInstance.current === map) map.invalidateSize(); }, 200);
 
       const maxCount = Math.max(...districts.map((d) => d.count), 1);
 
@@ -113,7 +118,7 @@ export function MapView() {
       }
     });
 
-    return () => { mapInstance.current?.remove(); mapInstance.current = null; };
+    return () => { cancelled = true; mapInstance.current?.remove(); mapInstance.current = null; };
   }, [loading, districts]);
 
   const maxCount = Math.max(...districts.map((d) => d.count), 1);

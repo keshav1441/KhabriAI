@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
+import { requireUser } from "@/lib/chat-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,8 @@ type ReportRow = {
 };
 
 export async function GET(req: NextRequest) {
+  const denied = await requireUser(req);
+  if (denied) return denied;
   const { searchParams } = new URL(req.url);
   const search = (searchParams.get("q") ?? "").trim();
   const limit = Math.min(Number(searchParams.get("limit") ?? 100), 200);

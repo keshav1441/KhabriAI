@@ -6,6 +6,7 @@ export const STRINGS = {
   "nav.chat":     { en: "Intelligence Chat",   kn: "ಗುಪ್ತಚರ ಚಾಟ್" },
   "nav.map":      { en: "Crime Map",           kn: "ಅಪರಾಧ ನಕ್ಷೆ" },
   "nav.network":  { en: "Criminal Network",    kn: "ಅಪರಾಧಿ ಜಾಲ" },
+  "nav.profiling":{ en: "Profiling",           kn: "ವಿಶ್ಲೇಷಣೆ" },
   "nav.reports":  { en: "Case Reports",        kn: "ಪ್ರಕರಣ ವರದಿಗಳು" },
   "nav.about":    { en: "About Project",       kn: "ಯೋಜನೆ ಬಗ್ಗೆ" },
   "chat.online":  { en: "● INTELLIGENCE SYSTEM ONLINE", kn: "● ಗುಪ್ತಚರ ವ್ಯವಸ್ಥೆ ಸಕ್ರಿಯವಾಗಿದೆ" },

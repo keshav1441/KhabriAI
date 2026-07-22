@@ -1,20 +1,20 @@
 "use client";
 import { useEffect, useState } from "react";
-import { NetworkGraph } from "../viz/NetworkGraph";
-
-type Row = { AccusedName: string; case_count: number; crime_types: string };
+import { NetworkGraph, type CoOffenderNode, type CoOffenderEdge } from "../viz/NetworkGraph";
 
 export function NetworkView() {
-  const [rows, setRows] = useState<Row[]>([]);
+  const [graph, setGraph] = useState<{ nodes: CoOffenderNode[]; edges: CoOffenderEdge[] }>({ nodes: [], edges: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     fetch("/api/network-data")
       .then((r) => r.json())
-      .then((d) => { setRows(d.rows ?? []); setLoading(false); })
+      .then((d) => { setGraph({ nodes: d.nodes ?? [], edges: d.edges ?? [] }); setLoading(false); })
       .catch(() => { setError("Failed to load network data"); setLoading(false); });
   }, []);
+
+  const crews = graph.edges.length;
 
   return (
     <div className="flex flex-col h-full">
@@ -28,16 +28,16 @@ export function NetworkView() {
             ಅಪರಾಧಿ ಜಾಲ · CRIMINAL NETWORK
           </h2>
           <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-            Repeat accused (2+ cases) linked to every crime group they operate in. Click a node to isolate its network.
+            Persons linked by shared cases. Crews cluster together; click a node to isolate its associates.
           </p>
         </div>
-        {!loading && (
+        {!loading && !error && (
           <div className="text-right shrink-0">
             <div className="font-display font-bold" style={{ color: "var(--ink)", fontSize: "1.4rem", lineHeight: 1 }}>
-              {rows.length}
+              {graph.nodes.length}
             </div>
             <div className="font-data" style={{ color: "var(--text-muted)", fontSize: "0.6rem", letterSpacing: "0.1em" }}>
-              SUSPECTS MAPPED
+              PERSONS · {crews} LINKS
             </div>
           </div>
         )}
@@ -48,7 +48,7 @@ export function NetworkView() {
         {loading && (
           <div className="h-full flex items-center justify-center">
             <span className="font-data text-sm" style={{ color: "var(--text-muted)" }}>
-              Building network graph…
+              Building co-offender network…
             </span>
           </div>
         )}
@@ -57,27 +57,27 @@ export function NetworkView() {
             <span className="text-sm" style={{ color: "var(--red)" }}>{error}</span>
           </div>
         )}
-        {!loading && !error && rows.length === 0 && (
+        {!loading && !error && graph.nodes.length === 0 && (
           <div className="h-full flex items-center justify-center">
-            <span className="text-sm" style={{ color: "var(--text-muted)" }}>No multi-case accused found.</span>
+            <span className="text-sm" style={{ color: "var(--text-muted)" }}>No recurring co-offender links found.</span>
           </div>
         )}
-        {!loading && !error && rows.length > 0 && (
+        {!loading && !error && graph.nodes.length > 0 && (
           <div style={{ height: "100%" }}>
-            <NetworkGraph rows={rows} />
+            <NetworkGraph graph={graph} />
           </div>
         )}
       </div>
 
       {/* Legend */}
-      {!loading && rows.length > 0 && (
+      {!loading && !error && graph.nodes.length > 0 && (
         <div
           className="shrink-0 px-6 py-2 flex items-center gap-5 flex-wrap"
           style={{ borderTop: "1px solid var(--border)" }}
         >
-          <LegendDot color="var(--ink)" label="Accused · size = case count" />
-          <LegendDot color="var(--khaki)" shape="diamond" label="Crime group" />
-          <LegendDot color="var(--red)" ring label="Priority · top 10 most-linked" />
+          <LegendDot color="var(--ink)" label="Person · size = case count" />
+          <LegendDot color="var(--border)" line label="Shared cases · thicker = more" />
+          <LegendDot color="var(--red)" ring label="Kingpin · 3+ associates" />
           <p className="ml-auto text-xs font-data" style={{ color: "var(--text-muted)" }}>
             Click a node to isolate · Drag to pan
           </p>
@@ -87,18 +87,22 @@ export function NetworkView() {
   );
 }
 
-function LegendDot({ color, shape, ring, label }: { color: string; shape?: string; ring?: boolean; label: string }) {
+function LegendDot({ color, shape, ring, line, label }: { color: string; shape?: string; ring?: boolean; line?: boolean; label: string }) {
   return (
     <div className="flex items-center gap-1.5">
-      <span
-        className="inline-block w-3 h-3 shrink-0"
-        style={{
-          background: ring ? "transparent" : color,
-          border: ring ? `2px solid ${color}` : undefined,
-          borderRadius: shape === "diamond" ? "2px" : "50%",
-          transform: shape === "diamond" ? "rotate(45deg)" : undefined,
-        }}
-      />
+      {line ? (
+        <span className="inline-block shrink-0" style={{ width: 14, height: 3, background: color, borderRadius: 2 }} />
+      ) : (
+        <span
+          className="inline-block w-3 h-3 shrink-0"
+          style={{
+            background: ring ? "transparent" : color,
+            border: ring ? `2px solid ${color}` : undefined,
+            borderRadius: shape === "diamond" ? "2px" : "50%",
+            transform: shape === "diamond" ? "rotate(45deg)" : undefined,
+          }}
+        />
+      )}
       <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{label}</span>
     </div>
   );

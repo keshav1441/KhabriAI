@@ -98,5 +98,29 @@
   {
     "question": "Show closed cases per district this year",
     "sql": "SELECT d.\"DistrictName\", COUNT(*) AS closed_cases\nFROM \"CaseMaster\" cm\nJOIN \"CaseStatusMaster\" cs ON cs.\"CaseStatusID\" = cm.\"CaseStatusID\"\nJOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\"\nJOIN \"District\" d ON d.\"DistrictID\" = u.\"DistrictID\"\nWHERE cs.\"CaseStatusName\" = 'Closed'\n  AND cm.\"CrimeRegisteredDate\" >= DATE_TRUNC('year', NOW())\nGROUP BY d.\"DistrictName\"\nORDER BY closed_cases DESC"
+  },
+  {
+    "question": "What is the age distribution of accused in cybercrime cases?",
+    "sql": "SELECT CASE WHEN a.\"AgeYear\" < 26 THEN '18-25' WHEN a.\"AgeYear\" < 36 THEN '26-35' WHEN a.\"AgeYear\" < 46 THEN '36-45' ELSE '46+' END AS age_band, COUNT(*) AS accused\nFROM \"Accused\" a\nJOIN \"CaseMaster\" cm ON cm.\"CaseMasterID\" = a.\"CaseMasterID\"\nJOIN \"CrimeHead\" ch ON ch.\"CrimeHeadID\" = cm.\"CrimeMajorHeadID\"\nWHERE ch.\"CrimeGroupName\" = 'Cybercrimes' AND a.\"AgeYear\" IS NOT NULL\nGROUP BY age_band\nORDER BY age_band"
+  },
+  {
+    "question": "Gender breakdown of theft victims",
+    "sql": "SELECT CASE v.\"GenderID\" WHEN 1 THEN 'Male' WHEN 2 THEN 'Female' ELSE 'Other' END AS gender, COUNT(*) AS victims\nFROM \"Victim\" v\nJOIN \"CaseMaster\" cm ON cm.\"CaseMasterID\" = v.\"CaseMasterID\"\nJOIN \"CrimeSubHead\" csh ON csh.\"CrimeSubHeadID\" = cm.\"CrimeMinorHeadID\"\nWHERE csh.\"CrimeHeadName\" = 'Theft' AND v.\"GenderID\" IS NOT NULL\nGROUP BY gender\nORDER BY victims DESC"
+  },
+  {
+    "question": "Occupation profile of complainants in economic offences",
+    "sql": "SELECT om.\"OccupationName\", COUNT(*) AS complainants\nFROM \"ComplainantDetails\" cd\nJOIN \"CaseMaster\" cm ON cm.\"CaseMasterID\" = cd.\"CaseMasterID\"\nJOIN \"CrimeHead\" ch ON ch.\"CrimeHeadID\" = cm.\"CrimeMajorHeadID\"\nJOIN \"OccupationMaster\" om ON om.\"OccupationID\" = cd.\"OccupationID\"\nWHERE ch.\"CrimeGroupName\" = 'Economic Offences'\nGROUP BY om.\"OccupationName\"\nORDER BY complainants DESC"
+  },
+  {
+    "question": "Average age of accused by crime group",
+    "sql": "SELECT ch.\"CrimeGroupName\", ROUND(AVG(a.\"AgeYear\")) AS avg_age, COUNT(*) AS accused\nFROM \"Accused\" a\nJOIN \"CaseMaster\" cm ON cm.\"CaseMasterID\" = a.\"CaseMasterID\"\nJOIN \"CrimeHead\" ch ON ch.\"CrimeHeadID\" = cm.\"CrimeMajorHeadID\"\nWHERE a.\"AgeYear\" IS NOT NULL\nGROUP BY ch.\"CrimeGroupName\"\nORDER BY avg_age"
+  },
+  {
+    "question": "Religion breakdown of complainants in Bengaluru Urban",
+    "sql": "SELECT rm.\"ReligionName\", COUNT(*) AS complainants\nFROM \"ComplainantDetails\" cd\nJOIN \"CaseMaster\" cm ON cm.\"CaseMasterID\" = cd.\"CaseMasterID\"\nJOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\"\nJOIN \"District\" d ON d.\"DistrictID\" = u.\"DistrictID\"\nJOIN \"ReligionMaster\" rm ON rm.\"ReligionID\" = cd.\"ReligionID\"\nWHERE d.\"DistrictName\" = 'Bengaluru Urban'\nGROUP BY rm.\"ReligionName\"\nORDER BY complainants DESC"
+  },
+  {
+    "question": "Which districts have rising crime this month compared to last month?",
+    "sql": "SELECT d.\"DistrictName\",\n       COUNT(*) FILTER (WHERE cm.\"CrimeRegisteredDate\" >= DATE_TRUNC('month', NOW())) AS this_month,\n       COUNT(*) FILTER (WHERE cm.\"CrimeRegisteredDate\" >= DATE_TRUNC('month', NOW() - INTERVAL '1 month') AND cm.\"CrimeRegisteredDate\" < DATE_TRUNC('month', NOW())) AS last_month\nFROM \"CaseMaster\" cm\nJOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\"\nJOIN \"District\" d ON d.\"DistrictID\" = u.\"DistrictID\"\nGROUP BY d.\"DistrictName\"\nHAVING COUNT(*) FILTER (WHERE cm.\"CrimeRegisteredDate\" >= DATE_TRUNC('month', NOW())) > COUNT(*) FILTER (WHERE cm.\"CrimeRegisteredDate\" >= DATE_TRUNC('month', NOW() - INTERVAL '1 month') AND cm.\"CrimeRegisteredDate\" < DATE_TRUNC('month', NOW()))\nORDER BY (COUNT(*) FILTER (WHERE cm.\"CrimeRegisteredDate\" >= DATE_TRUNC('month', NOW())) - COUNT(*) FILTER (WHERE cm.\"CrimeRegisteredDate\" >= DATE_TRUNC('month', NOW() - INTERVAL '1 month') AND cm.\"CrimeRegisteredDate\" < DATE_TRUNC('month', NOW()))) DESC"
   }
 ]

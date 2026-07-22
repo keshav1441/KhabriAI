@@ -1,7 +1,8 @@
 import { prisma } from "./db";
 import type { InsightItem } from "./insights-cache";
+import { computeForecasts } from "./forecast";
 
-/** Live-computes the 3 anomaly-detection queries. Shared by the cache-miss path in the insights route and the cron precompute job. */
+/** Live-computes the anomaly-detection queries + predictive forecasts. Shared by the cache-miss path in the insights route and the cron precompute job. */
 export async function computeInsights(): Promise<InsightItem[]> {
   const insights: InsightItem[] = [];
 
@@ -97,6 +98,13 @@ export async function computeInsights(): Promise<InsightItem[]> {
         query: `Show ${row.crime_type} hotspots in the last 7 days with map`,
       });
     }
+  }
+
+  // Predictive early-warnings: forecast which cells are trending up next month.
+  try {
+    insights.push(...(await computeForecasts()));
+  } catch (e) {
+    console.error("forecast compute failed:", e);
   }
 
   return insights;

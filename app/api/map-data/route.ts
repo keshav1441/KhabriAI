@@ -1,8 +1,12 @@
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
+import { requireUser } from "@/lib/chat-auth";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const denied = await requireUser(req);
+  if (denied) return denied;
   try {
     const rows = await prisma.$queryRaw<
       { district_name: string; case_count: bigint }[]

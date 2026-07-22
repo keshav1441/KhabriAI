@@ -7,3 +7,19 @@ export async function getUserFromRequest(req: NextRequest) {
   if (!session) return null;
   return prisma.khabriUser.findUnique({ where: { email: session.email } });
 }
+
+/**
+ * Guard for data endpoints. Returns a Response to short-circuit with (401/503)
+ * or null when the request is authenticated. Keeps PII behind the session
+ * cookie, matching the /api/chat guard.
+ */
+export async function requireUser(req: NextRequest): Promise<Response | null> {
+  try {
+    const user = await getUserFromRequest(req);
+    if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return null;
+  } catch (e) {
+    console.error("auth lookup failed (restart dev server / run prisma generate):", e);
+    return Response.json({ error: "Auth service unavailable" }, { status: 503 });
+  }
+}

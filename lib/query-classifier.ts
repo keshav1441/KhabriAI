@@ -3,9 +3,12 @@ export type VizType = "table" | "chart" | "graph";
 export function classifyQuery(sql: string): VizType {
   const upper = sql.toUpperCase();
 
-  // Network/graph: accused linked across multiple cases
+  // Network/graph: accused linked across multiple cases. Require the AccusedName
+  // COLUMN (what the graph renders) — not just any query touching the Accused
+  // table, or demographic aggregates (age/gender by group) would render as an
+  // empty graph instead of a chart.
   if (
-    upper.includes("ACCUSED") &&
+    upper.includes("ACCUSEDNAME") &&
     upper.includes("GROUP BY") &&
     upper.includes("COUNT")
   ) return "graph";

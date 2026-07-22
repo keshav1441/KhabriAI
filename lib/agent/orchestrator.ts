@@ -47,6 +47,19 @@ export type TokenEvent = { type: "token"; token: string };
 export type DoneEvent = { type: "done" };
 export type AgentEvent = StepEvent | MetaEvent | TokenEvent | DoneEvent;
 
+// A query can return thousands of rows (e.g. "list all accused"); feeding them
+// all to the synthesis LLM overflows its context and it fails to summarise.
+// Cap the rows shown to the model (the full set still flows to the viz).
+function capForLLM(value: unknown): unknown {
+  if (value && typeof value === "object" && "rows" in value) {
+    const v = value as { rows?: unknown[] };
+    if (Array.isArray(v.rows) && v.rows.length > 40) {
+      return { ...v, rows: v.rows.slice(0, 40), rowsTruncated: v.rows.length };
+    }
+  }
+  return value;
+}
+
 function safeParseArgs(raw: string | undefined): Record<string, unknown> {
   try {
     return JSON.parse(raw || "{}");
@@ -162,7 +175,7 @@ export async function* runAgent(
       toolCallCount++;
       yield { type: "step", id: tc.id, tool: tc.function.name, args, result: value, status };
       void logAuditStep({ runId, question, tool: tc.function.name, args, result: value, status }, req);
-      messages.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(value) });
+      messages.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(capForLLM(value)) });
       if (tc.function.name === "queryDatabase") lastQueryResult = value as QueryDatabaseResult;
       if (tc.function.name === "searchRelatedCases") lastCasesResult = value as SearchRelatedCasesResult;
     }
