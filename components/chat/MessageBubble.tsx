@@ -4,7 +4,19 @@ import { ResultsTable } from "../viz/ResultsTable";
 import { CrimeChart } from "../viz/CrimeChart";
 import { NetworkGraph } from "../viz/NetworkGraph";
 import { RelatedCases } from "./RelatedCases";
-import type { ChatMessage } from "@/store/chat";
+import { useChatStore, type ChatMessage } from "@/store/chat";
+import { speechLocale } from "@/lib/i18n";
+
+// ponytail: native SpeechSynthesis TTS; no cloud voice.
+function speak(text: string, locale: string) {
+  if (!("speechSynthesis" in window) || !text.trim()) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = locale;
+  const match = window.speechSynthesis.getVoices().find((v) => v.lang === locale);
+  if (match) u.voice = match;
+  window.speechSynthesis.speak(u);
+}
 
 function exportCSV(rows: Record<string, unknown>[], filename = "khabri-export.csv") {
   if (!rows.length) return;
@@ -18,6 +30,7 @@ function exportCSV(rows: Record<string, unknown>[], filename = "khabri-export.cs
 }
 
 export function MessageBubble({ message }: { message: ChatMessage }) {
+  const lang = useChatStore((s) => s.lang);
   if (message.role === "user") {
     return (
       <div className="flex justify-end">
@@ -67,7 +80,39 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
               ⚠ {message.sqlError}
             </p>
           )}
+          {!message.loading && message.content && (
+            <button
+              onClick={() => speak(message.content, speechLocale(lang))}
+              title="Read aloud"
+              className="mt-2 inline-flex items-center gap-1 text-xs font-data transition-colors"
+              style={{ color: "var(--text-muted)" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--ink)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5L6 9H2v6h4l5 4V5zM15.5 8.5a5 5 0 010 7M18.5 5.5a9 9 0 010 13" />
+              </svg>
+              Listen
+            </button>
+          )}
         </div>
+
+        {!message.loading && message.sql && (
+          <details className="rounded-md overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+            <summary
+              className="cursor-pointer select-none px-3 py-1.5 text-xs font-data"
+              style={{ color: "var(--text-muted)", background: "var(--bg-surface)" }}
+            >
+              ▸ How I got this — generated SQL
+            </summary>
+            <pre
+              className="px-3 py-2 text-xs overflow-x-auto font-data"
+              style={{ color: "var(--green)", background: "var(--bg-raised)", margin: 0 }}
+            >
+              {message.sql}
+            </pre>
+          </details>
+        )}
 
         {!message.loading && <RelatedCases cases={message.relatedCases} />}
 

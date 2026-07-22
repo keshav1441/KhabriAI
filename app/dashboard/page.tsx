@@ -5,22 +5,29 @@ import { ChatWindow } from "@/components/chat/ChatWindow";
 import { CaseBoard } from "@/components/chat/CaseBoard";
 import { ChatHistory } from "@/components/chat/ChatHistory";
 import { MapView } from "@/components/views/MapView";
+import { NetworkView } from "@/components/views/NetworkView";
 import { ReportsView } from "@/components/views/ReportsView";
 import { AboutView } from "@/components/views/AboutView";
+import { ConversationExport } from "@/components/chat/ConversationExport";
 import { useTheme } from "@/components/ThemeProvider";
+import { useChatStore } from "@/store/chat";
+import { t, type StringKey } from "@/lib/i18n";
 
-type View = "chat" | "map" | "reports" | "about";
+type View = "chat" | "map" | "network" | "reports" | "about";
 
-const NAV_ITEMS: Array<{ icon: React.ReactNode; label: string; view: View }> = [
-  { icon: <ChatIcon />, label: "Intelligence Chat", view: "chat" },
-  { icon: <MapIcon />, label: "Crime Map", view: "map" },
-  { icon: <ReportIcon />, label: "Case Reports", view: "reports" },
-  { icon: <InfoIcon />, label: "About Project", view: "about" },
+const NAV_ITEMS: Array<{ icon: React.ReactNode; labelKey: StringKey; view: View }> = [
+  { icon: <ChatIcon />, labelKey: "nav.chat", view: "chat" },
+  { icon: <MapIcon />, labelKey: "nav.map", view: "map" },
+  { icon: <NetworkIcon />, labelKey: "nav.network", view: "network" },
+  { icon: <ReportIcon />, labelKey: "nav.reports", view: "reports" },
+  { icon: <InfoIcon />, labelKey: "nav.about", view: "about" },
 ];
 
 export default function DashboardPage() {
   const router = useRouter();
   const { theme, toggle } = useTheme();
+  const lang = useChatStore((s) => s.lang);
+  const setLang = useChatStore((s) => s.setLang);
   const [activeView, setActiveView] = useState<View>("chat");
   const [authed, setAuthed] = useState(false);
   const [time, setTime] = useState("");
@@ -115,7 +122,7 @@ export default function DashboardPage() {
               >
                 <span className="shrink-0">{item.icon}</span>
                 {sidebarOpen && (
-                  <span className="text-xs font-medium whitespace-nowrap">{item.label}</span>
+                  <span className="text-xs font-medium whitespace-nowrap">{t(item.labelKey, lang)}</span>
                 )}
               </button>
             );
@@ -170,7 +177,7 @@ export default function DashboardPage() {
             </button>
             <span className="font-display font-bold hidden sm:block uppercase"
                   style={{ color: "var(--text-primary)", fontSize: "1rem", letterSpacing: "0.04em" }}>
-              {NAV_ITEMS.find((n) => n.view === activeView)?.label}
+              {(() => { const it = NAV_ITEMS.find((n) => n.view === activeView); return it ? t(it.labelKey, lang) : ""; })()}
             </span>
             <span className="badge-classified hidden md:inline-flex">RESTRICTED</span>
           </div>
@@ -186,6 +193,20 @@ export default function DashboardPage() {
 
             <span className="font-data text-xs tabular-nums hidden md:block" style={{ color: "var(--text-muted)" }}>{time}</span>
             <div className="w-px h-5 hidden md:block" style={{ background: "var(--border)" }} />
+
+            {activeView === "chat" && <ConversationExport />}
+
+            {/* Language toggle */}
+            <button
+              onClick={() => setLang(lang === "en" ? "kn" : "en")}
+              className="h-8 px-2 flex items-center justify-center rounded-md transition-all font-data text-xs font-bold"
+              style={{ color: "var(--text-secondary)", border: "1px solid var(--border)" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--khaki)"; (e.currentTarget as HTMLElement).style.color = "var(--khaki)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)"; }}
+              title={lang === "en" ? "ಕನ್ನಡಕ್ಕೆ ಬದಲಿಸಿ" : "Switch to English"}
+            >
+              {lang === "en" ? "EN" : "ಕನ"}
+            </button>
 
             {/* Theme toggle */}
             <button
@@ -236,6 +257,7 @@ export default function DashboardPage() {
             </div>
           )}
           {activeView === "map" && <MapView />}
+          {activeView === "network" && <NetworkView />}
           {activeView === "reports" && <ReportsView />}
           {activeView === "about" && <AboutView />}
         </div>
@@ -264,4 +286,7 @@ function InfoIcon() {
 }
 function ReportIcon() {
   return <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>;
+}
+function NetworkIcon() {
+  return <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><circle cx="5" cy="6" r="2" /><circle cx="19" cy="6" r="2" /><circle cx="12" cy="18" r="2" /><path strokeLinecap="round" strokeLinejoin="round" d="M6.8 7.2l4 9.2M17.2 7.2l-4 9.2M7 6h10" /></svg>;
 }

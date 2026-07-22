@@ -164,3 +164,30 @@ body::before {
   border-radius: 6px !important;
 }
 .leaflet-popup-tip { background: var(--bg-surface) !important; }
+
+/* ── PDF export (browser print) ──────────────────────────
+   .print-root holds a plain transcript, hidden on screen.
+   In print, hide the app and reveal only the transcript. */
+.print-root { display: none; }
+
+@media print {
+  body * { visibility: hidden; }
+  .print-root, .print-root * { visibility: visible; }
+  .print-root {
+    display: block;
+    position: absolute;
+    left: 0; top: 0; width: 100%;
+    padding: 24px;
+    color: #000; background: #fff;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+  }
+  .print-header { font-size: 15px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #000; }
+  .print-msg { margin-bottom: 14px; page-break-inside: avoid; }
+  .print-role { font-size: 10px; letter-spacing: 0.08em; font-weight: 700; color: #555; margin-bottom: 3px; }
+  .print-content { font-size: 12px; line-height: 1.5; white-space: pre-wrap; }
+  .print-user .print-content { font-weight: 600; }
+  .print-sql { font-family: ui-monospace, monospace; font-size: 10px; background: #f2f2f2; padding: 6px 8px; margin-top: 6px; white-space: pre-wrap; border-left: 2px solid #888; }
+  .print-table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 10px; }
+  .print-table th, .print-table td { border: 1px solid #ccc; padding: 3px 5px; text-align: left; }
+  .print-table th { background: #eee; }
+}

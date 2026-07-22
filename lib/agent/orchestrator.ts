@@ -100,7 +100,8 @@ async function executeTool(
 export async function* runAgent(
   question: string,
   history: ChatTurn[],
-  req?: Request
+  req?: Request,
+  lang: "en" | "kn" = "en"
 ): AsyncGenerator<AgentEvent> {
   const groq = getGroqClient();
   const runId = randomUUID();
@@ -176,7 +177,11 @@ export async function* runAgent(
     relatedCases: lastCasesResult?.cases ?? [],
   };
 
-  messages.push({ role: "system", content: FINAL_SYNTHESIS_PROMPT });
+  const synthesisPrompt =
+    lang === "kn"
+      ? FINAL_SYNTHESIS_PROMPT + " Write the entire narrative in Kannada (ಕನ್ನಡ). Keep proper nouns (district names, crime section codes) as-is; numbers may stay in digits."
+      : FINAL_SYNTHESIS_PROMPT;
+  messages.push({ role: "system", content: synthesisPrompt });
 
   let finalAnswer = "";
   try {

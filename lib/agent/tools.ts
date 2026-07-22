@@ -9,6 +9,7 @@ import { getCachedInsights, setCachedInsights, type InsightItem } from "../insig
 import { computeInsights } from "../insights-compute";
 import { prisma } from "../db";
 import { getCatalystApp, withCatalystTimeout } from "../catalyst-client";
+import { predictChargesheetRisk, type RiskContribution } from "../risk-model";
 
 export type ChatTurn = { role: "user" | "assistant"; content: string };
 
@@ -43,6 +44,8 @@ export interface PredictRiskResult {
   status: "ok" | "error";
   label?: string;
   probability?: number;
+  contributions?: RiskContribution[];
+  source?: "local" | "quickml";
   message?: string;
 }
 
@@ -251,12 +254,21 @@ export async function runPredictRisk(
   },
   req?: Request
 ): Promise<PredictRiskResult> {
-  if (!AUTOML_MODEL_ID) {
-    return { status: "error", message: "QuickML risk model is not configured (missing CATALYST_AUTOML_MODEL_ID)" };
-  }
-  const app = getCatalystApp(req);
-  if (!app) {
-    return { status: "error", message: "Catalyst unavailable outside AppSail — risk prediction requires production deployment" };
+  const app = AUTOML_MODEL_ID ? getCatalystApp(req) : null;
+
+  // Fallback: interpretable local model (also the Explainable-AI layer). Used
+  // whenever the Catalyst QuickML classifier isn't available — i.e. any local
+  // demo. In production (AppSail + CATALYST_AUTOML_MODEL_ID) the trained model
+  // below takes over.
+  if (!app || !AUTOML_MODEL_ID) {
+    const pred = predictChargesheetRisk({
+      hasArrest: args.hasArrest,
+      daysSinceRegistered: args.daysSinceRegistered,
+      heinous: HEINOUS_CRIME_GROUPS.has(args.crimeType),
+      victimCount: args.victimCount,
+      accusedCount: args.accusedCount,
+    });
+    return { status: "ok", label: pred.label, probability: pred.probability, contributions: pred.contributions, source: "local" };
   }
 
   try {
@@ -284,7 +296,7 @@ export async function runPredictRisk(
       return { status: "error", message: "Model returned no classification result" };
     }
     const [label, probability] = Object.entries(cls).reduce((best, cur) => (cur[1] > best[1] ? cur : best));
-    return { status: "ok", label, probability };
+    return { status: "ok", label, probability, source: "quickml" };
   } catch (e) {
     console.error("predictRisk tool failed:", e);
     return { status: "error", message: "Risk prediction failed" };

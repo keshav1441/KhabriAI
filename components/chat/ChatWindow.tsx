@@ -2,7 +2,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useChatStore, type VizType, type ChatMessage } from "@/store/chat";
 import { MessageBubble } from "./MessageBubble";
+import { InsightPanel } from "@/components/insights/InsightPanel";
 import { chatHeaders } from "@/lib/chat-api";
+import { t, speechLocale } from "@/lib/i18n";
 import { useRefreshChatSessions } from "./ChatHistory";
 
 function sessionTitle(text: string): string {
@@ -32,11 +34,37 @@ export function ChatWindow() {
     resetCaseBoard,
     upsertCaseBoardStep,
   } = useChatStore();
+  const lang = useChatStore((s) => s.lang);
   const refreshSessions = useRefreshChatSessions();
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [listening, setListening] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+
+  // ponytail: native Web Speech STT; no cloud STT unless browser support gaps force it.
+  const toggleMic = () => {
+    if (listening) { recognitionRef.current?.stop(); return; }
+    const Ctor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
+    if (!Ctor) { alert("Voice input isn't supported in this browser. Try Chrome."); return; }
+    const rec = new Ctor();
+    rec.lang = speechLocale(lang);
+    rec.interimResults = true;
+    rec.maxAlternatives = 1;
+    rec.onresult = (e) => {
+      const transcript = Array.from({ length: e.results.length }, (_, i) => e.results[i][0].transcript).join("");
+      setInput(transcript);
+      if (e.results[e.results.length - 1].isFinal) { rec.stop(); void sendMessage(transcript); }
+    };
+    rec.onerror = () => setListening(false);
+    rec.onend = () => setListening(false);
+    recognitionRef.current = rec;
+    setListening(true);
+    rec.start();
+  };
+
+  useEffect(() => () => recognitionRef.current?.abort(), []);
 
   const generateQuery = () => {
     const pool = QUERY_POOL.filter((q) => q !== input);
@@ -128,7 +156,7 @@ export function ChatWindow() {
       const chatPromise = fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, history }),
+        body: JSON.stringify({ message: text, history, lang }),
       });
 
       const [sessionResult, res] = await Promise.all([sessionPromise, chatPromise]);
@@ -224,14 +252,17 @@ export function ChatWindow() {
                 className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-data font-bold tracking-widest"
                 style={{ background: "var(--red-dim)", color: "var(--red)", border: "1px solid var(--red)" }}
               >
-                ● INTELLIGENCE SYSTEM ONLINE
+                {t("chat.online", lang)}
               </div>
               <h2 className="text-3xl font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
-                What do you want to investigate?
+                {t("chat.heading", lang)}
               </h2>
               <p className="text-sm max-w-md" style={{ color: "var(--text-secondary)" }}>
-                Ask anything about Karnataka crime data in plain English. I generate SQL, execute it, and explain what I found.
+                {t("chat.subtitle", lang)}
               </p>
+            </div>
+            <div className="w-full max-w-3xl mt-6 text-left">
+              <InsightPanel onQuerySelect={sendMessage} />
             </div>
           </div>
         )}
@@ -263,6 +294,30 @@ export function ChatWindow() {
             </svg>
           </button>
 
+          <button
+            onClick={toggleMic}
+            disabled={sending}
+            title={listening ? "Stop listening" : "Speak your query"}
+            className="shrink-0 w-11 h-11 rounded-md flex items-center justify-center transition-all"
+            style={{
+              background: listening ? "var(--red-dim)" : "var(--bg-raised)",
+              border: `1px solid ${listening ? "var(--red)" : "var(--border)"}`,
+              color: listening ? "var(--red)" : "var(--text-muted)",
+            }}
+          >
+            {listening ? (
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: "var(--red)", animation: "ping-slow 1.4s ease-in-out infinite" }} />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full" style={{ background: "var(--red)" }} />
+              </span>
+            ) : (
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 1a3 3 0 00-3 3v7a3 3 0 006 0V4a3 3 0 00-3-3z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 10v1a7 7 0 01-14 0v-1M12 18v4M8 22h8" />
+              </svg>
+            )}
+          </button>
+
           <div className="flex-1 min-w-0 relative">
             <textarea
               ref={textareaRef}
@@ -271,7 +326,7 @@ export function ChatWindow() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
               disabled={sending}
-              placeholder="Query the crime database… (Enter to send)"
+              placeholder={t("chat.placeholder", lang)}
               className="w-full resize-none rounded-md px-4 py-3 text-sm outline-none transition-all"
               style={{
                 background: "var(--bg-input)",
@@ -304,7 +359,7 @@ export function ChatWindow() {
           </button>
         </div>
         <p className="text-center text-xs mt-2 font-data" style={{ color: "var(--text-muted)", opacity: 0.5 }}>
-          KSP Intelligence System · Read-only · AI-generated analysis
+          {t("chat.footer", lang)}
         </p>
       </div>
     </div>

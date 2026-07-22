@@ -6,7 +6,10 @@ const TOOL_LABELS: Record<string, string> = {
   searchRelatedCases: "Search Related Cases",
   checkInsights: "Check Insights",
   getNetworkOrMapData: "Network / Map Data",
+  predictRisk: "Risk Prediction",
 };
+
+type Contribution = { label: string; sign: "+" | "-"; strength: number };
 
 function statusColor(status: CaseBoardStep["status"]) {
   if (status === "ok") return "var(--green)";
@@ -50,9 +53,19 @@ function resultSummary(step: CaseBoardStep): string {
       const rows = r.rows as unknown[] | undefined;
       return `${rows?.length ?? 0} row(s)`;
     }
+    case "predictRisk": {
+      const prob = typeof r.probability === "number" ? `${Math.round(r.probability * 100)}%` : "—";
+      return `${(r.label as string) ?? "Prediction"} · ${prob}`;
+    }
     default:
       return "Done";
   }
+}
+
+function contributions(step: CaseBoardStep): Contribution[] {
+  const r = step.result as Record<string, unknown> | null;
+  const c = r?.contributions;
+  return Array.isArray(c) ? (c as Contribution[]) : [];
 }
 
 function PinIcon() {
@@ -126,6 +139,21 @@ export function CaseBoard() {
             <p className="text-xs font-data mt-1" style={{ color: "var(--text-muted)" }}>
               {resultSummary(step)}
             </p>
+            {step.tool === "predictRisk" && contributions(step).length > 0 && (
+              <div className="mt-2 pt-2 space-y-1" style={{ borderTop: "1px solid var(--border)" }}>
+                <p className="text-[10px] font-data font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
+                  Why
+                </p>
+                {contributions(step).map((c, i) => (
+                  <div key={i} className="flex items-start gap-1.5 text-xs">
+                    <span className="font-data font-bold shrink-0" style={{ color: c.sign === "+" ? "var(--green)" : "var(--red)" }}>
+                      {c.sign}
+                    </span>
+                    <span style={{ color: "var(--text-secondary)" }}>{c.label}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>

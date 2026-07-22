@@ -3,6 +3,7 @@ import { create } from "zustand";
 import type { ChatSessionSummary } from "@/lib/chat-api";
 
 export type VizType = "table" | "chart" | "graph";
+export type Lang = "en" | "kn";
 
 export interface RelatedCase {
   id: number;
@@ -38,6 +39,8 @@ interface ChatStore {
   activeSessionId: string | null;
   messages: ChatMessage[];
   caseBoardSteps: CaseBoardStep[];
+  lang: Lang;
+  setLang: (lang: Lang) => void;
   setSessions: (sessions: ChatSessionSummary[]) => void;
   upsertSession: (session: ChatSessionSummary) => void;
   removeSession: (id: string) => void;
@@ -55,6 +58,8 @@ export const useChatStore = create<ChatStore>((set) => ({
   activeSessionId: null,
   messages: [],
   caseBoardSteps: [],
+  lang: "en",
+  setLang: (lang) => set({ lang }),
   setSessions: (sessions) => set({ sessions }),
   upsertSession: (session) =>
     set((state) => {
