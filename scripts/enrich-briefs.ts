@@ -1,9 +1,8 @@
 import "dotenv/config";
 import { Pool } from "pg";
-import { getGroqClient } from "../lib/groq-client";
+import { groqChat } from "../lib/groq-client";
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const MODEL = process.env.GROQ_SUMMARY_MODEL ?? "llama-3.1-8b-instant";
 const BATCH = 25;
 
 const limitArg = process.argv.find((a) => a.startsWith("--limit="));
@@ -36,7 +35,6 @@ async function fetchTemplatedCases(limit?: number): Promise<CaseRow[]> {
 }
 
 async function generateNarratives(batch: CaseRow[]): Promise<Map<number, string>> {
-  const groq = getGroqClient();
   const cases = batch.map((c) => ({
     id: c.id,
     crimeType: c.crimeType ?? "Unknown",
@@ -45,8 +43,7 @@ async function generateNarratives(batch: CaseRow[]): Promise<Map<number, string>
     date: c.regDate ? new Date(c.regDate).toISOString().slice(0, 10) : "unknown date",
   }));
 
-  const completion = await groq.chat.completions.create({
-    model: MODEL,
+  const completion = await groqChat({
     temperature: 0.9,
     max_tokens: 4096,
     messages: [

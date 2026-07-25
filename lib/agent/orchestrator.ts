@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type Groq from "groq-sdk";
-import { getGroqClient } from "../groq-client";
+import { groqChat } from "../groq-client";
 import type { VizType } from "../query-classifier";
 import type { RelatedCase } from "../case-retrieval";
 import {
@@ -16,7 +16,6 @@ import {
 } from "./tools";
 import { logAuditStep, logAuditRun } from "./audit-log";
 
-const ORCH_MODEL = process.env.GROQ_ORCH_MODEL ?? "llama-3.3-70b-versatile";
 const MAX_ITERATIONS = 4;
 
 const SYSTEM_PROMPT = `You are KhabriAI, an investigation copilot for the Karnataka State Police FIR (First Information Report) database.
@@ -116,7 +115,6 @@ export async function* runAgent(
   req?: Request,
   lang: "en" | "kn" = "en"
 ): AsyncGenerator<AgentEvent> {
-  const groq = getGroqClient();
   const runId = randomUUID();
   const messages: Groq.Chat.ChatCompletionMessageParam[] = [
     { role: "system", content: SYSTEM_PROMPT },
@@ -135,8 +133,7 @@ export async function* runAgent(
     // sample — retry once before degrading to whatever's been gathered so far.
     for (let attempt = 0; attempt < 2 && !assistantMsg; attempt++) {
       try {
-        const completion = await groq.chat.completions.create({
-          model: ORCH_MODEL,
+        const completion = await groqChat({
           temperature: 0.2,
           max_tokens: 1024,
           messages,
@@ -198,8 +195,7 @@ export async function* runAgent(
 
   let finalAnswer = "";
   try {
-    const stream = await groq.chat.completions.create({
-      model: ORCH_MODEL,
+    const stream = await groqChat({
       temperature: 0.3,
       max_tokens: 300,
       stream: true,

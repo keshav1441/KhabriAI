@@ -1,8 +1,4 @@
-import { getGroqClient } from "./groq-client";
-
-// qwen/qwen3-32b was removed from Groq; qwen/qwen3.6-27b is the available successor.
-const GROQ_SQL_MODEL = process.env.GROQ_SQL_MODEL ?? "qwen/qwen3.6-27b";
-const GROQ_SUMMARY_MODEL = process.env.GROQ_SUMMARY_MODEL ?? "llama-3.1-8b-instant";
+import { groqChat } from "./groq-client";
 
 const SQL_SYSTEM_PROMPT = `You are an expert PostgreSQL query generator for the Karnataka State Police FIR (First Information Report) database.
 Rules:
@@ -33,9 +29,7 @@ export async function generateSQL(
       ? `\nRecent conversation:\n${history.slice(-4).map((m) => `${m.role}: ${m.content}`).join("\n")}\n`
       : "";
 
-  const groq = getGroqClient();
-  const completion = await groq.chat.completions.create({
-    model: GROQ_SQL_MODEL,
+  const completion = await groqChat({
     temperature: 0.1,
     max_tokens: 2048,
     messages: [
@@ -55,14 +49,12 @@ export async function* streamSummary(
   rows: Record<string, unknown>[],
   relatedNarratives: string[] = []
 ): AsyncGenerator<string> {
-  const groq = getGroqClient();
   const narrativeContext =
     relatedNarratives.length > 0
       ? `\n\nRelated case narratives (reference these if directly relevant): ${relatedNarratives.map((n, i) => `[${i + 1}] ${n}`).join(" ")}`
       : "";
 
-  const stream = await groq.chat.completions.create({
-    model: GROQ_SUMMARY_MODEL,
+  const stream = await groqChat({
     temperature: 0.3,
     max_tokens: 120,
     stream: true,

@@ -1,10 +1,8 @@
 import { readFileSync } from "fs";
 import { join } from "path";
-import { getGroqClient } from "./groq-client";
+import { groqChat } from "./groq-client";
 
 type Example = { question: string; sql: string };
-
-const SELECT_MODEL = process.env.GROQ_RAG_MODEL ?? "llama-3.1-8b-instant";
 
 function loadExamples(): Example[] {
   return JSON.parse(readFileSync(join(process.cwd(), "lib/rag-examples.json"), "utf-8"));
@@ -32,9 +30,7 @@ export async function findSimilarLlm(
     .map((e, i) => `${i}: ${e.question}`)
     .join("\n");
 
-  const groq = getGroqClient();
-  const completion = await groq.chat.completions.create({
-    model: SELECT_MODEL,
+  const completion = await groqChat({
     temperature: 0,
     max_tokens: 32,
     messages: [
