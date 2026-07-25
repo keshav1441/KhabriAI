@@ -30,7 +30,6 @@ export function ConversationExport() {
           <div key={m.id} className={`print-msg print-${m.role}`}>
             <div className="print-role">{m.role === "user" ? "INVESTIGATOR" : "KHABRI AI"}</div>
             <div className="print-content">{m.content}</div>
-            {m.sql ? <pre className="print-sql">{m.sql}</pre> : null}
             {m.rows && m.rows.length > 0 ? <PrintTable rows={m.rows} /> : null}
           </div>
         ))}

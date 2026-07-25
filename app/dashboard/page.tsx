@@ -34,6 +34,8 @@ export default function DashboardPage() {
   const [authed, setAuthed] = useState(false);
   const [time, setTime] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [showProfile, setShowProfile] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     if (!sessionStorage.getItem("khabri_auth")) {
@@ -61,6 +63,13 @@ export default function DashboardPage() {
     try { return JSON.parse(sessionStorage.getItem("khabri_user") ?? "{}"); }
     catch { return {}; }
   })();
+
+  const doLogout = () => {
+    fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+    sessionStorage.removeItem("khabri_auth");
+    sessionStorage.removeItem("khabri_user");
+    router.push("/login");
+  };
 
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: "var(--bg-base)" }}>
@@ -155,6 +164,31 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
+
+          <div className={`flex gap-1.5 mt-2.5 ${sidebarOpen ? "items-stretch" : "flex-col items-center"}`}>
+            <button
+              onClick={() => setShowProfile(true)}
+              className={`flex items-center justify-center gap-1.5 rounded-md transition-all ${sidebarOpen ? "flex-1 py-1.5 px-2" : "w-7 h-7"}`}
+              style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--khaki)"; (e.currentTarget as HTMLElement).style.color = "var(--khaki)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
+              title="Profile"
+            >
+              <UserCircleIcon />
+              {sidebarOpen && <span className="text-xs font-medium">Profile</span>}
+            </button>
+            <button
+              onClick={() => setShowLogoutConfirm(true)}
+              className={`flex items-center justify-center gap-1.5 rounded-md transition-all ${sidebarOpen ? "flex-1 py-1.5 px-2" : "w-7 h-7"}`}
+              style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--red)"; (e.currentTarget as HTMLElement).style.color = "var(--red)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
+              title="Sign out"
+            >
+              <LogoutIcon />
+              {sidebarOpen && <span className="text-xs font-medium">Sign out</span>}
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -230,21 +264,6 @@ export default function DashboardPage() {
                 </svg>
               )}
             </button>
-
-            <button
-              className="text-xs font-medium px-3 py-1.5 rounded-md transition-all"
-              style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--red)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--red)"; }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
-              onClick={() => {
-                fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
-                sessionStorage.removeItem("khabri_auth");
-                sessionStorage.removeItem("khabri_user");
-                router.push("/login");
-              }}
-            >
-              Sign out
-            </button>
           </div>
         </header>
 
@@ -265,6 +284,108 @@ export default function DashboardPage() {
           {activeView === "about" && <AboutView />}
         </div>
       </div>
+
+      {showProfile && (
+        <ModalBackdrop onClose={() => setShowProfile(false)}>
+          <div className="px-5 py-4" style={{ borderBottom: "1px solid var(--border)" }}>
+            <h3 className="font-display font-bold" style={{ color: "var(--text-primary)", fontSize: "1rem" }}>Profile</h3>
+          </div>
+          <div className="p-5 space-y-3">
+            <div className="flex items-center gap-3">
+              <div
+                className="shrink-0 w-11 h-11 rounded-md flex items-center justify-center text-base font-bold"
+                style={{ background: "var(--red-dim)", color: "var(--red)", border: "1px solid var(--red)" }}
+              >
+                {(user.firstName?.[0] ?? "O").toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>
+                  {user.firstName ? `${user.firstName} ${user.lastName ?? ""}` : "Officer"}
+                </p>
+                <p className="text-xs font-data truncate" style={{ color: "var(--text-muted)" }}>
+                  {user.email ?? "KSP Analyst"}
+                </p>
+              </div>
+            </div>
+            <div className="pt-2 space-y-1.5" style={{ borderTop: "1px solid var(--border-subtle)" }}>
+              <ProfileRow label="Role" value="KSP Intelligence Analyst" />
+              <ProfileRow label="Access" value="Restricted" />
+            </div>
+          </div>
+          <div className="px-5 py-3 flex justify-end" style={{ borderTop: "1px solid var(--border)" }}>
+            <button
+              onClick={() => setShowProfile(false)}
+              className="text-xs font-medium px-3 py-1.5 rounded-md transition-all"
+              style={{ color: "var(--text-secondary)", border: "1px solid var(--border)" }}
+            >
+              Close
+            </button>
+          </div>
+        </ModalBackdrop>
+      )}
+
+      {showLogoutConfirm && (
+        <ModalBackdrop onClose={() => setShowLogoutConfirm(false)}>
+          <div className="px-5 py-4" style={{ borderBottom: "1px solid var(--border)" }}>
+            <h3 className="font-display font-bold" style={{ color: "var(--text-primary)", fontSize: "1rem" }}>Sign out?</h3>
+          </div>
+          <div className="p-5">
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+              You&apos;ll need to sign in again to access Khabri AI.
+            </p>
+          </div>
+          <div className="px-5 py-3 flex justify-end gap-2" style={{ borderTop: "1px solid var(--border)" }}>
+            <button
+              onClick={() => setShowLogoutConfirm(false)}
+              className="text-xs font-medium px-3 py-1.5 rounded-md transition-all"
+              style={{ color: "var(--text-secondary)", border: "1px solid var(--border)" }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={doLogout}
+              className="text-xs font-bold px-3 py-1.5 rounded-md transition-all"
+              style={{ color: "var(--red)", border: "1px solid var(--red)", background: "var(--red-dim)" }}
+            >
+              Sign out
+            </button>
+          </div>
+        </ModalBackdrop>
+      )}
+    </div>
+  );
+}
+
+function ModalBackdrop({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 backdrop-blur-sm flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.55)" }}
+      onClick={onClose}
+    >
+      <div
+        className="w-full"
+        style={{
+          maxWidth: 360,
+          background: "var(--bg-surface)",
+          border: "1px solid var(--border)",
+          borderRadius: 10,
+          boxShadow: "0 24px 64px rgba(0,0,0,0.4)",
+          overflow: "hidden",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ProfileRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-xs" style={{ color: "var(--text-muted)" }}>{label}</span>
+      <span className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>{value}</span>
     </div>
   );
 }
@@ -295,4 +416,10 @@ function NetworkIcon() {
 }
 function ProfileIcon() {
   return <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 20v-2a4 4 0 014-4h2a4 4 0 014 4v2M8 9a3 3 0 100-6 3 3 0 000 6zM17 20v-1.5M20 20v-4M14 20v-6" /></svg>;
+}
+function UserCircleIcon() {
+  return <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><circle cx="12" cy="12" r="9" /><circle cx="12" cy="10" r="3" /><path strokeLinecap="round" d="M6.5 19a5.5 5.5 0 0111 0" /></svg>;
+}
+function LogoutIcon() {
+  return <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" /></svg>;
 }

@@ -3,16 +3,19 @@ import { useEffect, useRef } from "react";
 import { useTheme } from "@/components/ThemeProvider";
 
 export interface CoOffenderNode { id: string; name: string; caseCount: number; crimeGroup: string; degree: number }
-export interface CoOffenderEdge { source: string; target: string; weight: number }
+export interface SharedCase { id: number; crimeNo: string; crimeName: string; date: string | null }
+export interface CoOffenderEdge { source: string; target: string; weight: number; cases?: SharedCase[] }
 
 interface Props {
   // Chat "graph" viz passes accused-list rows (galaxy mode).
   rows?: Record<string, unknown>[];
   // Criminal Network view passes a real co-offender graph (force mode).
   graph?: { nodes: CoOffenderNode[]; edges: CoOffenderEdge[] };
+  // Fires with the tapped person's id (co-offender mode only), or null on background tap.
+  onSelect?: (id: string | null) => void;
 }
 
-export function NetworkGraph({ rows, graph }: Props) {
+export function NetworkGraph({ rows, graph, onSelect }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme(); // re-render styles when the theme flips
 
@@ -206,11 +209,15 @@ export function NetworkGraph({ rows, graph }: Props) {
         const hood = e.target.closedNeighborhood();
         cy!.elements().addClass("faded").removeClass("hi");
         hood.removeClass("faded").addClass("hi");
+        if (coMode) onSelect?.(e.target.id());
       });
-      cy.on("tap", (e) => { if (e.target === cy) cy!.elements().removeClass("faded hi"); });
+      cy.on("tap", (e) => {
+        if (e.target === cy) { cy!.elements().removeClass("faded hi"); if (coMode) onSelect?.(null); }
+      });
     }).catch((e) => console.error("network graph render failed:", e));
 
     return () => { cancelled = true; cy?.destroy(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, graph, theme]);
 
   return (

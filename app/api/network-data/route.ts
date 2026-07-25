@@ -13,11 +13,12 @@ export async function GET(req: NextRequest) {
   if (denied) return denied;
   try {
     const edgeRows = await prisma.$queryRaw<
-      { source: string; target: string; weight: bigint }[]
+      { source: string; target: string; weight: bigint; case_ids: number[] }[]
     >`
       WITH strong AS (
         SELECT a1."PersonID" AS p1, a2."PersonID" AS p2,
-               COUNT(DISTINCT a1."CaseMasterID") AS w
+               COUNT(DISTINCT a1."CaseMasterID") AS w,
+               ARRAY_AGG(DISTINCT a1."CaseMasterID") AS case_ids
         FROM "Accused" a1
         JOIN "Accused" a2
           ON a2."CaseMasterID" = a1."CaseMasterID"
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
       ),
       -- keep only persons in 2+ strong links → gang members, not lone pairs
       clustered AS (SELECT pid FROM deg WHERE d >= 2 ORDER BY d DESC LIMIT 90)
-      SELECT s.p1 AS source, s.p2 AS target, s.w AS weight
+      SELECT s.p1 AS source, s.p2 AS target, s.w AS weight, s.case_ids
       FROM strong s
       WHERE s.p1 IN (SELECT pid FROM clustered)
         AND s.p2 IN (SELECT pid FROM clustered)
@@ -69,6 +70,22 @@ export async function GET(req: NextRequest) {
       degree[e.target] = (degree[e.target] ?? 0) + 1;
     }
 
+    // Case labels for every shared case referenced by an edge, so the UI can
+    // show *why* two persons are linked, not just how strongly.
+    const caseIds = Array.from(new Set(edgeRows.flatMap((e) => e.case_ids)));
+    const caseRows = caseIds.length
+      ? await prisma.$queryRaw<
+          { id: number; crime_no: string | null; crime_name: string | null; date: Date | null }[]
+        >`
+          SELECT cm."CaseMasterID" AS id, cm."CrimeNo" AS crime_no,
+                 csh."CrimeHeadName" AS crime_name, cm."CrimeRegisteredDate" AS date
+          FROM "CaseMaster" cm
+          LEFT JOIN "CrimeSubHead" csh ON csh."CrimeSubHeadID" = cm."CrimeMinorHeadID"
+          WHERE cm."CaseMasterID" = ANY(${caseIds})
+        `
+      : [];
+    const caseById = new Map(caseRows.map((c) => [c.id, c]));
+
     return Response.json({
       nodes: nodeRows.map((n) => ({
         id: n.pid,
@@ -81,6 +98,15 @@ export async function GET(req: NextRequest) {
         source: e.source,
         target: e.target,
         weight: Number(e.weight),
+        cases: e.case_ids.map((id) => {
+          const c = caseById.get(id);
+          return {
+            id,
+            crimeNo: c?.crime_no ?? String(id),
+            crimeName: c?.crime_name ?? "Unknown",
+            date: c?.date ?? null,
+          };
+        }),
       })),
     });
   } catch (e) {

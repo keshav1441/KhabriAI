@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { STATUS_STYLE } from "@/lib/caseStatus";
 
 interface CaseData {
   case: Record<string, unknown>;
@@ -11,13 +12,6 @@ interface CaseData {
 }
 
 const CSTYPE: Record<string, string> = { A: "Chargesheet Filed", B: "False Case", C: "Undetected" };
-
-const STATUS_STYLE: Record<string, { color: string; bg: string }> = {
-  "Under Investigation": { color: "var(--amber)", bg: "var(--amber-dim)" },
-  "Charge Sheeted":      { color: "var(--blue)",  bg: "rgba(59,130,246,0.12)" },
-  "Closed":              { color: "var(--green)",  bg: "var(--green-dim)" },
-  "False Case":          { color: "var(--red)",    bg: "var(--red-dim)" },
-};
 
 export function CaseDrawer({ caseId, onClose }: { caseId: number | null; onClose: () => void }) {
   const [data, setData] = useState<CaseData | null>(null);

@@ -20,6 +20,7 @@ const TECH_STACK = [
       { name: "Groq LPU", desc: "llama-3.3-70b-versatile orchestrator · 8b-instant narrator" },
       { name: "Tool-Calling Orchestrator", desc: "Bounded agent loop (max 4 iterations), tools run in parallel" },
       { name: "5 Investigation Tools", desc: "SQL query · related-case search · insights · network/map data · risk prediction" },
+      { name: "RAG Retrieval", desc: "Gemini embeddings — few-shot SQL grounding + pgvector case-narrative search, FTS/LLM fallback" },
       { name: "Catalyst QuickML", desc: "AutoML classifier — charge-sheet likelihood, trained on arrest + gravity + elapsed time" },
       { name: "SSE Streaming", desc: "Live reasoning steps + token-by-token narrative over one connection" },
     ],
@@ -104,7 +105,7 @@ const FEATURES = [
 const FLOW = [
   { step: "01", title: "You ask", desc: "Type a question in plain English about Karnataka crime data" },
   { step: "02", title: "Agent plans", desc: "Groq decides which tools to call — SQL, related cases, insights, network/map, risk prediction — and calls them in parallel" },
-  { step: "03", title: "Tools ground it", desc: "SQL runs read-only on Neon via an AST-validated query; results, cases, and insights come back live" },
+  { step: "03", title: "Tools ground it", desc: "RAG retrieves similar past questions + case narratives to steer the SQL; query runs read-only via an AST-validated statement; results, cases, and insights come back live" },
   { step: "04", title: "AI synthesizes", desc: "Groq streams a narrative citing the real numbers, while each step pins to the live Case Board" },
 ];
 
@@ -123,7 +124,7 @@ export function AboutView() {
             Khabri<span style={{ color: "var(--red)" }}> AI</span>
           </h1>
           <p className="text-base max-w-xl mx-auto" style={{ color: "var(--text-secondary)" }}>
-            Conversational crime intelligence for Karnataka Police — ask questions in plain English, get SQL-powered insights, streamed in real time.
+            Conversational crime intelligence for Karnataka Police — an agentic copilot that plans across SQL, RAG-grounded case retrieval, insights, network/map data, and risk prediction, streamed in real time.
           </p>
 
           {/* Stat pills */}
@@ -227,8 +228,7 @@ export function AboutView() {
                 <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
                   Khabri AI operates on a <strong>read-only database role</strong> — no query can modify, insert, or delete data.
                   Generated SQL is parsed into an AST (node-sql-parser) and rejected unless it resolves to a single SELECT statement,
-                  closing the gaps a regex blocklist can miss. Every AI response shows the exact SQL generated, giving investigators
-                  full transparency into the source of insights. Sessions are HMAC-SHA256-signed httpOnly cookies verified server-side —
+                  closing the gaps a regex blocklist can miss. Sessions are HMAC-SHA256-signed httpOnly cookies verified server-side —
                   not a client-supplied header. Passwords use PBKDF2-SHA512 (100k iterations) stored in Neon — no third-party auth services.
                 </p>
               </div>

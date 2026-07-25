@@ -1,11 +1,27 @@
 "use client";
 import { useEffect, useState } from "react";
 import { NetworkGraph, type CoOffenderNode, type CoOffenderEdge } from "../viz/NetworkGraph";
+import { CaseDrawer } from "../viz/CaseDrawer";
+import { STATUS_STYLE } from "@/lib/caseStatus";
+
+interface PersonCase {
+  id: number; crimeNo: string; crimeName: string; crimeGroup: string;
+  status: string; district: string | null; station: string | null;
+  date: string | null; arrested: boolean;
+}
+interface PersonDetail {
+  id: string; name: string; age: number | null; gender: string | null;
+  caseCount: number; crimeGroups: string[]; cases: PersonCase[];
+}
 
 export function NetworkView() {
   const [graph, setGraph] = useState<{ nodes: CoOffenderNode[]; edges: CoOffenderEdge[] }>({ nodes: [], edges: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<PersonDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [openCaseId, setOpenCaseId] = useState<number | null>(null);
 
   useEffect(() => {
     fetch("/api/network-data")
@@ -14,7 +30,30 @@ export function NetworkView() {
       .catch(() => { setError("Failed to load network data"); setLoading(false); });
   }, []);
 
+  useEffect(() => {
+    if (!selectedId) { setDetail(null); return; }
+    let cancelled = false;
+    setDetailLoading(true);
+    fetch(`/api/person?id=${encodeURIComponent(selectedId)}`)
+      .then((r) => r.json())
+      .then((d) => { if (!cancelled) { setDetail(d.id ? d : null); setDetailLoading(false); } })
+      .catch(() => { if (!cancelled) setDetailLoading(false); });
+    return () => { cancelled = true; };
+  }, [selectedId]);
+
   const crews = graph.edges.length;
+  const nodeById = new Map(graph.nodes.map((n) => [n.id, n]));
+  const selectedNode = selectedId ? nodeById.get(selectedId) ?? null : null;
+  const links = selectedId
+    ? graph.edges
+        .filter((e) => e.source === selectedId || e.target === selectedId)
+        .map((e) => ({ edge: e, other: nodeById.get(e.source === selectedId ? e.target : e.source) }))
+        .filter((l): l is { edge: CoOffenderEdge; other: CoOffenderNode } => !!l.other)
+        .sort((a, b) => b.edge.weight - a.edge.weight)
+    : [];
+
+  const fmtDate = (d: string | null) =>
+    d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
   return (
     <div className="flex flex-col h-full">
@@ -43,28 +82,193 @@ export function NetworkView() {
         )}
       </div>
 
-      {/* Graph */}
-      <div className="flex-1 overflow-hidden p-4">
-        {loading && (
-          <div className="h-full flex items-center justify-center">
-            <span className="font-data text-sm" style={{ color: "var(--text-muted)" }}>
-              Building co-offender network…
-            </span>
-          </div>
-        )}
-        {error && (
-          <div className="h-full flex items-center justify-center">
-            <span className="text-sm" style={{ color: "var(--red)" }}>{error}</span>
-          </div>
-        )}
-        {!loading && !error && graph.nodes.length === 0 && (
-          <div className="h-full flex items-center justify-center">
-            <span className="text-sm" style={{ color: "var(--text-muted)" }}>No recurring co-offender links found.</span>
-          </div>
-        )}
+      {/* Graph + detail panel */}
+      <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 overflow-hidden p-4">
+          {loading && (
+            <div className="h-full flex items-center justify-center">
+              <span className="font-data text-sm" style={{ color: "var(--text-muted)" }}>
+                Building co-offender network…
+              </span>
+            </div>
+          )}
+          {error && (
+            <div className="h-full flex items-center justify-center">
+              <span className="text-sm" style={{ color: "var(--red)" }}>{error}</span>
+            </div>
+          )}
+          {!loading && !error && graph.nodes.length === 0 && (
+            <div className="h-full flex items-center justify-center">
+              <span className="text-sm" style={{ color: "var(--text-muted)" }}>No recurring co-offender links found.</span>
+            </div>
+          )}
+          {!loading && !error && graph.nodes.length > 0 && (
+            <div style={{ height: "100%" }}>
+              <NetworkGraph graph={graph} onSelect={setSelectedId} />
+            </div>
+          )}
+        </div>
+
+        {/* Detail panel — populated on node click */}
         {!loading && !error && graph.nodes.length > 0 && (
-          <div style={{ height: "100%" }}>
-            <NetworkGraph graph={graph} />
+          <div
+            className="w-80 shrink-0 flex flex-col overflow-hidden"
+            style={{ borderLeft: "1px solid var(--border)", background: "var(--bg-surface)" }}
+          >
+            {!selectedNode ? (
+              <div className="flex-1 flex items-center justify-center p-6 text-center">
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  Click a person node to see who they&apos;re connected to and why.
+                </span>
+              </div>
+            ) : (
+              <>
+                {/* Header */}
+                <div className="px-4 py-3 shrink-0" style={{ borderBottom: "1px solid var(--border)" }}>
+                  <div className="flex items-center gap-2">
+                    <p className="font-data text-xs font-bold tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>
+                      Person
+                    </p>
+                    {selectedNode.degree >= 3 && (
+                      <span
+                        className="font-data text-[0.6rem] font-bold px-1.5 py-0.5 rounded"
+                        style={{ color: "var(--red)", border: "1px solid var(--red)" }}
+                      >
+                        KINGPIN
+                      </span>
+                    )}
+                  </div>
+                  <p className="font-display font-bold mt-1" style={{ color: "var(--text-primary)", fontSize: "1rem" }}>
+                    {selectedNode.name}
+                  </p>
+
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    {detail?.age != null && (
+                      <span className="text-xs font-data" style={{ color: "var(--text-secondary)" }}>{detail.age} yrs</span>
+                    )}
+                    {detail?.gender && (
+                      <span className="text-xs font-data" style={{ color: "var(--text-secondary)" }}>· {detail.gender}</span>
+                    )}
+                    <span className="text-xs font-data" style={{ color: "var(--text-muted)" }}>· PID {selectedNode.id}</span>
+                  </div>
+
+                  {detail && detail.crimeGroups.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {detail.crimeGroups.map((g) => (
+                        <span
+                          key={g}
+                          className="text-xs px-1.5 py-0.5 rounded"
+                          style={{ background: "var(--bg-raised)", border: "1px solid var(--border-subtle)", color: "var(--text-secondary)" }}
+                        >
+                          {g}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-4 mt-2.5">
+                    <div>
+                      <div className="font-data font-bold" style={{ color: "var(--red)", fontSize: "1.1rem", lineHeight: 1 }}>
+                        {selectedNode.caseCount}
+                      </div>
+                      <div className="font-data text-[0.6rem] tracking-wider" style={{ color: "var(--text-muted)" }}>CASES</div>
+                    </div>
+                    <div>
+                      <div className="font-data font-bold" style={{ color: "var(--ink)", fontSize: "1.1rem", lineHeight: 1 }}>
+                        {links.length}
+                      </div>
+                      <div className="font-data text-[0.6rem] tracking-wider" style={{ color: "var(--text-muted)" }}>ASSOCIATES</div>
+                    </div>
+                    {detail && (
+                      <div>
+                        <div className="font-data font-bold" style={{ color: "var(--amber)", fontSize: "1.1rem", lineHeight: 1 }}>
+                          {detail.cases.filter((c) => c.arrested).length}
+                        </div>
+                        <div className="font-data text-[0.6rem] tracking-wider" style={{ color: "var(--text-muted)" }}>ARRESTED</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Scrollable body: connections + full case history */}
+                <div className="flex-1 overflow-y-auto">
+                  {/* Connections */}
+                  <div className="px-4 py-2 shrink-0 sticky top-0" style={{ borderBottom: "1px solid var(--border-subtle)", background: "var(--bg-surface)" }}>
+                    <p className="font-data text-xs font-bold tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>
+                      Connections ({links.length})
+                    </p>
+                  </div>
+                  {links.map(({ edge, other }) => (
+                    <div key={other.id} className="px-4 py-2.5" style={{ borderBottom: "1px solid var(--border-subtle)" }}>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-medium truncate" style={{ color: "var(--text-primary)" }}>{other.name}</p>
+                        <span className="font-data text-xs shrink-0" style={{ color: "var(--red)" }}>
+                          {edge.weight} shared
+                        </span>
+                      </div>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{other.crimeGroup}</p>
+                      {edge.cases && edge.cases.length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          {edge.cases.map((c) => (
+                            <button
+                              key={c.id}
+                              onClick={() => setOpenCaseId(c.id)}
+                              title={c.date ? new Date(c.date).toLocaleDateString() : undefined}
+                              className="font-data text-[0.65rem] px-1.5 py-0.5 rounded transition-colors"
+                              style={{ background: "var(--bg-raised)", color: "var(--text-secondary)", border: "1px solid var(--border-subtle)" }}
+                              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--red)"; }}
+                              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border-subtle)"; }}
+                            >
+                              {c.crimeNo} · {c.crimeName} ↗
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Full case history */}
+                  <div className="px-4 py-2 shrink-0 sticky top-0" style={{ borderBottom: "1px solid var(--border-subtle)", background: "var(--bg-surface)" }}>
+                    <p className="font-data text-xs font-bold tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>
+                      Case History {detail ? `(${detail.cases.length})` : ""}
+                    </p>
+                  </div>
+                  {detailLoading && (
+                    <div className="px-4 py-4">
+                      <span className="text-xs font-data" style={{ color: "var(--text-muted)" }}>Loading cases…</span>
+                    </div>
+                  )}
+                  {detail?.cases.map((c) => {
+                    const s = STATUS_STYLE[c.status] ?? { color: "var(--text-muted)", bg: "var(--bg-raised)" };
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => setOpenCaseId(c.id)}
+                        className="w-full text-left px-4 py-2.5 transition-colors"
+                        style={{ borderBottom: "1px solid var(--border-subtle)" }}
+                        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-raised)"; }}
+                        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-medium font-data truncate" style={{ color: "var(--text-primary)" }}>{c.crimeNo}</span>
+                          <span className="text-[0.65rem] px-1.5 py-0.5 rounded font-data font-bold shrink-0" style={{ color: s.color, background: s.bg }}>
+                            {c.status}
+                          </span>
+                        </div>
+                        <p className="text-xs mt-0.5 truncate" style={{ color: "var(--text-secondary)" }}>{c.crimeName}</p>
+                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                          <span className="text-[0.65rem] font-data" style={{ color: "var(--text-muted)" }}>{fmtDate(c.date)}</span>
+                          {c.station && <span className="text-[0.65rem] font-data" style={{ color: "var(--text-muted)" }}>· {c.station}</span>}
+                          {c.arrested && (
+                            <span className="text-[0.65rem] font-data font-bold" style={{ color: "var(--amber)" }}>· ARRESTED</span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -83,6 +287,8 @@ export function NetworkView() {
           </p>
         </div>
       )}
+
+      <CaseDrawer caseId={openCaseId} onClose={() => setOpenCaseId(null)} />
     </div>
   );
 }

@@ -97,23 +97,6 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
           )}
         </div>
 
-        {!message.loading && message.sql && (
-          <details className="rounded-md overflow-hidden" style={{ border: "1px solid var(--border)" }}>
-            <summary
-              className="cursor-pointer select-none px-3 py-1.5 text-xs font-data"
-              style={{ color: "var(--text-muted)", background: "var(--bg-surface)" }}
-            >
-              ▸ How I got this — generated SQL
-            </summary>
-            <pre
-              className="px-3 py-2 text-xs overflow-x-auto font-data"
-              style={{ color: "var(--green)", background: "var(--bg-raised)", margin: 0 }}
-            >
-              {message.sql}
-            </pre>
-          </details>
-        )}
-
         {!message.loading && <RelatedCases cases={message.relatedCases} />}
 
         {/* Data visualization */}

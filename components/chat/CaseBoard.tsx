@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { useChatStore, type CaseBoardStep } from "@/store/chat";
 
 const TOOL_LABELS: Record<string, string> = {
@@ -81,8 +82,90 @@ function PinIcon() {
   );
 }
 
+function ChevronIcon({ expanded }: { expanded: boolean }) {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      style={{ transform: expanded ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 120ms ease" }}
+    >
+      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// Detail body shown when a step is expanded — richer than the one-line resultSummary.
+function StepDetail({ step }: { step: CaseBoardStep }) {
+  const r = step.result as Record<string, unknown> | null;
+  if (step.status === "pending") return null;
+  if (!r) return null;
+  if (r.status === "error") return null; // resultSummary already surfaces the error message
+
+  switch (step.tool) {
+    case "searchRelatedCases": {
+      const cases = (r.cases as { crimeNo?: string; briefFacts?: string; district?: string }[] | undefined) ?? [];
+      if (cases.length === 0) return null;
+      return (
+        <ul className="mt-2 space-y-1.5">
+          {cases.map((c, i) => (
+            <li key={i} className="text-xs" style={{ color: "var(--text-secondary)" }}>
+              <span className="font-data font-bold" style={{ color: "var(--text-primary)" }}>{c.crimeNo ?? `Case ${i + 1}`}</span>
+              {c.district ? ` · ${c.district}` : ""}
+              {c.briefFacts ? <p className="mt-0.5 line-clamp-3">{c.briefFacts}</p> : null}
+            </li>
+          ))}
+        </ul>
+      );
+    }
+    case "checkInsights": {
+      const insights = (r.insights as { title?: string; detail?: string }[] | undefined) ?? [];
+      if (insights.length === 0) return null;
+      return (
+        <ul className="mt-2 space-y-1.5">
+          {insights.map((ins, i) => (
+            <li key={i} className="text-xs" style={{ color: "var(--text-secondary)" }}>
+              <span className="font-data font-bold" style={{ color: "var(--text-primary)" }}>{ins.title}</span>
+              {ins.detail ? <p className="mt-0.5">{ins.detail}</p> : null}
+            </li>
+          ))}
+        </ul>
+      );
+    }
+    case "getNetworkOrMapData": {
+      const rows = (r.rows as Record<string, unknown>[] | undefined) ?? [];
+      if (rows.length === 0) return null;
+      return (
+        <ul className="mt-2 space-y-1">
+          {rows.slice(0, 10).map((row, i) => (
+            <li key={i} className="text-xs font-data" style={{ color: "var(--text-secondary)" }}>
+              {Object.values(row).join(" · ")}
+            </li>
+          ))}
+          {rows.length > 10 && (
+            <li className="text-[10px] font-data" style={{ color: "var(--text-muted)" }}>+{rows.length - 10} more</li>
+          )}
+        </ul>
+      );
+    }
+    default:
+      return null;
+  }
+}
+
 export function CaseBoard() {
   const steps = useChatStore((s) => s.caseBoardSteps);
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  function toggle(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   return (
     <aside
@@ -109,27 +192,49 @@ export function CaseBoard() {
           </p>
         )}
 
-        {steps.map((step) => (
+        {steps.map((step) => {
+          const isExpanded = expanded.has(step.id);
+          const canExpand =
+            step.status !== "pending" &&
+            ["searchRelatedCases", "checkInsights", "getNetworkOrMapData"].includes(step.tool);
+          return (
           <div
             key={step.id}
+            role={canExpand ? "button" : undefined}
+            tabIndex={canExpand ? 0 : undefined}
+            onClick={canExpand ? () => toggle(step.id) : undefined}
+            onKeyDown={
+              canExpand
+                ? (e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggle(step.id);
+                    }
+                  }
+                : undefined
+            }
             className="rounded-md px-3 py-2.5 animate-fade-up"
             style={{
               background: "var(--bg-raised)",
               border: "1px solid var(--border)",
               borderLeftColor: statusColor(step.status),
               borderLeftWidth: "3px",
+              cursor: canExpand ? "pointer" : "default",
             }}
           >
             <div className="flex items-center justify-between gap-2">
               <span className="font-data text-xs font-bold" style={{ color: "var(--text-primary)" }}>
                 {TOOL_LABELS[step.tool] ?? step.tool}
               </span>
-              <span
-                className="text-[10px] font-data font-bold uppercase px-1.5 py-0.5 rounded"
-                style={{ color: statusColor(step.status), background: statusDim(step.status) }}
-              >
-                {step.status === "pending" ? "Running" : step.status === "ok" ? "Done" : "Failed"}
-              </span>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span
+                  className="text-[10px] font-data font-bold uppercase px-1.5 py-0.5 rounded"
+                  style={{ color: statusColor(step.status), background: statusDim(step.status) }}
+                >
+                  {step.status === "pending" ? "Running" : step.status === "ok" ? "Done" : "Failed"}
+                </span>
+                {canExpand && <span style={{ color: "var(--text-muted)" }}><ChevronIcon expanded={isExpanded} /></span>}
+              </div>
             </div>
             {argsSummary(step) && (
               <p className="text-xs mt-1 line-clamp-2" style={{ color: "var(--text-secondary)" }}>
@@ -139,6 +244,7 @@ export function CaseBoard() {
             <p className="text-xs font-data mt-1" style={{ color: "var(--text-muted)" }}>
               {resultSummary(step)}
             </p>
+            {isExpanded && <StepDetail step={step} />}
             {step.tool === "predictRisk" && contributions(step).length > 0 && (
               <div className="mt-2 pt-2 space-y-1" style={{ borderTop: "1px solid var(--border)" }}>
                 <p className="text-[10px] font-data font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
@@ -155,7 +261,8 @@ export function CaseBoard() {
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
     </aside>
   );
