@@ -281,7 +281,7 @@ export function ChatWindow() {
           <button
             onClick={generateQuery}
             disabled={sending}
-            title="Generate a query"
+            title={t("chat.generateQuery", lang)}
             className="shrink-0 w-11 h-11 rounded-md flex items-center justify-center transition-all"
             style={{
               background: "var(--bg-raised)",

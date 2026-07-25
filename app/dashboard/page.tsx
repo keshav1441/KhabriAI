@@ -156,10 +156,10 @@ export default function DashboardPage() {
             {sidebarOpen && (
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-medium truncate" style={{ color: "var(--text-primary)" }}>
-                  {user.firstName ? `${user.firstName} ${user.lastName ?? ""}` : "Officer"}
+                  {user.firstName ? `${user.firstName} ${user.lastName ?? ""}` : t("user.officer", lang)}
                 </p>
                 <p className="text-xs font-data truncate" style={{ color: "var(--text-muted)" }}>
-                  {user.email ?? "KSP Analyst"}
+                  {user.email ?? t("user.analystFallback", lang)}
                 </p>
               </div>
             )}
@@ -172,10 +172,10 @@ export default function DashboardPage() {
               style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--khaki)"; (e.currentTarget as HTMLElement).style.color = "var(--khaki)"; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
-              title="Profile"
+              title={t("user.profile", lang)}
             >
               <UserCircleIcon />
-              {sidebarOpen && <span className="text-xs font-medium">Profile</span>}
+              {sidebarOpen && <span className="text-xs font-medium">{t("user.profile", lang)}</span>}
             </button>
             <button
               onClick={() => setShowLogoutConfirm(true)}
@@ -183,10 +183,10 @@ export default function DashboardPage() {
               style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--red)"; (e.currentTarget as HTMLElement).style.color = "var(--red)"; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
-              title="Sign out"
+              title={t("user.signOut", lang)}
             >
               <LogoutIcon />
-              {sidebarOpen && <span className="text-xs font-medium">Sign out</span>}
+              {sidebarOpen && <span className="text-xs font-medium">{t("user.signOut", lang)}</span>}
             </button>
           </div>
         </div>
@@ -215,7 +215,7 @@ export default function DashboardPage() {
                   style={{ color: "var(--text-primary)", fontSize: "1rem", letterSpacing: "0.04em" }}>
               {(() => { const it = NAV_ITEMS.find((n) => n.view === activeView); return it ? t(it.labelKey, lang) : ""; })()}
             </span>
-            <span className="badge-classified hidden md:inline-flex">RESTRICTED</span>
+            <span className="badge-classified hidden md:inline-flex">{t("header.restricted", lang)}</span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -224,7 +224,7 @@ export default function DashboardPage() {
                 <span className="absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: "var(--red)", animation: "ping-slow 2s ease-in-out infinite" }} />
                 <span className="relative inline-flex h-2 w-2 rounded-full" style={{ background: "var(--red)" }} />
               </span>
-              <span className="font-data text-xs font-bold tracking-widest" style={{ color: "var(--red)" }}>LIVE</span>
+              <span className="font-data text-xs font-bold tracking-widest" style={{ color: "var(--red)" }}>{t("header.live", lang)}</span>
             </div>
 
             <span className="font-data text-xs tabular-nums hidden md:block" style={{ color: "var(--text-muted)" }}>{time}</span>
@@ -288,7 +288,7 @@ export default function DashboardPage() {
       {showProfile && (
         <ModalBackdrop onClose={() => setShowProfile(false)}>
           <div className="px-5 py-4" style={{ borderBottom: "1px solid var(--border)" }}>
-            <h3 className="font-display font-bold" style={{ color: "var(--text-primary)", fontSize: "1rem" }}>Profile</h3>
+            <h3 className="font-display font-bold" style={{ color: "var(--text-primary)", fontSize: "1rem" }}>{t("user.profile", lang)}</h3>
           </div>
           <div className="p-5 space-y-3">
             <div className="flex items-center gap-3">
@@ -300,16 +300,16 @@ export default function DashboardPage() {
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>
-                  {user.firstName ? `${user.firstName} ${user.lastName ?? ""}` : "Officer"}
+                  {user.firstName ? `${user.firstName} ${user.lastName ?? ""}` : t("user.officer", lang)}
                 </p>
                 <p className="text-xs font-data truncate" style={{ color: "var(--text-muted)" }}>
-                  {user.email ?? "KSP Analyst"}
+                  {user.email ?? t("user.analystFallback", lang)}
                 </p>
               </div>
             </div>
             <div className="pt-2 space-y-1.5" style={{ borderTop: "1px solid var(--border-subtle)" }}>
-              <ProfileRow label="Role" value="KSP Intelligence Analyst" />
-              <ProfileRow label="Access" value="Restricted" />
+              <ProfileRow label={t("user.role", lang)} value={t("user.roleValue", lang)} />
+              <ProfileRow label={t("user.access", lang)} value={t("user.accessValue", lang)} />
             </div>
           </div>
           <div className="px-5 py-3 flex justify-end" style={{ borderTop: "1px solid var(--border)" }}>
@@ -318,7 +318,7 @@ export default function DashboardPage() {
               className="text-xs font-medium px-3 py-1.5 rounded-md transition-all"
               style={{ color: "var(--text-secondary)", border: "1px solid var(--border)" }}
             >
-              Close
+              {t("user.close", lang)}
             </button>
           </div>
         </ModalBackdrop>
@@ -327,11 +327,11 @@ export default function DashboardPage() {
       {showLogoutConfirm && (
         <ModalBackdrop onClose={() => setShowLogoutConfirm(false)}>
           <div className="px-5 py-4" style={{ borderBottom: "1px solid var(--border)" }}>
-            <h3 className="font-display font-bold" style={{ color: "var(--text-primary)", fontSize: "1rem" }}>Sign out?</h3>
+            <h3 className="font-display font-bold" style={{ color: "var(--text-primary)", fontSize: "1rem" }}>{t("user.signOutConfirmTitle", lang)}</h3>
           </div>
           <div className="p-5">
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              You&apos;ll need to sign in again to access Khabri AI.
+              {t("user.signOutConfirmBody", lang)}
             </p>
           </div>
           <div className="px-5 py-3 flex justify-end gap-2" style={{ borderTop: "1px solid var(--border)" }}>
@@ -340,14 +340,14 @@ export default function DashboardPage() {
               className="text-xs font-medium px-3 py-1.5 rounded-md transition-all"
               style={{ color: "var(--text-secondary)", border: "1px solid var(--border)" }}
             >
-              Cancel
+              {t("user.cancel", lang)}
             </button>
             <button
               onClick={doLogout}
               className="text-xs font-bold px-3 py-1.5 rounded-md transition-all"
               style={{ color: "var(--red)", border: "1px solid var(--red)", background: "var(--red-dim)" }}
             >
-              Sign out
+              {t("user.signOut", lang)}
             </button>
           </div>
         </ModalBackdrop>

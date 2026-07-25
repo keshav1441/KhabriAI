@@ -2,9 +2,11 @@
 // ponytail: browser print-to-PDF over jsPDF/html2canvas — a print-only transcript
 // + window.print(). Add a PDF lib only if a pixel-perfect branded export is required.
 import { useChatStore } from "@/store/chat";
+import { t } from "@/lib/i18n";
 
 export function ConversationExport() {
   const messages = useChatStore((s) => s.messages);
+  const lang = useChatStore((s) => s.lang);
   const disabled = messages.length === 0;
 
   return (
@@ -16,7 +18,7 @@ export function ConversationExport() {
         style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}
         onMouseEnter={(e) => { if (!disabled) { (e.currentTarget as HTMLElement).style.color = "var(--ink)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--ink)"; } }}
         onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
-        title="Export conversation as PDF"
+        title={t("header.exportPdf", lang)}
       >
         ↓ PDF
       </button>

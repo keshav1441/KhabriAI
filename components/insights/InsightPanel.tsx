@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useChatStore } from "@/store/chat";
+import { t, type StringKey } from "@/lib/i18n";
 
 interface Insight {
   type: string;
@@ -9,13 +10,13 @@ interface Insight {
   query: string;
 }
 
-const TYPE_CONFIG: Record<string, { label: string; color: string }> = {
-  spike:          { label: "SPIKE",          color: "var(--red)"   },
-  repeat_suspect: { label: "REPEAT SUSPECT", color: "var(--amber)" },
-  weekly_surge:   { label: "SURGE",          color: "var(--amber)" },
-  forecast:       { label: "⚠ FORECAST",     color: "var(--ink)"   },
+const TYPE_CONFIG: Record<string, { labelKey: StringKey; color: string }> = {
+  spike:          { labelKey: "insight.type.spike",         color: "var(--red)"   },
+  repeat_suspect: { labelKey: "insight.type.repeat_suspect", color: "var(--amber)" },
+  weekly_surge:   { labelKey: "insight.type.weekly_surge",   color: "var(--amber)" },
+  forecast:       { labelKey: "insight.type.forecast",       color: "var(--ink)"   },
 };
-const DEFAULT_CONFIG = { label: "ALERT", color: "var(--amber)" };
+const DEFAULT_CONFIG: { labelKey: StringKey; color: string } = { labelKey: "insight.type.default", color: "var(--amber)" };
 
 function nowIST() {
   return new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false });
@@ -26,6 +27,7 @@ export function InsightPanel({ onQuerySelect }: { onQuerySelect: (q: string) => 
   const [collapsed, setCollapsed] = useState(false);
   const [time] = useState(nowIST);
   const messageCount = useChatStore((s) => s.messages.length);
+  const lang = useChatStore((s) => s.lang);
 
   useEffect(() => {
     if (messageCount === 1) setCollapsed(true);
@@ -61,7 +63,7 @@ export function InsightPanel({ onQuerySelect }: { onQuerySelect: (q: string) => 
         <div className="flex items-center gap-3">
           <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--amber)" }} />
           <span className="font-data text-xs font-bold tracking-widest uppercase" style={{ color: "var(--amber)" }}>
-            Intelligence Briefing
+            {t("insight.title", lang)}
           </span>
           <span className="font-data text-xs px-1.5 py-0.5 rounded font-bold"
                 style={{ background: "var(--amber-dim)", color: "var(--amber)" }}>
@@ -69,7 +71,7 @@ export function InsightPanel({ onQuerySelect }: { onQuerySelect: (q: string) => 
           </span>
         </div>
         <span className="font-data text-xs" style={{ color: "var(--text-muted)" }}>
-          {collapsed ? "▸ expand" : "▾ collapse"}
+          {collapsed ? t("insight.expand", lang) : t("insight.collapse", lang)}
         </span>
       </button>
 
@@ -95,7 +97,7 @@ export function InsightPanel({ onQuerySelect }: { onQuerySelect: (q: string) => 
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <span className="font-data text-xs font-bold tracking-widest uppercase"
                         style={{ color: cfg.color }}>
-                    {cfg.label}
+                    {t(cfg.labelKey, lang)}
                   </span>
                   <span className="font-data text-xs shrink-0" style={{ color: "var(--text-muted)" }}>
                     {time} IST
@@ -108,7 +110,7 @@ export function InsightPanel({ onQuerySelect }: { onQuerySelect: (q: string) => 
                   {insight.detail}
                 </p>
                 <p className="font-data text-xs mt-1.5" style={{ color: cfg.color }}>
-                  → Investigate
+                  {t("insight.investigate", lang)}
                 </p>
               </button>
             );

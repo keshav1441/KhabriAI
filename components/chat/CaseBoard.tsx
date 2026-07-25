@@ -1,13 +1,14 @@
 "use client";
 import { useState } from "react";
 import { useChatStore, type CaseBoardStep } from "@/store/chat";
+import { t, type StringKey } from "@/lib/i18n";
 
-const TOOL_LABELS: Record<string, string> = {
-  queryDatabase: "Query Database",
-  searchRelatedCases: "Search Related Cases",
-  checkInsights: "Check Insights",
-  getNetworkOrMapData: "Network / Map Data",
-  predictRisk: "Risk Prediction",
+const TOOL_LABEL_KEYS: Record<string, StringKey> = {
+  queryDatabase: "board.tool.queryDatabase",
+  searchRelatedCases: "board.tool.searchRelatedCases",
+  checkInsights: "board.tool.checkInsights",
+  getNetworkOrMapData: "board.tool.getNetworkOrMapData",
+  predictRisk: "board.tool.predictRisk",
 };
 
 type Contribution = { label: string; sign: "+" | "-"; strength: number };
@@ -32,34 +33,34 @@ function argsSummary(step: CaseBoardStep): string {
   return "";
 }
 
-function resultSummary(step: CaseBoardStep): string {
-  if (step.status === "pending") return "Running…";
+function resultSummary(step: CaseBoardStep, lang: import("@/store/chat").Lang): string {
+  if (step.status === "pending") return `${t("board.statusRunning", lang)}…`;
   const r = step.result as Record<string, unknown> | null;
   if (!r) return "";
-  if (r.status === "error") return (r.message as string) ?? "Failed";
+  if (r.status === "error") return (r.message as string) ?? t("board.statusFailed", lang);
   switch (step.tool) {
     case "queryDatabase": {
       const rows = r.rows as unknown[] | undefined;
-      return `${rows?.length ?? 0} row(s)`;
+      return `${rows?.length ?? 0} ${t("board.rows", lang)}`;
     }
     case "searchRelatedCases": {
       const cases = r.cases as unknown[] | undefined;
-      return `${cases?.length ?? 0} related case(s)`;
+      return `${cases?.length ?? 0} ${t("board.relatedCases", lang)}`;
     }
     case "checkInsights": {
       const insights = r.insights as unknown[] | undefined;
-      return `${insights?.length ?? 0} insight(s)`;
+      return `${insights?.length ?? 0} ${t("board.insights", lang)}`;
     }
     case "getNetworkOrMapData": {
       const rows = r.rows as unknown[] | undefined;
-      return `${rows?.length ?? 0} row(s)`;
+      return `${rows?.length ?? 0} ${t("board.rows", lang)}`;
     }
     case "predictRisk": {
       const prob = typeof r.probability === "number" ? `${Math.round(r.probability * 100)}%` : "—";
-      return `${(r.label as string) ?? "Prediction"} · ${prob}`;
+      return `${(r.label as string) ?? t("board.prediction", lang)} · ${prob}`;
     }
     default:
-      return "Done";
+      return t("board.statusDone", lang);
   }
 }
 
@@ -156,6 +157,7 @@ function StepDetail({ step }: { step: CaseBoardStep }) {
 
 export function CaseBoard() {
   const steps = useChatStore((s) => s.caseBoardSteps);
+  const lang = useChatStore((s) => s.lang);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   function toggle(id: string) {
@@ -181,14 +183,14 @@ export function CaseBoard() {
           className="font-data text-xs font-bold tracking-widest uppercase"
           style={{ color: "var(--text-secondary)" }}
         >
-          Case Board
+          {t("board.title", lang)}
         </span>
       </div>
 
       <div className={`flex-1 min-h-0 overflow-y-auto px-3 py-3 space-y-2 ${steps.length > 1 ? "evidence-thread pl-5" : ""}`}>
         {steps.length === 0 && (
           <p className="text-xs font-data px-1" style={{ color: "var(--text-muted)", opacity: 0.6 }}>
-            Reasoning steps will pin here as the agent investigates.
+            {t("board.empty", lang)}
           </p>
         )}
 
@@ -224,14 +226,14 @@ export function CaseBoard() {
           >
             <div className="flex items-center justify-between gap-2">
               <span className="font-data text-xs font-bold" style={{ color: "var(--text-primary)" }}>
-                {TOOL_LABELS[step.tool] ?? step.tool}
+                {TOOL_LABEL_KEYS[step.tool] ? t(TOOL_LABEL_KEYS[step.tool], lang) : step.tool}
               </span>
               <div className="flex items-center gap-1.5 shrink-0">
                 <span
                   className="text-[10px] font-data font-bold uppercase px-1.5 py-0.5 rounded"
                   style={{ color: statusColor(step.status), background: statusDim(step.status) }}
                 >
-                  {step.status === "pending" ? "Running" : step.status === "ok" ? "Done" : "Failed"}
+                  {step.status === "pending" ? t("board.statusRunning", lang) : step.status === "ok" ? t("board.statusDone", lang) : t("board.statusFailed", lang)}
                 </span>
                 {canExpand && <span style={{ color: "var(--text-muted)" }}><ChevronIcon expanded={isExpanded} /></span>}
               </div>
@@ -242,13 +244,13 @@ export function CaseBoard() {
               </p>
             )}
             <p className="text-xs font-data mt-1" style={{ color: "var(--text-muted)" }}>
-              {resultSummary(step)}
+              {resultSummary(step, lang)}
             </p>
             {isExpanded && <StepDetail step={step} />}
             {step.tool === "predictRisk" && contributions(step).length > 0 && (
               <div className="mt-2 pt-2 space-y-1" style={{ borderTop: "1px solid var(--border)" }}>
                 <p className="text-[10px] font-data font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-                  Why
+                  {t("board.why", lang)}
                 </p>
                 {contributions(step).map((c, i) => (
                   <div key={i} className="flex items-start gap-1.5 text-xs">

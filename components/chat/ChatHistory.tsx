@@ -1,18 +1,19 @@
 "use client";
 import { useEffect, useCallback } from "react";
-import { useChatStore } from "@/store/chat";
+import { useChatStore, type Lang } from "@/store/chat";
 import { chatHeaders, type ChatSessionSummary } from "@/lib/chat-api";
 import type { ChatMessage } from "@/store/chat";
+import { t } from "@/lib/i18n";
 
-function formatRelative(dateStr: string): string {
+function formatRelative(dateStr: string, lang: Lang): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return t("history.justNow", lang);
+  if (mins < 60) return `${mins}${t("history.minAgo", lang)}`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
+  if (hrs < 24) return `${hrs}${t("history.hourAgo", lang)}`;
   const days = Math.floor(hrs / 24);
-  if (days < 7) return `${days}d ago`;
+  if (days < 7) return `${days}${t("history.dayAgo", lang)}`;
   return new Date(dateStr).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 }
 
@@ -20,6 +21,7 @@ export function ChatHistory() {
   const {
     sessions,
     activeSessionId,
+    lang,
     setSessions,
     setActiveSessionId,
     setMessages,
@@ -84,18 +86,18 @@ export function ChatHistory() {
           <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
           </svg>
-          New chat
+          {t("history.newChat", lang)}
         </button>
       </div>
 
       <p className="text-xs font-bold tracking-widest uppercase px-2 mb-2 font-data shrink-0" style={{ color: "var(--text-muted)" }}>
-        Recent chats
+        {t("history.recent", lang)}
       </p>
 
       <div className="flex-1 overflow-y-auto min-h-0 space-y-0.5 px-1">
         {sessions.length === 0 && (
           <p className="text-xs px-2 py-2" style={{ color: "var(--text-muted)" }}>
-            No chats yet
+            {t("history.empty", lang)}
           </p>
         )}
         {sessions.map((s) => {
@@ -126,7 +128,7 @@ export function ChatHistory() {
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{s.title}</p>
                 <p className="font-data mt-0.5" style={{ color: "var(--text-muted)", fontSize: "10px" }}>
-                  {formatRelative(s.updatedAt)}
+                  {formatRelative(s.updatedAt, lang)}
                 </p>
               </div>
               <span
@@ -136,7 +138,7 @@ export function ChatHistory() {
                 onKeyDown={(e) => e.key === "Enter" && handleDelete(e as unknown as React.MouseEvent, s.id)}
                 className="shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded transition-opacity"
                 style={{ color: "var(--text-muted)" }}
-                title="Delete chat"
+                title={t("history.delete", lang)}
               >
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
