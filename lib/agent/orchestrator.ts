@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type Groq from "groq-sdk";
-import { getGroqClient } from "../groq-client";
+import type OpenAI from "openai";
+import { getLlmClient } from "../mistral-client";
 import type { VizType } from "../query-classifier";
 import type { RelatedCase } from "../case-retrieval";
 import {
@@ -16,7 +16,7 @@ import {
 } from "./tools";
 import { logAuditStep, logAuditRun } from "./audit-log";
 
-const ORCH_MODEL = process.env.GROQ_ORCH_MODEL ?? "llama-3.3-70b-versatile";
+const ORCH_MODEL = process.env.MISTRAL_ORCH_MODEL ?? "mistral-large-latest";
 const MAX_ITERATIONS = 4;
 
 const SYSTEM_PROMPT = `You are KhabriAI, an investigation copilot for the Karnataka State Police FIR (First Information Report) database.
@@ -25,7 +25,8 @@ Once you have enough information, stop calling tools and answer with a concise a
 
 const FINAL_SYNTHESIS_PROMPT =
   'Based on the tool results above, give a concise final analyst narrative answering the user\'s question. 2-4 sentences, cite concrete numbers where available. Do not call any more tools. ' +
-  'If a tool result has status "error", do not invent, estimate, or guess the missing value — state plainly that this specific piece of information is unavailable, using the tool\'s error message.';
+  'If a tool result has status "error", do not invent, estimate, or guess the missing value — state plainly that this specific piece of information is unavailable, using the tool\'s error message. ' +
+  'Start with the answer itself — no heading, no "Analyst Narrative:" preamble. Use **bold** only on key figures and names; no bullet points, no headings.';
 
 export type StepEvent = {
   type: "step";
@@ -116,11 +117,11 @@ export async function* runAgent(
   req?: Request,
   lang: "en" | "kn" = "en"
 ): AsyncGenerator<AgentEvent> {
-  const groq = getGroqClient();
+  const llm = getLlmClient();
   const runId = randomUUID();
-  const messages: Groq.Chat.ChatCompletionMessageParam[] = [
+  const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
     { role: "system", content: SYSTEM_PROMPT },
-    ...history.slice(-6).map((h) => ({ role: h.role, content: h.content }) as Groq.Chat.ChatCompletionMessageParam),
+    ...history.slice(-6).map((h) => ({ role: h.role, content: h.content }) as OpenAI.Chat.ChatCompletionMessageParam),
     { role: "user", content: question },
   ];
 
@@ -129,13 +130,13 @@ export async function* runAgent(
   let toolCallCount = 0;
 
   for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
-    let assistantMsg: Groq.Chat.ChatCompletionMessage | undefined;
-    // Groq's tool-calling occasionally emits malformed function-call syntax
-    // (400 tool_use_failed) instead of structured tool_calls for a given
-    // sample — retry once before degrading to whatever's been gathered so far.
+    let assistantMsg: OpenAI.Chat.ChatCompletionMessage | undefined;
+    // Tool-calling occasionally emits malformed function-call syntax instead of
+    // structured tool_calls for a given sample — retry once before degrading to
+    // whatever's been gathered so far.
     for (let attempt = 0; attempt < 2 && !assistantMsg; attempt++) {
       try {
-        const completion = await groq.chat.completions.create({
+        const completion = await llm.chat.completions.create({
           model: ORCH_MODEL,
           temperature: 0.2,
           max_tokens: 1024,
@@ -153,7 +154,11 @@ export async function* runAgent(
     }
     if (!assistantMsg) break;
 
-    const toolCalls = assistantMsg?.tool_calls ?? [];
+    // The SDK's tool_calls union also covers custom (non-function) calls, which
+    // we never register — keep only function calls so `.function` is defined.
+    const toolCalls = (assistantMsg?.tool_calls ?? []).filter(
+      (tc): tc is OpenAI.Chat.ChatCompletionMessageFunctionToolCall => tc.type === "function"
+    );
     if (!assistantMsg || toolCalls.length === 0) break;
 
     messages.push(assistantMsg);
@@ -198,7 +203,7 @@ export async function* runAgent(
 
   let finalAnswer = "";
   try {
-    const stream = await groq.chat.completions.create({
+    const stream = await llm.chat.completions.create({
       model: ORCH_MODEL,
       temperature: 0.3,
       max_tokens: 300,

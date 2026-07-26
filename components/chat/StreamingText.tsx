@@ -1,6 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
 
+// ponytail: the narrative only ever emits **bold** — split on it rather than
+// pulling in a markdown renderer. Swap for one if headings/lists show up.
+function renderBold(text: string) {
+  return text
+    .split(/\*\*(.+?)\*\*/g)
+    .map((part, i) => (i % 2 ? <strong key={i}>{part}</strong> : part));
+}
+
 export function StreamingText({ text, loading }: { text: string; loading?: boolean }) {
   const [displayed, setDisplayed] = useState("");
 
@@ -16,7 +24,7 @@ export function StreamingText({ text, loading }: { text: string; loading?: boole
 
   return (
     <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: "var(--text-primary)" }}>
-      {displayed}
+      {renderBold(displayed)}
       {loading && <span className="cursor-blink" />}
     </p>
   );

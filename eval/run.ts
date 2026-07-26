@@ -40,7 +40,7 @@ async function run() {
     readFileSync(join(process.cwd(), "lib/rag-examples.json"), "utf-8")
   );
 
-  console.log(`\nRunning eval on ${examples.length} questions${holdout ? " [holdout mode]" : ""}${useKeywords ? " [keywords]" : " [groq]"}...\n`);
+  console.log(`\nRunning eval on ${examples.length} questions${holdout ? " [holdout mode]" : ""}${useKeywords ? " [keywords]" : " [embeddings]"}...\n`);
   const results: Result[] = [];
 
   for (let idx = 0; idx < examples.length; idx++) {

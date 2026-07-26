@@ -1,9 +1,9 @@
 import "dotenv/config";
 import { Pool } from "pg";
-import { getGroqClient } from "../lib/groq-client";
+import { getLlmClient } from "../lib/mistral-client";
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const MODEL = process.env.GROQ_SUMMARY_MODEL ?? "llama-3.1-8b-instant";
+const MODEL = process.env.MISTRAL_SUMMARY_MODEL ?? "mistral-small-latest";
 const BATCH = 25;
 
 const limitArg = process.argv.find((a) => a.startsWith("--limit="));
@@ -36,7 +36,7 @@ async function fetchTemplatedCases(limit?: number): Promise<CaseRow[]> {
 }
 
 async function generateNarratives(batch: CaseRow[]): Promise<Map<number, string>> {
-  const groq = getGroqClient();
+  const llm = getLlmClient();
   const cases = batch.map((c) => ({
     id: c.id,
     crimeType: c.crimeType ?? "Unknown",
@@ -45,7 +45,7 @@ async function generateNarratives(batch: CaseRow[]): Promise<Map<number, string>
     date: c.regDate ? new Date(c.regDate).toISOString().slice(0, 10) : "unknown date",
   }));
 
-  const completion = await groq.chat.completions.create({
+  const completion = await llm.chat.completions.create({
     model: MODEL,
     temperature: 0.9,
     max_tokens: 4096,

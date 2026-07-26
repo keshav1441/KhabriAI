@@ -17,7 +17,7 @@ const TECH_STACK = [
     color: "var(--red)",
     bg: "var(--red-dim)",
     items: [
-      { name: "Groq LPU", desc: "llama-3.3-70b-versatile orchestrator · 8b-instant narrator" },
+      { name: "Mistral AI", desc: "mistral-small orchestrator · SQL generation · narrator" },
       { name: "Tool-Calling Orchestrator", desc: "Bounded agent loop (max 4 iterations), tools run in parallel" },
       { name: "5 Investigation Tools", desc: "SQL query · related-case search · insights · network/map data · risk prediction" },
       { name: "RAG Retrieval", desc: "Gemini embeddings — few-shot SQL grounding + pgvector case-narrative search, FTS/LLM fallback" },

@@ -169,11 +169,17 @@ export function ChatWindow() {
       let summary = "";
       let meta: Partial<ChatMessage> = {};
 
+      let buffer = "";
+
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        for (const line of chunk.split("\n")) {
+        // An SSE event can straddle two chunks; keep the trailing partial line
+        // for the next read instead of dropping it (lost tokens / lost "done").
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
           try {
             const parsed = JSON.parse(line.slice(6));

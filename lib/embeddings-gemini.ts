@@ -2,8 +2,7 @@ import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join } from "path";
 import { cacheGet, cacheSet } from "./catalyst-cache";
 
-// Groq has no embeddings endpoint on this account (verified: groq.models.list()
-// returns zero embedding models) — Gemini is the real embedding backend.
+// Gemini is the embedding backend; the chat provider (Mistral) is unrelated here.
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const EMBED_MODEL = "gemini-embedding-2";
 export const EMBED_DIM = 768;

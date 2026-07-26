@@ -1,4 +1,4 @@
-import type Groq from "groq-sdk";
+import type OpenAI from "openai";
 import { generateSQL } from "../llm";
 import { DB_SCHEMA } from "../prompt-builder";
 import { validateSQL, sanitizeSQL } from "../sql-validator";
@@ -60,7 +60,7 @@ function fixGroupByConflict(sql: string): string {
     .replace(/,\s*cm\."CaseMasterID"(\s+AS\s+\w+)?/gi, "");
 }
 
-export const TOOL_SCHEMAS: Groq.Chat.ChatCompletionTool[] = [
+export const TOOL_SCHEMAS: OpenAI.Chat.ChatCompletionTool[] = [
   {
     type: "function",
     function: {
