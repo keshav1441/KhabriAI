@@ -141,16 +141,22 @@ Open **http://localhost:3000** → sign up or log in → dashboard.
 
 ## Accuracy eval
 
-Runs all 25 RAG examples through the full pipeline (embed → retrieve → generate SQL → execute) and reports execution accuracy:
+`lib/rag-examples.json` holds 93 question → gold-SQL pairs (83 English, 10 Kannada) covering counts, trends, joins across accused/victims/arrests/chargesheets/sections, and abbreviation traps (BLR, dowry death → 304B). The eval runs each question through the **same pipeline the agent uses** (`lib/text-to-sql.ts`: retrieve few-shot → generate → validate → execute under guards → repair once on DB error) and reports two numbers separately:
+
+| metric | meaning |
+|---|---|
+| **executes** | generated SQL ran without error — this is what the old eval called "accuracy" |
+| **matches** | result set equals the gold SQL's result set (Spider-style execution match: value-only, order-insensitive, numbers at 2-dp, row lists compared on the set of `CaseMasterID`s) — **this is accuracy** |
 
 ```bash
-npx tsx eval/run.ts --holdout          # embedding RAG (default)
-npx tsx eval/run.ts --holdout --keywords  # keyword Jaccard baseline
+npm run eval -- --holdout              # honest number: each question's own example is excluded from retrieval
+npm run eval -- --holdout --no-repair  # ablation: same, without the error-feedback retry
+npm run eval -- --limit=10             # quick smoke
 ```
 
-Use `--holdout` to exclude each question's own example from retrieval (honest generalization test). Without the flag, the exact Q→SQL pair can be retrieved and scores are inflated.
+Every run writes `eval/results/<timestamp>.json` with per-question SQL, verdict, repair flag and latency. Output: `.` match · `x` ran but wrong result · `E` error.
 
-Output: `.` pass · `F` validation fail · `E` execution error · summary with retrieval similarity and SQL token overlap.
+Unit tests for the guards, the repair loop and the comparator: `npm test`.
 
 ---
 

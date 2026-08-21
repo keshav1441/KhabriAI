@@ -19,7 +19,9 @@ Rules:
 - For suspect queries: use "Accused" table joined to "CaseMaster" via "CaseMasterID"
 - For victim queries: use "Victim" table joined to "CaseMaster" via "CaseMasterID"
 - For arrest queries: use "ArrestSurrender" table joined to "CaseMaster" via "CaseMasterID"
-- GenderID: 1=Male, 2=Female, 3=Transgender`;
+- GenderID: 1=Male, 2=Female, 3=Transgender. When a result shows gender, return the label via CASE "GenderID" WHEN 1 THEN 'Male' WHEN 2 THEN 'Female' WHEN 3 THEN 'Transgender' END AS gender, not the raw ID.
+- "top", "most", "highest", "which X has the most": ORDER BY the count DESC and LIMIT 10, unless the question states a number or asks for a single answer (LIMIT 1).
+- Round averages and percentages to 1 decimal place: ROUND(AVG(x), 1). Do not add descriptive columns the question did not ask for.`;
 
 export async function generateSQL(
   schema: string,
@@ -82,4 +84,22 @@ export async function* streamSummary(
     const token = chunk.choices[0]?.delta?.content;
     if (token) yield token;
   }
+}
+
+// One-shot repair: the model sees its own SQL plus the exact Postgres error.
+export async function repairSQL(schema: string, question: string, badSQL: string, dbError: string): Promise<string> {
+  const llm = getLlmClient();
+  const completion = await llm.chat.completions.create({
+    model: SQL_MODEL,
+    temperature: 0,
+    max_tokens: 2048,
+    messages: [
+      { role: "system", content: `${SQL_SYSTEM_PROMPT}\n\n${schema}` },
+      {
+        role: "user",
+        content: `The query below for "${question}" failed in PostgreSQL.\n\nSQL:\n${badSQL}\n\nError:\n${dbError}\n\nReturn the corrected SQL only.`,
+      },
+    ],
+  });
+  return (completion.choices[0]?.message?.content ?? "").trim();
 }

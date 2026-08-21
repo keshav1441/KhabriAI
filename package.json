@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start -p ${X_ZOHO_CATALYST_LISTEN_PORT:-3000}",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test": "tsx --test test/*.test.ts",
+    "eval": "tsx eval/run.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

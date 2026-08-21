@@ -41,7 +41,8 @@ function resultSummary(step: CaseBoardStep, lang: import("@/store/chat").Lang): 
   switch (step.tool) {
     case "queryDatabase": {
       const rows = r.rows as unknown[] | undefined;
-      return `${rows?.length ?? 0} ${t("board.rows", lang)}`;
+      const fixed = r.repaired ? ` · ${t("board.repaired", lang)}` : "";
+      return `${rows?.length ?? 0} ${t("board.rows", lang)}${fixed}`;
     }
     case "searchRelatedCases": {
       const cases = r.cases as unknown[] | undefined;

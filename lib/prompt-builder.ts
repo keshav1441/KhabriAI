@@ -51,7 +51,10 @@ CREATE TABLE "Victim" ("VictimMasterID" SERIAL PRIMARY KEY, "CaseMasterID" INT R
 
 CREATE TABLE "Accused" ("AccusedMasterID" SERIAL PRIMARY KEY, "CaseMasterID" INT REFERENCES "CaseMaster", "AccusedName" VARCHAR, "AgeYear" INT, "GenderID" INT, "PersonID" VARCHAR);
 
-CREATE TABLE "ComplainantDetails" ("ComplainantID" SERIAL PRIMARY KEY, "CaseMasterID" INT REFERENCES "CaseMaster", "ComplainantName" VARCHAR, "AgeYear" INT, "GenderID" INT, "OccupationID" INT, "ReligionID" INT);
+CREATE TABLE "OccupationMaster" ("OccupationID" SERIAL PRIMARY KEY, "OccupationName" VARCHAR);
+-- OccupationName values: 'Farmer','Government Employee','Private Employee','Student','Business','Daily Wage Labour','Unemployed'
+CREATE TABLE "ReligionMaster" ("ReligionID" SERIAL PRIMARY KEY, "ReligionName" VARCHAR);
+CREATE TABLE "ComplainantDetails" ("ComplainantID" SERIAL PRIMARY KEY, "CaseMasterID" INT REFERENCES "CaseMaster", "ComplainantName" VARCHAR, "AgeYear" INT, "GenderID" INT, "OccupationID" INT REFERENCES "OccupationMaster", "ReligionID" INT REFERENCES "ReligionMaster");
 
 CREATE TABLE "ActSectionAssociation" ("CaseMasterID" INT REFERENCES "CaseMaster", "ActCode" VARCHAR, "SectionCode" VARCHAR, "ActOrderID" INT, PRIMARY KEY ("CaseMasterID","ActCode","SectionCode"));
 

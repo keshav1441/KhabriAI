@@ -47,6 +47,7 @@ export const STRINGS = {
   "board.statusDone":    { en: "Done", kn: "ಮುಗಿದಿದೆ" },
   "board.statusFailed":  { en: "Failed", kn: "ವಿಫಲ" },
   "board.rows":          { en: "row(s)", kn: "ಸಾಲು(ಗಳು)" },
+  "board.repaired":      { en: "SQL self-corrected", kn: "SQL ಸ್ವಯಂ-ಸರಿಪಡಿಸಲಾಗಿದೆ" },
   "board.relatedCases":  { en: "related case(s)", kn: "ಸಂಬಂಧಿತ ಪ್ರಕರಣ(ಗಳು)" },
   "board.insights":      { en: "insight(s)", kn: "ಒಳನೋಟ(ಗಳು)" },
   "board.prediction":    { en: "Prediction", kn: "ಮುನ್ಸೂಚನೆ" },

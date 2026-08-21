@@ -1,9 +1,6 @@
 import type OpenAI from "openai";
-import { generateSQL } from "../llm";
-import { DB_SCHEMA } from "../prompt-builder";
-import { validateSQL, sanitizeSQL } from "../sql-validator";
 import { classifyQuery, type VizType } from "../query-classifier";
-import { findSimilar, warmupEmbeddings } from "../rag";
+import { answerWithSQL, type ChatTurn } from "../text-to-sql";
 import { findSimilarCases, type RelatedCase } from "../case-retrieval";
 import { getCachedInsights, setCachedInsights, type InsightItem } from "../insights-cache";
 import { computeInsights } from "../insights-compute";
@@ -11,13 +8,14 @@ import { prisma } from "../db";
 import { getCatalystApp, withCatalystTimeout } from "../catalyst-client";
 import { predictChargesheetRisk, type RiskContribution } from "../risk-model";
 
-export type ChatTurn = { role: "user" | "assistant"; content: string };
+export type { ChatTurn };
 
 export interface QueryDatabaseResult {
   status: "ok" | "error";
   sql?: string;
   rows?: Record<string, unknown>[];
   vizType?: VizType;
+  repaired?: boolean;
   message?: string;
 }
 
@@ -51,14 +49,6 @@ export interface PredictRiskResult {
 
 // Crime groups the seed data marks as "Heinous" (matches prisma/seed.ts CRIME_HEADS).
 const HEINOUS_CRIME_GROUPS = new Set(["Crimes Against Body", "Crimes Against Women"]);
-
-// Remove CaseMasterID from SELECT when query uses GROUP BY — prevents 42803 error
-function fixGroupByConflict(sql: string): string {
-  if (!/\bGROUP\s+BY\b/i.test(sql)) return sql;
-  return sql
-    .replace(/cm\."CaseMasterID"(\s+AS\s+\w+)?\s*,\s*/gi, "")
-    .replace(/,\s*cm\."CaseMasterID"(\s+AS\s+\w+)?/gi, "");
-}
 
 export const TOOL_SCHEMAS: OpenAI.Chat.ChatCompletionTool[] = [
   {
@@ -160,29 +150,12 @@ export async function runQueryDatabase(
   if (!question) return { status: "error", message: "Missing question" };
 
   try {
-    await warmupEmbeddings(req);
-    const examples = await findSimilar(question, 2, undefined, req);
-    const fewShot = examples.map((e) => `-- Q: ${e.question}\n${e.sql}`).join("\n\n");
-    const rawSQL = await generateSQL(DB_SCHEMA, fewShot, question, history);
-    let sql = sanitizeSQL(rawSQL);
-    sql = fixGroupByConflict(sql);
-
-    const validation = validateSQL(sql);
-    if (!validation.valid) {
-      return { status: "error", sql, message: validation.error ?? "Invalid SQL" };
-    }
-
-    const vizType = classifyQuery(sql);
-    const result = await prisma.$queryRawUnsafe(sql);
-    const rows = (result as Record<string, unknown>[]).map((r) => {
-      const out: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(r)) out[k] = typeof v === "bigint" ? Number(v) : v;
-      return out;
-    });
-    return { status: "ok", sql, rows, vizType };
+    const { sql, rows, repaired } = await answerWithSQL(question, { history, req });
+    return { status: "ok", sql, rows, vizType: classifyQuery(sql), repaired };
   } catch (e) {
     console.error("queryDatabase tool failed:", e);
-    return { status: "error", message: "Query execution failed" };
+    const err = e as Error & { sql?: string };
+    return { status: "error", sql: err.sql, message: (err.message ?? "Query execution failed").slice(0, 200) };
   }
 }
 

@@ -21,3 +21,16 @@ function getPrismaClient(): PrismaClient {
 }
 
 export const prisma = getPrismaClient();
+
+// Runs generated SQL under a per-statement timeout so a runaway join
+// (cross join, missing predicate) cannot hold a Neon connection open.
+// SET LOCAL scopes the timeout to this transaction only.
+export function runGuardedQuery(
+  sql: string,
+  { timeoutMs = 8000 }: { timeoutMs?: number } = {}
+): Promise<Record<string, unknown>[]> {
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = ${Math.floor(timeoutMs)}`);
+    return tx.$queryRawUnsafe(sql) as Promise<Record<string, unknown>[]>;
+  });
+}
