@@ -1,7 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Script from "next/script";
 import { TerminalDemo, ShieldIcon } from "@/components/marketing/TerminalDemo";
 
 export default function LoginPage() {
@@ -11,15 +12,14 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const signIn = async (url: string, body: Record<string, string>) => {
     setError("");
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -34,6 +34,10 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    signIn("/api/auth/login", { email, password });
   };
 
   return (
@@ -151,6 +155,10 @@ export default function LoginPage() {
             </button>
           </form>
 
+          {GOOGLE_CLIENT_ID && (
+            <GoogleButton onCredential={(credential) => signIn("/api/auth/google", { credential })} />
+          )}
+
           <div style={{ borderTop: "1px solid var(--border)", marginTop: "1.5rem", paddingTop: "1.5rem" }}>
             <p className="text-sm text-center" style={{ color: "var(--text-muted)" }}>
               New officer?{" "}
@@ -162,6 +170,53 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+
+// ponytail: minimal GIS surface we touch; full typings live in @types/google.accounts if ever needed
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (o: { client_id: string; callback: (r: { credential: string }) => void }) => void;
+          renderButton: (el: HTMLElement, o: Record<string, string | number>) => void;
+        };
+      };
+    };
+  }
+}
+
+/** Google Identity Services button - only rendered when NEXT_PUBLIC_GOOGLE_CLIENT_ID is set. */
+function GoogleButton({ onCredential }: { onCredential: (credential: string) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const cb = useRef(onCredential);
+  cb.current = onCredential; // parent passes a fresh arrow each render; keep GIS init to once
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    if (!ready || !ref.current || !window.google) return;
+    window.google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID!, callback: (r) => cb.current(r.credential) });
+    window.google.accounts.id.renderButton(ref.current, {
+      theme: document.documentElement.dataset.theme === "dark" ? "filled_black" : "outline",
+      size: "large",
+      width: ref.current.offsetWidth,
+      text: "signin_with",
+    });
+  }, [ready]);
+
+  return (
+    <>
+      <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" onReady={() => setReady(true)} />
+      <div className="flex items-center gap-3 my-5">
+        <span className="flex-1" style={{ borderTop: "1px solid var(--border)" }} />
+        <span className="font-data text-xs tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>or</span>
+        <span className="flex-1" style={{ borderTop: "1px solid var(--border)" }} />
+      </div>
+      <div ref={ref} className="w-full flex justify-center" style={{ minHeight: 40 }} />
+    </>
   );
 }
 

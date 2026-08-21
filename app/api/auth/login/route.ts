@@ -22,6 +22,9 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: "Invalid email or password." }, { status: 401 });
     }
 
+    if (!user.passwordHash || !user.salt) {
+      return Response.json({ error: "This account uses Google sign-in. Use the Google button below." }, { status: 401 });
+    }
     const hash = hashPassword(password, user.salt);
     if (hash !== user.passwordHash) {
       return Response.json({ error: "Invalid email or password." }, { status: 401 });

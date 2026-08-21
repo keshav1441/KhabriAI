@@ -137,6 +137,12 @@ Open **http://localhost:3000** → sign up or log in → dashboard.
 - **New chat** starts a fresh thread; the first message auto-titles the session.
 - API routes resolve the user from the session cookie (`lib/chat-auth.ts`).
 
+### Google sign-in (optional)
+
+- Set `GOOGLE_CLIENT_ID` and `NEXT_PUBLIC_GOOGLE_CLIENT_ID` to the same OAuth 2.0 **Web application** client ID (Google Cloud Console → APIs & Services → Credentials → Create credentials → OAuth client ID). Leave both empty and the button is not rendered.
+- **Authorized JavaScript origins** must include `http://localhost:3000` and your Catalyst AppSail URL (e.g. `https://<app>.catalystserverless.in`). No redirect URI is needed — the GIS button posts the ID token to `POST /api/auth/google`.
+- The token is verified via Google's `tokeninfo` endpoint (no extra dependency), then the `KhabriUser` is found or created by email and the same `khabri_session` cookie is issued. Google-only accounts have a null `passwordHash` and cannot use the password form.
+
 ---
 
 ## Accuracy eval
@@ -169,6 +175,7 @@ app/
   dashboard/        Main app shell (sidebar, chat, map, reports, about)
   api/
     auth/login/       Credential check → sets session cookie
+    auth/google/      Google ID-token check → find-or-create user, sets session cookie
     auth/logout/      Clears session cookie
     auth/signup/      User registration
     chats/            List / create chat sessions
@@ -235,6 +242,7 @@ scripts/
 | `MISTRAL_SUMMARY_MODEL` | No | Summary model (default `mistral-small-latest`) |
 | `MISTRAL_ORCH_MODEL` | No | Agent orchestrator model (default `mistral-large-latest`) |
 | `SESSION_SECRET` | Prod | HMAC key for session cookies — required in production |
+| `GOOGLE_CLIENT_ID` / `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | No | OAuth Web client ID (same value) — enables "Sign in with Google" |
 | `CATALYST_AUTOML_MODEL_ID` | No | QuickML model ID for the `predictRisk` tool (AppSail only) |
 | `CRON_SECRET` | No | Bearer token guarding `/api/cron/insights` precompute |
 

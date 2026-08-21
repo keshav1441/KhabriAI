@@ -330,8 +330,8 @@ model KhabriUser {
   firstName    String
   lastName     String
   email        String        @unique
-  passwordHash String
-  salt         String
+  passwordHash String?       // null for Google-only accounts
+  salt         String?
   createdAt    DateTime      @default(now())
   chatSessions ChatSession[]
 }
