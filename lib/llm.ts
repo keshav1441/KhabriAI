@@ -20,7 +20,8 @@ Rules:
 - For victim queries: use "Victim" table joined to "CaseMaster" via "CaseMasterID"
 - For arrest queries: use "ArrestSurrender" table joined to "CaseMaster" via "CaseMasterID"
 - GenderID: 1=Male, 2=Female, 3=Transgender. When a result shows gender, return the label via CASE "GenderID" WHEN 1 THEN 'Male' WHEN 2 THEN 'Female' WHEN 3 THEN 'Transgender' END AS gender, not the raw ID.
-- "top", "most", "highest", "which X has the most": ORDER BY the count DESC and LIMIT 10, unless the question states a number or asks for a single answer (LIMIT 1).
+- "top", "most", "highest" over a plural ("which districts", "which stations"): ORDER BY the count DESC LIMIT 10, unless the question states a number. A singular ("which district", "which court", "which officer") means exactly one answer: LIMIT 1.
+- Return only the columns the question asks for: for "count by category" return the category label and the count, not also its ID.
 - Round averages and percentages to 1 decimal place: ROUND(AVG(x), 1). Do not add descriptive columns the question did not ask for.`;
 
 export async function generateSQL(

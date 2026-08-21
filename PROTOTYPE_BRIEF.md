@@ -96,10 +96,24 @@ and a Mistral key.
 
 ## Evaluation
 
-`eval/run.ts` runs a 31-question RAG knowledge base through the complete pipeline — retrieve →
-generate SQL → validate → execute — and reports execution accuracy, with a `--holdout` flag that
-excludes each question's own example from retrieval for an honest generalization measure, and a
-keyword-Jaccard baseline for comparison.
+`npm run eval -- --holdout` runs 93 question → gold-SQL pairs (83 English, 10 Kannada) through the
+**same pipeline the agent uses** (`lib/text-to-sql.ts`) and reports two numbers separately:
+*executes* (the SQL ran) and *matches* — the generated result set equals the gold SQL's result set
+(Spider-style execution match: value-only, order-insensitive, numbers at 2 dp, row lists compared on
+the set of `CaseMasterID`s). Holdout excludes each question's own example from few-shot retrieval.
+
+| Run (93 q, holdout) | executes | **matches** | Kannada | median latency |
+|---|---|---|---|---|
+| without SQL self-repair | 97% | **81%** | 10/10 | 2.3 s |
+| with one error-feedback repair | 99% | **84%** | 10/10 | 2.4 s |
+
+Per-question SQL, verdict, repair flag and latency for every run are committed under `eval/results/`.
+The remaining misses are presentation choices the model makes (`TO_CHAR 'YYYY-MM'` vs `DATE_TRUNC`,
+an extra ID column) and occasional syntax slips — not wrong joins or wrong filters.
+
+Guards on every generated query: AST-validated `SELECT`-only, a hard `LIMIT 500`, and an 8 s
+`statement_timeout`, so a bad query can never hold a database connection. Unit tests for the guards,
+the repair loop and the comparator: `npm test`.
 
 ## Current state & limits
 

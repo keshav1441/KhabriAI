@@ -6,7 +6,10 @@ function norm(v: unknown): string {
   // Numbers compare at 2-decimal precision: AVG() vs ROUND(AVG(), 1) is presentation, not a wrong answer.
   if (typeof v === "bigint") return String(v);
   if (typeof v === "number") return String(Math.round(v * 100) / 100);
-  if (typeof v === "string") return v !== "" && !isNaN(Number(v)) ? String(Math.round(Number(v) * 100) / 100) : v;
+  if (typeof v === "string") {
+    const t = v.trim();
+    return t !== "" && !isNaN(Number(t)) ? String(Math.round(Number(t) * 100) / 100) : t;
+  }
   return JSON.stringify(v);
 }
 

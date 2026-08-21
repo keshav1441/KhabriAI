@@ -45,3 +45,7 @@ test("numeric values compare at 2-decimal precision (AVG vs ROUND)", () => {
   assert.equal(resultsMatch([{ a: 31.456789 }], [{ a: "31.46" }]), true);
   assert.equal(resultsMatch([{ a: 31.456789 }], [{ a: "31.5" }]), false);
 });
+
+test("strings compare trimmed (TO_CHAR 'Day' pads with spaces)", () => {
+  assert.equal(resultsMatch([{ d: "Monday   " }], [{ d: "Monday" }]), true);
+});

@@ -9,6 +9,7 @@ export function getLlmClient(): OpenAI {
     client = new OpenAI({
       apiKey: process.env.MISTRAL_API_KEY,
       baseURL: process.env.MISTRAL_BASE_URL ?? "https://api.mistral.ai/v1",
+      maxRetries: 5, // Mistral free/low tiers 429 in bursts; SDK backs off with retry-after
     });
   }
   return client;
