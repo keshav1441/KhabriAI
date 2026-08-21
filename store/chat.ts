@@ -41,6 +41,9 @@ interface ChatStore {
   caseBoardSteps: CaseBoardStep[];
   lang: Lang;
   setLang: (lang: Lang) => void;
+  /** Text another view wants pre-filled in the chat composer (consumed once). */
+  draft: string | null;
+  setDraft: (draft: string | null) => void;
   setSessions: (sessions: ChatSessionSummary[]) => void;
   upsertSession: (session: ChatSessionSummary) => void;
   removeSession: (id: string) => void;
@@ -60,6 +63,8 @@ export const useChatStore = create<ChatStore>((set) => ({
   caseBoardSteps: [],
   lang: "en",
   setLang: (lang) => set({ lang }),
+  draft: null,
+  setDraft: (draft) => set({ draft }),
   setSessions: (sessions) => set({ sessions }),
   upsertSession: (session) =>
     set((state) => {

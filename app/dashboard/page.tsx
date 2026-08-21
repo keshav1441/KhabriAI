@@ -8,13 +8,14 @@ import { MapView } from "@/components/views/MapView";
 import { NetworkView } from "@/components/views/NetworkView";
 import { ProfilingView } from "@/components/views/ProfilingView";
 import { ReportsView } from "@/components/views/ReportsView";
+import { RegisterFirView } from "@/components/views/RegisterFirView";
 import { AboutView } from "@/components/views/AboutView";
 import { ConversationExport } from "@/components/chat/ConversationExport";
 import { useTheme } from "@/components/ThemeProvider";
 import { useChatStore } from "@/store/chat";
 import { t, type StringKey } from "@/lib/i18n";
 
-type View = "chat" | "map" | "network" | "profiling" | "reports" | "about";
+type View = "chat" | "map" | "network" | "profiling" | "reports" | "registerFir" | "about";
 
 const NAV_ITEMS: Array<{ icon: React.ReactNode; labelKey: StringKey; view: View }> = [
   { icon: <ChatIcon />, labelKey: "nav.chat", view: "chat" },
@@ -22,6 +23,7 @@ const NAV_ITEMS: Array<{ icon: React.ReactNode; labelKey: StringKey; view: View 
   { icon: <NetworkIcon />, labelKey: "nav.network", view: "network" },
   { icon: <ProfileIcon />, labelKey: "nav.profiling", view: "profiling" },
   { icon: <ReportIcon />, labelKey: "nav.reports", view: "reports" },
+  { icon: <FilePlusIcon />, labelKey: "nav.registerFir", view: "registerFir" },
   { icon: <InfoIcon />, labelKey: "nav.about", view: "about" },
 ];
 
@@ -281,6 +283,7 @@ export default function DashboardPage() {
           {activeView === "network" && <NetworkView />}
           {activeView === "profiling" && <ProfilingView />}
           {activeView === "reports" && <ReportsView />}
+          {activeView === "registerFir" && <RegisterFirView onAskAssistant={() => setActiveView("chat")} />}
           {activeView === "about" && <AboutView />}
         </div>
       </div>
@@ -410,6 +413,9 @@ function InfoIcon() {
 }
 function ReportIcon() {
   return <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>;
+}
+function FilePlusIcon() {
+  return <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 11v6m-3-3h6m4 7H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>;
 }
 function NetworkIcon() {
   return <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><circle cx="5" cy="6" r="2" /><circle cx="19" cy="6" r="2" /><circle cx="12" cy="18" r="2" /><path strokeLinecap="round" strokeLinejoin="round" d="M6.8 7.2l4 9.2M17.2 7.2l-4 9.2M7 6h10" /></svg>;

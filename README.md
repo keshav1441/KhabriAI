@@ -147,7 +147,7 @@ Open **http://localhost:3000** → sign up or log in → dashboard.
 
 ## Accuracy eval
 
-`lib/rag-examples.json` holds 93 question → gold-SQL pairs (83 English, 10 Kannada) covering counts, trends, joins across accused/victims/arrests/chargesheets/sections, and abbreviation traps (BLR, dowry death → 304B). The eval runs each question through the **same pipeline the agent uses** (`lib/text-to-sql.ts`: retrieve few-shot → generate → validate → execute under guards → repair once on DB error) and reports two numbers separately:
+`lib/rag-examples.json` holds 94 question → gold-SQL pairs (84 English, 10 Kannada) covering counts, trends, joins across accused/victims/arrests/chargesheets/sections, and abbreviation traps (BLR, dowry death → 304B). The eval runs each question through the **same pipeline the agent uses** (`lib/text-to-sql.ts`: retrieve few-shot → generate → validate → execute under guards → repair once on DB error) and reports two numbers separately:
 
 | metric | meaning |
 |---|---|

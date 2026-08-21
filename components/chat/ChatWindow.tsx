@@ -66,6 +66,16 @@ export function ChatWindow() {
 
   useEffect(() => () => recognitionRef.current?.abort(), []);
 
+  // Pick up a composer draft handed over by another view (e.g. Register FIR → "Ask the assistant").
+  const draft = useChatStore((s) => s.draft);
+  const setDraft = useChatStore((s) => s.setDraft);
+  useEffect(() => {
+    if (!draft) return;
+    setInput(draft);
+    setDraft(null);
+    textareaRef.current?.focus();
+  }, [draft, setDraft]);
+
   const generateQuery = () => {
     const pool = QUERY_POOL.filter((q) => q !== input);
     const pick = pool[Math.floor(Math.random() * pool.length)];

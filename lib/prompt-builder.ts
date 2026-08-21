@@ -38,8 +38,8 @@ CREATE TABLE "Section" ("ActCode" VARCHAR REFERENCES "Act", "SectionCode" VARCHA
 
 CREATE TABLE "CaseMaster" (
   "CaseMasterID" SERIAL PRIMARY KEY,
-  "CrimeNo" VARCHAR,
-  "CaseNo" VARCHAR,
+  "CrimeNo" VARCHAR,  -- the 18-digit FIR / crime number officers quote, e.g. '100030015202619999'. "case number X", "FIR number X", "crime number X" → WHERE cm."CrimeNo" = 'X'
+  "CaseNo" VARCHAR,   -- short year+serial, e.g. '202619999'. Only filter on it when the number is 9 digits
   "CrimeRegisteredDate" DATE,
   "PolicePersonID" INT REFERENCES "Employee",
   "PoliceStationID" INT REFERENCES "Unit",
