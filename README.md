@@ -162,7 +162,11 @@ npm run eval -- --limit=10             # quick smoke
 
 Every run writes `eval/results/<timestamp>.json` with per-question SQL, verdict, repair flag and latency. Output: `.` match · `x` ran but wrong result · `E` error.
 
-Unit tests for the guards, the repair loop and the comparator: `npm test`.
+Unit tests for the guards, the repair loop, the comparator and entity resolution: `npm test`.
+
+### Entity resolution & clarification
+
+`lib/entity-resolve.ts` checks district / station / crime-type literals in generated SQL against the real vocabulary (in-memory trigram similarity + an alias table for legacy names such as Bangalore, Mysore, Belgaum, Gulbarga, Tumkur) and rewrites near-misses; the Case Board shows the correction. Person names are never rewritten: a zero-row person query returns `suggestions` (closest real names), and a bare first name matching many people returns `ambiguousPerson` with no rows. The orchestrator has an `askClarification` tool that ends the turn with a question instead of a query. The previous turn's SQL is appended to assistant history (`[SQL used: …]`) so follow-ups refine it.
 
 ---
 

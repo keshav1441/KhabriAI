@@ -56,6 +56,9 @@ export const STRINGS = {
   "board.tool.checkInsights":       { en: "Check Insights", kn: "ಒಳನೋಟಗಳನ್ನು ಪರಿಶೀಲಿಸಿ" },
   "board.tool.getNetworkOrMapData": { en: "Network / Map Data", kn: "ಜಾಲ / ನಕ್ಷೆ ಡೇಟಾ" },
   "board.tool.predictRisk":         { en: "Risk Prediction", kn: "ಅಪಾಯ ಮುನ್ಸೂಚನೆ" },
+  "board.tool.askClarification":    { en: "Clarify", kn: "ಸ್ಪಷ್ಟೀಕರಣ" },
+  "board.clarify":                  { en: "Needs your input", kn: "ನಿಮ್ಮ ಉತ್ತರ ಅಗತ್ಯ" },
+  "board.peopleMatch":              { en: "different people match", kn: "ವಿಭಿನ್ನ ವ್ಯಕ್ತಿಗಳು ಹೊಂದುತ್ತಾರೆ" },
 
   // Insight briefing
   "insight.title":     { en: "Intelligence Briefing", kn: "ಗುಪ್ತಚರ ವರದಿ" },

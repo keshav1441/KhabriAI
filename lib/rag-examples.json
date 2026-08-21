@@ -384,5 +384,25 @@
   {
     "question": "Give me the full details of FIR case number 100290197202515746",
     "sql": "SELECT cm.\"CaseMasterID\", cm.\"CrimeNo\", cm.\"CrimeRegisteredDate\", u.\"UnitName\", d.\"DistrictName\", ch.\"CrimeGroupName\", csh.\"CrimeHeadName\", cs.\"CaseStatusName\", cm.\"BriefFacts\" FROM \"CaseMaster\" cm JOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\" JOIN \"District\" d ON d.\"DistrictID\" = u.\"DistrictID\" JOIN \"CrimeHead\" ch ON ch.\"CrimeHeadID\" = cm.\"CrimeMajorHeadID\" JOIN \"CrimeSubHead\" csh ON csh.\"CrimeSubHeadID\" = cm.\"CrimeMinorHeadID\" JOIN \"CaseStatusMaster\" cs ON cs.\"CaseStatusID\" = cm.\"CaseStatusID\" WHERE cm.\"CrimeNo\" = '100290197202515746'"
+  },
+  {
+    "question": "How many theft cases were registered in Mysore in 2025?",
+    "sql": "SELECT COUNT(*) AS theft_cases FROM \"CaseMaster\" cm JOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\" JOIN \"District\" d ON d.\"DistrictID\" = u.\"DistrictID\" JOIN \"CrimeSubHead\" csh ON csh.\"CrimeSubHeadID\" = cm.\"CrimeMinorHeadID\" WHERE csh.\"CrimeHeadName\" = 'Theft' AND d.\"DistrictName\" = 'Mysuru' AND cm.\"CrimeRegisteredDate\" >= '2025-01-01' AND cm.\"CrimeRegisteredDate\" < '2026-01-01'"
+  },
+  {
+    "question": "Murder count in Gulbarga for 2025",
+    "sql": "SELECT COUNT(*) AS murders FROM \"CaseMaster\" cm JOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\" JOIN \"District\" d ON d.\"DistrictID\" = u.\"DistrictID\" JOIN \"CrimeSubHead\" csh ON csh.\"CrimeSubHeadID\" = cm.\"CrimeMinorHeadID\" WHERE csh.\"CrimeHeadName\" = 'Murder' AND d.\"DistrictName\" = 'Kalaburagi' AND cm.\"CrimeRegisteredDate\" >= '2025-01-01' AND cm.\"CrimeRegisteredDate\" < '2026-01-01'"
+  },
+  {
+    "question": "How many road accident cases in Belgaum in 2025?",
+    "sql": "SELECT COUNT(*) AS road_accidents FROM \"CaseMaster\" cm JOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\" JOIN \"District\" d ON d.\"DistrictID\" = u.\"DistrictID\" JOIN \"CrimeHead\" ch ON ch.\"CrimeHeadID\" = cm.\"CrimeMajorHeadID\" WHERE ch.\"CrimeGroupName\" = 'Road Accidents' AND d.\"DistrictName\" = 'Belagavi' AND cm.\"CrimeRegisteredDate\" >= '2025-01-01' AND cm.\"CrimeRegisteredDate\" < '2026-01-01'"
+  },
+  {
+    "question": "Cybercrime cases in Tumkur in 2025",
+    "sql": "SELECT COUNT(*) AS cybercrime_cases FROM \"CaseMaster\" cm JOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\" JOIN \"District\" d ON d.\"DistrictID\" = u.\"DistrictID\" JOIN \"CrimeHead\" ch ON ch.\"CrimeHeadID\" = cm.\"CrimeMajorHeadID\" WHERE ch.\"CrimeGroupName\" = 'Cybercrimes' AND d.\"DistrictName\" = 'Tumakuru' AND cm.\"CrimeRegisteredDate\" >= '2025-01-01' AND cm.\"CrimeRegisteredDate\" < '2026-01-01'"
+  },
+  {
+    "question": "How many FIRs in Bangalore in 2025?",
+    "sql": "SELECT COUNT(*) AS firs FROM \"CaseMaster\" cm JOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\" JOIN \"District\" d ON d.\"DistrictID\" = u.\"DistrictID\" WHERE d.\"DistrictName\" = 'Bengaluru Urban' AND cm.\"CrimeRegisteredDate\" >= '2025-01-01' AND cm.\"CrimeRegisteredDate\" < '2026-01-01'"
   }
 ]

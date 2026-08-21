@@ -65,6 +65,25 @@ month") from surfacing spurious "related" cases that a raw score threshold would
 | Voice + export | Speech in/out, conversation PDF export, CSV result export |
 | Auth & history | PBKDF2-SHA512, HMAC-signed session cookie, per-user chat threads in Neon |
 
+## Handling real questions, not benchmark questions
+
+Officers type "Belgavi", "Gulbarga", "everything on Ravi" and "now only for 2025". The pipeline is
+built for that:
+
+- **Fuzzy entity resolution.** District, station and crime-type literals in generated SQL are checked
+  against the real vocabulary (trigram similarity + an alias table for legacy names: Bangalore,
+  Mysore, Belgaum, Gulbarga, Tumkur…). A correction is shown on the Case Board ("Belgavi → Belagavi")
+  and stated in the narrative. Person names are **never** silently rewritten — a police tool must not
+  change who a query is about.
+- **Near-miss names.** A person query that returns nothing comes back with the closest real names
+  ("Priya Bhatt" → Priya Bhat, …) and the agent asks which one was meant.
+- **Ambiguity guard.** A bare first name that matches many distinct people ("Ravi" → 40+ records)
+  returns *no* rows; the agent asks for the full name, PersonID or district instead of listing
+  strangers. The agent can also ask a clarifying question of its own (`askClarification` tool) when a
+  request can't be answered without guessing something that changes the answer.
+- **Follow-ups.** The previous turn's SQL travels with the chat history, so "now only for 2025"
+  refines the last query instead of re-interpreting the prose.
+
 ## Explainability & safety
 
 The prototype is designed so a police officer can defend an answer in a review.
@@ -106,6 +125,9 @@ the set of `CaseMasterID`s). Holdout excludes each question's own example from f
 |---|---|---|---|---|
 | without SQL self-repair | 97% | **81%** | 10/10 | 2.3 s |
 | with one error-feedback repair | 99% | **84%** | 10/10 | 2.4 s |
+
+After adding legacy-name and case-number questions (99 q): 81% match, 97% executes, 10/10 Kannada.
+Run-to-run LLM variance is a few points; treat the figure as low-to-mid 80s, not a single number.
 
 Per-question SQL, verdict, repair flag and latency for every run are committed under `eval/results/`.
 The remaining misses are presentation choices the model makes (`TO_CHAR 'YYYY-MM'` vs `DATE_TRUNC`,

@@ -156,7 +156,9 @@ export function ChatWindow() {
     const history = messages
       .filter((m) => m.role === "user" || (m.role === "assistant" && !m.loading))
       .slice(-6)
-      .map((m) => ({ role: m.role, content: m.content }));
+      // The previous SQL is the most precise statement of what was asked -
+      // "now only for 2025" refines it, not the prose.
+      .map((m) => ({ role: m.role, content: m.role === "assistant" && m.sql ? `${m.content}\n[SQL used: ${m.sql}]` : m.content }));
 
     let sessionId: string | null = null;
     let finalAsst: ChatMessage | null = null;

@@ -16,6 +16,9 @@ export interface QueryDatabaseResult {
   rows?: Record<string, unknown>[];
   vizType?: VizType;
   repaired?: boolean;
+  substitutions?: { column: string; from: string; to: string }[];
+  suggestions?: string[];
+  ambiguousPerson?: { token: string; count: number; examples: string[] } | null;
   message?: string;
 }
 
@@ -139,6 +142,22 @@ export const TOOL_SCHEMAS: OpenAI.Chat.ChatCompletionTool[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "askClarification",
+      description:
+        "Ask the officer ONE short clarifying question instead of querying, ONLY when the request cannot be answered without guessing something that changes the answer materially: a person referred to only by a first name or nickname, a place that is not a Karnataka district or station, a time reference with no defined meaning (e.g. 'recently', 'a while ago'), or a comparison with no stated baseline. Do NOT ask when a sensible default exists (no district -> statewide; no period -> all time; 'Bengaluru' -> Bengaluru Urban).",
+      parameters: {
+        type: "object",
+        properties: {
+          question: { type: "string", description: "The clarifying question, one sentence, in the officer's language." },
+          options: { type: "array", items: { type: "string" }, description: "2-4 concrete choices the officer can pick from, if applicable." },
+        },
+        required: ["question"],
+      },
+    },
+  },
 ];
 
 export async function runQueryDatabase(
@@ -150,8 +169,8 @@ export async function runQueryDatabase(
   if (!question) return { status: "error", message: "Missing question" };
 
   try {
-    const { sql, rows, repaired } = await answerWithSQL(question, { history, req });
-    return { status: "ok", sql, rows, vizType: classifyQuery(sql), repaired };
+    const { sql, rows, repaired, substitutions, suggestions, ambiguousPerson } = await answerWithSQL(question, { history, req });
+    return { status: "ok", sql, rows, vizType: classifyQuery(sql), repaired, substitutions, suggestions, ambiguousPerson };
   } catch (e) {
     console.error("queryDatabase tool failed:", e);
     const err = e as Error & { sql?: string };

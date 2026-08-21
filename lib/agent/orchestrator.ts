@@ -21,12 +21,18 @@ const MAX_ITERATIONS = 4;
 
 const SYSTEM_PROMPT = `You are KhabriAI, an investigation copilot for the Karnataka State Police FIR (First Information Report) database.
 Use the available tools to gather data before answering. Break multi-part questions into separate tool calls — call several tools in the same turn if needed.
-Once you have enough information, stop calling tools and answer with a concise analyst narrative.`;
+Once you have enough information, stop calling tools and answer with a concise analyst narrative.
+If the request is genuinely ambiguous in a way that changes the answer, call askClarification instead of guessing - but prefer sensible defaults over questions.
+Questions about a named person (accused, victim, complainant) go to queryDatabase first; searchRelatedCases is for narrative/modus-operandi similarity, not name lookup.
+A person identified only by a bare first name or nickname (e.g. "Ravi", "Priya") matches many records: call askClarification asking for the full name, PersonID, or district instead of listing everyone.`;
 
 const FINAL_SYNTHESIS_PROMPT =
   'Based on the tool results above, give a concise final analyst narrative answering the user\'s question. 2-4 sentences, cite concrete numbers where available. Do not call any more tools. ' +
   'If a tool result has status "error", do not invent, estimate, or guess the missing value — state plainly that this specific piece of information is unavailable, using the tool\'s error message. ' +
-  'Start with the answer itself — no heading, no "Analyst Narrative:" preamble. Use **bold** only on key figures and names; no bullet points, no headings.';
+  'Start with the answer itself — no heading, no "Analyst Narrative:" preamble. Use **bold** only on key figures and names; no bullet points, no headings. ' +
+  'If a queryDatabase result has "substitutions", mention the correction briefly (e.g. "interpreting Belgavi as Belagavi"). ' +
+  'If it returned no rows and has "suggestions", say no record matched that exact name and list the suggested names so the officer can choose. ' +
+  'If it has "ambiguousPerson", do not summarise any cases: say that N different people named X appear in the database, list the example names, and ask for the full name, PersonID or district.';
 
 export type StepEvent = {
   type: "step";
@@ -164,6 +170,22 @@ export async function* runAgent(
     messages.push(assistantMsg);
 
     const parsed = toolCalls.map((tc) => ({ tc, args: safeParseArgs(tc.function.arguments) }));
+
+    // A clarification ends the turn: no query, no synthesis - the question IS the answer.
+    const clarify = parsed.find((p) => p.tc.function.name === "askClarification");
+    if (clarify) {
+      const q = String(clarify.args.question ?? "Could you clarify what you mean?");
+      const options = Array.isArray(clarify.args.options) ? (clarify.args.options as unknown[]).map(String).filter(Boolean) : [];
+      const result = { status: "ok" as const, question: q, options };
+      yield { type: "step", id: clarify.tc.id, tool: "askClarification", args: clarify.args, result, status: "ok" };
+      void logAuditStep({ runId, question, tool: "askClarification", args: clarify.args, result, status: "ok" }, req);
+      yield { type: "meta", sql: "", rows: [], vizType: "table", sqlError: null, relatedCases: [] };
+      const text = options.length ? [q, "", ...options.map((o) => "\u2022 " + o)].join("\n") : q;
+      yield { type: "token", token: text };
+      void logAuditRun({ runId, question, toolCallCount: 1, finalAnswer: text }, req);
+      yield { type: "done" };
+      return;
+    }
 
     for (const { tc, args } of parsed) {
       yield { type: "step", id: tc.id, tool: tc.function.name, args, result: null, status: "pending" };

@@ -9,6 +9,7 @@ const TOOL_LABEL_KEYS: Record<string, StringKey> = {
   checkInsights: "board.tool.checkInsights",
   getNetworkOrMapData: "board.tool.getNetworkOrMapData",
   predictRisk: "board.tool.predictRisk",
+  askClarification: "board.tool.askClarification",
 };
 
 type Contribution = { label: string; sign: "+" | "-"; strength: number };
@@ -42,7 +43,11 @@ function resultSummary(step: CaseBoardStep, lang: import("@/store/chat").Lang): 
     case "queryDatabase": {
       const rows = r.rows as unknown[] | undefined;
       const fixed = r.repaired ? ` · ${t("board.repaired", lang)}` : "";
-      return `${rows?.length ?? 0} ${t("board.rows", lang)}${fixed}`;
+      const subs = (r.substitutions as { from: string; to: string }[] | undefined) ?? [];
+      const resolved = subs.length ? ` · ${subs.map((s) => `${s.from} \u2192 ${s.to}`).join(", ")}` : "";
+      const amb = r.ambiguousPerson as { token: string; count: number } | null | undefined;
+      if (amb) return `${amb.count} ${t("board.peopleMatch", lang)} "${amb.token}"`;
+      return `${rows?.length ?? 0} ${t("board.rows", lang)}${fixed}${resolved}`;
     }
     case "searchRelatedCases": {
       const cases = r.cases as unknown[] | undefined;
@@ -56,6 +61,8 @@ function resultSummary(step: CaseBoardStep, lang: import("@/store/chat").Lang): 
       const rows = r.rows as unknown[] | undefined;
       return `${rows?.length ?? 0} ${t("board.rows", lang)}`;
     }
+    case "askClarification":
+      return t("board.clarify", lang);
     case "predictRisk": {
       const prob = typeof r.probability === "number" ? `${Math.round(r.probability * 100)}%` : "—";
       return `${(r.label as string) ?? t("board.prediction", lang)} · ${prob}`;

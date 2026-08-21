@@ -3,11 +3,38 @@ import { generateSQL, repairSQL } from "./llm";
 import { DB_SCHEMA } from "./prompt-builder";
 import { validateSQL, sanitizeSQL, enforceLimit } from "./sql-validator";
 import { executeWithRepair } from "./sql-repair";
-import { runGuardedQuery } from "./db";
+import { runGuardedQuery, prisma } from "./db";
+import { resolveLiterals, similarNames, ambiguousPerson, type Vocab, type Substitution } from "./entity-resolve";
 
 export type ChatTurn = { role: "user" | "assistant"; content: string };
 
 export const MAX_ROWS = 500;
+
+// Closed vocabularies for fuzzy literal resolution, refreshed every 10 min.
+// ponytail: module-level cache; per-instance is fine for a handful of names.
+let vocabCache: { at: number; vocab: Vocab; accused: string[] } | null = null;
+async function loadVocab(): Promise<{ vocab: Vocab; accused: string[] }> {
+  if (vocabCache && Date.now() - vocabCache.at < 10 * 60_000) return vocabCache;
+  const names = async (sql: string) => (await prisma.$queryRawUnsafe(sql) as { n: string }[]).map((r) => r.n).filter(Boolean);
+  const [d, u, csh, ch, a] = await Promise.all([
+    names('SELECT "DistrictName" AS n FROM "District"'),
+    names('SELECT "UnitName" AS n FROM "Unit"'),
+    names('SELECT "CrimeHeadName" AS n FROM "CrimeSubHead"'),
+    names('SELECT "CrimeGroupName" AS n FROM "CrimeHead"'),
+    names('SELECT DISTINCT "AccusedName" AS n FROM "Accused"'),
+  ]);
+  vocabCache = { at: Date.now(), vocab: { DistrictName: d, UnitName: u, CrimeHeadName: csh, CrimeGroupName: ch }, accused: a };
+  return vocabCache;
+}
+
+// When a person-name query returns nothing, offer close names instead of
+// silently rewriting - the officer decides who they meant.
+const ACCUSED_LITERAL = /"AccusedName" *(?:=|ILIKE|LIKE) *'%?([^'%]+)%?'/i;
+function accusedSuggestions(sql: string, rows: unknown[], accused: string[]): string[] {
+  if (rows.length) return [];
+  const m = sql.match(ACCUSED_LITERAL);
+  return m ? similarNames(m[1], accused, 5) : [];
+}
 export const QUERY_TIMEOUT_MS = 8000;
 
 // Remove CaseMasterID from SELECT when query uses GROUP BY — prevents 42803 error
@@ -31,12 +58,15 @@ function prepare(raw: string): string {
 export async function answerWithSQL(
   question: string,
   opts: { history?: ChatTurn[]; req?: Request; repair?: boolean; excludeIndex?: number; fewShotK?: number } = {}
-): Promise<{ sql: string; rows: Record<string, unknown>[]; repaired: boolean; retrievalScores: number[] }> {
+): Promise<{ sql: string; rows: Record<string, unknown>[]; repaired: boolean; substitutions: Substitution[]; suggestions: string[]; ambiguousPerson: { token: string; count: number; examples: string[] } | null; retrievalScores: number[] }> {
   const { history = [], req, repair = true, excludeIndex, fewShotK = 2 } = opts;
   await warmupEmbeddings(req);
   const examples = await findSimilar(question, fewShotK, excludeIndex, req);
   const fewShot = examples.map((e) => `-- Q: ${e.question}\n${e.sql}`).join("\n\n");
-  const sql = prepare(await generateSQL(DB_SCHEMA, fewShot, question, history));
+  const { vocab, accused } = await loadVocab();
+  const resolved = resolveLiterals(prepare(await generateSQL(DB_SCHEMA, fewShot, question, history)), vocab);
+  const sql = resolved.sql;
+  const substitutions: Substitution[] = resolved.substitutions;
 
   const run = (s: string) => runGuardedQuery(s, { timeoutMs: QUERY_TIMEOUT_MS });
   const out = repair
@@ -52,5 +82,13 @@ export async function answerWithSQL(
     for (const [k, v] of Object.entries(r)) o[k] = typeof v === "bigint" ? Number(v) : v;
     return o;
   });
-  return { ...out, rows, retrievalScores: examples.map((e) => e.score) };
+  const ambiguous = ambiguousPerson(out.sql, accused);
+  return {
+    ...out,
+    rows: ambiguous ? [] : rows, // never list 200 strangers for a bare first name
+    substitutions,
+    suggestions: accusedSuggestions(out.sql, rows, accused),
+    ambiguousPerson: ambiguous,
+    retrievalScores: examples.map((e) => e.score),
+  };
 }
