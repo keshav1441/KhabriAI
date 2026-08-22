@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pbkdf2Sync } from "crypto";
 import { prisma } from "@/lib/db";
+
+async function districtNameOf(id: number | null): Promise<string | null> {
+  if (!id) return null;
+  const d = await prisma.district.findUnique({ where: { DistrictID: id } });
+  return d?.DistrictName ?? null;
+}
 import { createSessionToken, SESSION_COOKIE_NAME, SESSION_MAX_AGE_SECONDS } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +38,7 @@ export async function POST(req: NextRequest) {
 
     const res = NextResponse.json({
       success: true,
-      user: { firstName: user.firstName, lastName: user.lastName, email: user.email },
+      user: { firstName: user.firstName, lastName: user.lastName, email: user.email, role: user.role, districtName: await districtNameOf(user.districtId) },
     });
     res.cookies.set(SESSION_COOKIE_NAME, createSessionToken(user.email), {
       httpOnly: true,

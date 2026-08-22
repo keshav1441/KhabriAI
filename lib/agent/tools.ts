@@ -3,6 +3,7 @@ import { classifyQuery, type VizType } from "../query-classifier";
 import { answerWithSQL, type ChatTurn } from "../text-to-sql";
 import { findSimilarCases, similarCasesTo, similarCasesToText, type RelatedCase } from "../case-retrieval";
 import { prisma as db } from "../db";
+import { getScope } from "../chat-auth";
 import { getCachedInsights, setCachedInsights, type InsightItem } from "../insights-cache";
 import { computeInsights } from "../insights-compute";
 import { prisma } from "../db";
@@ -211,9 +212,10 @@ export async function runFindSimilarCases(args: {
   description?: string;
   excludeSourceDistrict?: boolean;
   topK?: number;
-}): Promise<FindSimilarCasesResult> {
+}, req?: Request): Promise<FindSimilarCasesResult> {
   const topK = Math.min(Math.max(Number(args.topK) || 5, 1), 10);
   try {
+    const { districtId } = await getScope(req);
     let sourceId = args.caseMasterId ? Number(args.caseMasterId) : undefined;
     let sourceDistrict: string | null = null;
     if (!sourceId && args.crimeNo) {
@@ -227,9 +229,9 @@ export async function runFindSimilarCases(args: {
       sourceDistrict = r[0]?.district ?? null;
     }
     const cases = sourceId
-      ? await similarCasesTo(sourceId, { topK, excludeDistrict: sourceDistrict })
+      ? await similarCasesTo(sourceId, { topK, excludeDistrict: sourceDistrict, districtId })
       : args.description
-        ? await similarCasesToText(args.description, { topK })
+        ? await similarCasesToText(args.description, { topK, districtId })
         : [];
     if (!sourceId && !args.description) return { status: "error", message: "Give a case (CaseMasterID or CrimeNo) or a description of the method." };
     if (!cases.length) return { status: "error", message: "No embedded narratives to compare against (run scripts/backfill-embeddings.ts)." };
@@ -245,12 +247,12 @@ export async function runFindSimilarCases(args: {
   }
 }
 
-export async function runSearchRelatedCases(args: { query: string }): Promise<SearchRelatedCasesResult> {
+export async function runSearchRelatedCases(args: { query: string }, req?: Request): Promise<SearchRelatedCasesResult> {
   const query = args.query?.trim();
   if (!query) return { status: "error", message: "Missing query" };
 
   try {
-    const cases = await findSimilarCases(query, 5);
+    const cases = await findSimilarCases(query, 5, (await getScope(req)).districtId);
     return { status: "ok", cases };
   } catch (e) {
     console.error("searchRelatedCases tool failed:", e);

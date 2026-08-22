@@ -28,10 +28,12 @@ export type AggregateKhabriUser = {
 
 export type KhabriUserAvgAggregateOutputType = {
   id: number | null
+  districtId: number | null
 }
 
 export type KhabriUserSumAggregateOutputType = {
   id: number | null
+  districtId: number | null
 }
 
 export type KhabriUserMinAggregateOutputType = {
@@ -41,6 +43,8 @@ export type KhabriUserMinAggregateOutputType = {
   email: string | null
   passwordHash: string | null
   salt: string | null
+  role: string | null
+  districtId: number | null
   createdAt: Date | null
 }
 
@@ -51,6 +55,8 @@ export type KhabriUserMaxAggregateOutputType = {
   email: string | null
   passwordHash: string | null
   salt: string | null
+  role: string | null
+  districtId: number | null
   createdAt: Date | null
 }
 
@@ -61,6 +67,8 @@ export type KhabriUserCountAggregateOutputType = {
   email: number
   passwordHash: number
   salt: number
+  role: number
+  districtId: number
   createdAt: number
   _all: number
 }
@@ -68,10 +76,12 @@ export type KhabriUserCountAggregateOutputType = {
 
 export type KhabriUserAvgAggregateInputType = {
   id?: true
+  districtId?: true
 }
 
 export type KhabriUserSumAggregateInputType = {
   id?: true
+  districtId?: true
 }
 
 export type KhabriUserMinAggregateInputType = {
@@ -81,6 +91,8 @@ export type KhabriUserMinAggregateInputType = {
   email?: true
   passwordHash?: true
   salt?: true
+  role?: true
+  districtId?: true
   createdAt?: true
 }
 
@@ -91,6 +103,8 @@ export type KhabriUserMaxAggregateInputType = {
   email?: true
   passwordHash?: true
   salt?: true
+  role?: true
+  districtId?: true
   createdAt?: true
 }
 
@@ -101,6 +115,8 @@ export type KhabriUserCountAggregateInputType = {
   email?: true
   passwordHash?: true
   salt?: true
+  role?: true
+  districtId?: true
   createdAt?: true
   _all?: true
 }
@@ -198,6 +214,8 @@ export type KhabriUserGroupByOutputType = {
   email: string
   passwordHash: string | null
   salt: string | null
+  role: string
+  districtId: number | null
   createdAt: Date
   _count: KhabriUserCountAggregateOutputType | null
   _avg: KhabriUserAvgAggregateOutputType | null
@@ -231,6 +249,8 @@ export type KhabriUserWhereInput = {
   email?: Prisma.StringFilter<"KhabriUser"> | string
   passwordHash?: Prisma.StringNullableFilter<"KhabriUser"> | string | null
   salt?: Prisma.StringNullableFilter<"KhabriUser"> | string | null
+  role?: Prisma.StringFilter<"KhabriUser"> | string
+  districtId?: Prisma.IntNullableFilter<"KhabriUser"> | number | null
   createdAt?: Prisma.DateTimeFilter<"KhabriUser"> | Date | string
   chatSessions?: Prisma.ChatSessionListRelationFilter
 }
@@ -242,6 +262,8 @@ export type KhabriUserOrderByWithRelationInput = {
   email?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrderInput | Prisma.SortOrder
   salt?: Prisma.SortOrderInput | Prisma.SortOrder
+  role?: Prisma.SortOrder
+  districtId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   chatSessions?: Prisma.ChatSessionOrderByRelationAggregateInput
 }
@@ -256,6 +278,8 @@ export type KhabriUserWhereUniqueInput = Prisma.AtLeast<{
   lastName?: Prisma.StringFilter<"KhabriUser"> | string
   passwordHash?: Prisma.StringNullableFilter<"KhabriUser"> | string | null
   salt?: Prisma.StringNullableFilter<"KhabriUser"> | string | null
+  role?: Prisma.StringFilter<"KhabriUser"> | string
+  districtId?: Prisma.IntNullableFilter<"KhabriUser"> | number | null
   createdAt?: Prisma.DateTimeFilter<"KhabriUser"> | Date | string
   chatSessions?: Prisma.ChatSessionListRelationFilter
 }, "id" | "email">
@@ -267,6 +291,8 @@ export type KhabriUserOrderByWithAggregationInput = {
   email?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrderInput | Prisma.SortOrder
   salt?: Prisma.SortOrderInput | Prisma.SortOrder
+  role?: Prisma.SortOrder
+  districtId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.KhabriUserCountOrderByAggregateInput
   _avg?: Prisma.KhabriUserAvgOrderByAggregateInput
@@ -285,6 +311,8 @@ export type KhabriUserScalarWhereWithAggregatesInput = {
   email?: Prisma.StringWithAggregatesFilter<"KhabriUser"> | string
   passwordHash?: Prisma.StringNullableWithAggregatesFilter<"KhabriUser"> | string | null
   salt?: Prisma.StringNullableWithAggregatesFilter<"KhabriUser"> | string | null
+  role?: Prisma.StringWithAggregatesFilter<"KhabriUser"> | string
+  districtId?: Prisma.IntNullableWithAggregatesFilter<"KhabriUser"> | number | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"KhabriUser"> | Date | string
 }
 
@@ -294,6 +322,8 @@ export type KhabriUserCreateInput = {
   email: string
   passwordHash?: string | null
   salt?: string | null
+  role?: string
+  districtId?: number | null
   createdAt?: Date | string
   chatSessions?: Prisma.ChatSessionCreateNestedManyWithoutUserInput
 }
@@ -305,6 +335,8 @@ export type KhabriUserUncheckedCreateInput = {
   email: string
   passwordHash?: string | null
   salt?: string | null
+  role?: string
+  districtId?: number | null
   createdAt?: Date | string
   chatSessions?: Prisma.ChatSessionUncheckedCreateNestedManyWithoutUserInput
 }
@@ -315,6 +347,8 @@ export type KhabriUserUpdateInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   salt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.StringFieldUpdateOperationsInput | string
+  districtId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   chatSessions?: Prisma.ChatSessionUpdateManyWithoutUserNestedInput
 }
@@ -326,6 +360,8 @@ export type KhabriUserUncheckedUpdateInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   salt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.StringFieldUpdateOperationsInput | string
+  districtId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   chatSessions?: Prisma.ChatSessionUncheckedUpdateManyWithoutUserNestedInput
 }
@@ -337,6 +373,8 @@ export type KhabriUserCreateManyInput = {
   email: string
   passwordHash?: string | null
   salt?: string | null
+  role?: string
+  districtId?: number | null
   createdAt?: Date | string
 }
 
@@ -346,6 +384,8 @@ export type KhabriUserUpdateManyMutationInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   salt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.StringFieldUpdateOperationsInput | string
+  districtId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -356,6 +396,8 @@ export type KhabriUserUncheckedUpdateManyInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   salt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.StringFieldUpdateOperationsInput | string
+  districtId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -366,11 +408,14 @@ export type KhabriUserCountOrderByAggregateInput = {
   email?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrder
   salt?: Prisma.SortOrder
+  role?: Prisma.SortOrder
+  districtId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
 export type KhabriUserAvgOrderByAggregateInput = {
   id?: Prisma.SortOrder
+  districtId?: Prisma.SortOrder
 }
 
 export type KhabriUserMaxOrderByAggregateInput = {
@@ -380,6 +425,8 @@ export type KhabriUserMaxOrderByAggregateInput = {
   email?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrder
   salt?: Prisma.SortOrder
+  role?: Prisma.SortOrder
+  districtId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -390,11 +437,14 @@ export type KhabriUserMinOrderByAggregateInput = {
   email?: Prisma.SortOrder
   passwordHash?: Prisma.SortOrder
   salt?: Prisma.SortOrder
+  role?: Prisma.SortOrder
+  districtId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
 export type KhabriUserSumOrderByAggregateInput = {
   id?: Prisma.SortOrder
+  districtId?: Prisma.SortOrder
 }
 
 export type KhabriUserScalarRelationFilter = {
@@ -426,6 +476,8 @@ export type KhabriUserCreateWithoutChatSessionsInput = {
   email: string
   passwordHash?: string | null
   salt?: string | null
+  role?: string
+  districtId?: number | null
   createdAt?: Date | string
 }
 
@@ -436,6 +488,8 @@ export type KhabriUserUncheckedCreateWithoutChatSessionsInput = {
   email: string
   passwordHash?: string | null
   salt?: string | null
+  role?: string
+  districtId?: number | null
   createdAt?: Date | string
 }
 
@@ -461,6 +515,8 @@ export type KhabriUserUpdateWithoutChatSessionsInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   salt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.StringFieldUpdateOperationsInput | string
+  districtId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -471,6 +527,8 @@ export type KhabriUserUncheckedUpdateWithoutChatSessionsInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
   passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   salt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.StringFieldUpdateOperationsInput | string
+  districtId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -512,6 +570,8 @@ export type KhabriUserSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   email?: boolean
   passwordHash?: boolean
   salt?: boolean
+  role?: boolean
+  districtId?: boolean
   createdAt?: boolean
   chatSessions?: boolean | Prisma.KhabriUser$chatSessionsArgs<ExtArgs>
   _count?: boolean | Prisma.KhabriUserCountOutputTypeDefaultArgs<ExtArgs>
@@ -524,6 +584,8 @@ export type KhabriUserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ex
   email?: boolean
   passwordHash?: boolean
   salt?: boolean
+  role?: boolean
+  districtId?: boolean
   createdAt?: boolean
 }, ExtArgs["result"]["khabriUser"]>
 
@@ -534,6 +596,8 @@ export type KhabriUserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ex
   email?: boolean
   passwordHash?: boolean
   salt?: boolean
+  role?: boolean
+  districtId?: boolean
   createdAt?: boolean
 }, ExtArgs["result"]["khabriUser"]>
 
@@ -544,10 +608,12 @@ export type KhabriUserSelectScalar = {
   email?: boolean
   passwordHash?: boolean
   salt?: boolean
+  role?: boolean
+  districtId?: boolean
   createdAt?: boolean
 }
 
-export type KhabriUserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "firstName" | "lastName" | "email" | "passwordHash" | "salt" | "createdAt", ExtArgs["result"]["khabriUser"]>
+export type KhabriUserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "firstName" | "lastName" | "email" | "passwordHash" | "salt" | "role" | "districtId" | "createdAt", ExtArgs["result"]["khabriUser"]>
 export type KhabriUserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   chatSessions?: boolean | Prisma.KhabriUser$chatSessionsArgs<ExtArgs>
   _count?: boolean | Prisma.KhabriUserCountOutputTypeDefaultArgs<ExtArgs>
@@ -567,6 +633,8 @@ export type $KhabriUserPayload<ExtArgs extends runtime.Types.Extensions.Internal
     email: string
     passwordHash: string | null
     salt: string | null
+    role: string
+    districtId: number | null
     createdAt: Date
   }, ExtArgs["result"]["khabriUser"]>
   composites: {}
@@ -998,6 +1066,8 @@ export interface KhabriUserFieldRefs {
   readonly email: Prisma.FieldRef<"KhabriUser", 'String'>
   readonly passwordHash: Prisma.FieldRef<"KhabriUser", 'String'>
   readonly salt: Prisma.FieldRef<"KhabriUser", 'String'>
+  readonly role: Prisma.FieldRef<"KhabriUser", 'String'>
+  readonly districtId: Prisma.FieldRef<"KhabriUser", 'Int'>
   readonly createdAt: Prisma.FieldRef<"KhabriUser", 'DateTime'>
 }
     

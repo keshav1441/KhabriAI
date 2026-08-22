@@ -164,6 +164,17 @@ Every run writes `eval/results/<timestamp>.json` with per-question SQL, verdict,
 
 Unit tests for the guards, the repair loop, the comparator and entity resolution: `npm test`.
 
+### Role-based scope
+
+Users are `HQ` (statewide) or `SHO` (one district), chosen at signup or set with
+`npm run set-scope -- --email=<email> --district=Mysuru` (`--hq` to reset). Enforcement is Postgres
+row-level security (`prisma/migrations/*_role_scope_rls`, `*_scope_role`): `lib/db.ts withScope()` runs a
+scoped officer's queries as the non-owner role `khabri_scoped` with `app.district_id` set, and the
+policies on `CaseMaster` + child tables filter every row. All data routes use `scopedDb(req)` from
+`lib/chat-auth.ts`; the chat pipeline passes the district into `runGuardedQuery`. Unset scope = no
+restriction, so scripts and migrations are unaffected. `test/scope.test.ts` asserts the policies bite. The precomputed
+Intelligence Briefing (`/api/insights`) is a statewide command view by design and is not scoped.
+
 ### Demo readiness
 
 ```bash

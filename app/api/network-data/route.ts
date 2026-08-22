@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/db";
-import { requireUser } from "@/lib/chat-auth";
+import { requireUser, scopedDb } from "@/lib/chat-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -11,8 +10,9 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const denied = await requireUser(req);
   if (denied) return denied;
+  const { db } = await scopedDb(req);
   try {
-    const edgeRows = await prisma.$queryRaw<
+    const edgeRows = await db.$queryRaw<
       { source: string; target: string; weight: bigint; case_ids: number[] }[]
     >`
       WITH strong AS (
@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
     const ids = Array.from(new Set(edgeRows.flatMap((e) => [e.source, e.target])));
     if (!ids.length) return Response.json({ nodes: [], edges: [] });
 
-    const nodeRows = await prisma.$queryRaw<
+    const nodeRows = await db.$queryRaw<
       { pid: string; name: string; cases: bigint; crime_group: string | null }[]
     >`
       SELECT a."PersonID" AS pid,
@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
     // show *why* two persons are linked, not just how strongly.
     const caseIds = Array.from(new Set(edgeRows.flatMap((e) => e.case_ids)));
     const caseRows = caseIds.length
-      ? await prisma.$queryRaw<
+      ? await db.$queryRaw<
           { id: number; crime_no: string | null; crime_name: string | null; date: Date | null }[]
         >`
           SELECT cm."CaseMasterID" AS id, cm."CrimeNo" AS crime_no,

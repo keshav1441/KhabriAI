@@ -14,7 +14,8 @@
     "embed": "tsx scripts/backfill-embeddings.ts",
     "shift-dates": "tsx scripts/shift-dates.ts",
     "demo:check": "tsx scripts/demo-check.ts",
-    "loadtest": "tsx scripts/loadtest.ts"
+    "loadtest": "tsx scripts/loadtest.ts",
+    "set-scope": "tsx scripts/set-scope.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -2916,6 +2916,8 @@ export const KhabriUserScalarFieldEnum = {
   email: 'email',
   passwordHash: 'passwordHash',
   salt: 'salt',
+  role: 'role',
+  districtId: 'districtId',
   createdAt: 'createdAt'
 } as const
 

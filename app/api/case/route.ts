@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/db";
+import { requireUser, scopedDb } from "@/lib/chat-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -9,12 +9,15 @@ export async function GET(req: NextRequest) {
     return Response.json({ error: "Invalid case ID" }, { status: 400 });
   }
 
+  const denied = await requireUser(req);
+  if (denied) return denied;
+  const { db } = await scopedDb(req);
   try {
     const caseId = Number(id);
 
     const [caseRow, victims, accused, arrests, chargesheet, actSections] =
       await Promise.all([
-        prisma.$queryRaw<Record<string, unknown>[]>`
+        db.$queryRaw<Record<string, unknown>[]>`
           SELECT
             cm."CaseMasterID",
             cm."CrimeNo"              AS crime_no,
@@ -44,17 +47,17 @@ export async function GET(req: NextRequest) {
           WHERE cm."CaseMasterID" = ${caseId}
           LIMIT 1`,
 
-        prisma.$queryRaw<Record<string, unknown>[]>`
+        db.$queryRaw<Record<string, unknown>[]>`
           SELECT "VictimName", "AgeYear",
             CASE "GenderID" WHEN 1 THEN 'Male' WHEN 2 THEN 'Female' ELSE 'Transgender' END AS gender
           FROM "Victim" WHERE "CaseMasterID" = ${caseId}`,
 
-        prisma.$queryRaw<Record<string, unknown>[]>`
+        db.$queryRaw<Record<string, unknown>[]>`
           SELECT "AccusedName", "AgeYear",
             CASE "GenderID" WHEN 1 THEN 'Male' WHEN 2 THEN 'Female' ELSE 'Transgender' END AS gender
           FROM "Accused" WHERE "CaseMasterID" = ${caseId}`,
 
-        prisma.$queryRaw<Record<string, unknown>[]>`
+        db.$queryRaw<Record<string, unknown>[]>`
           SELECT ar."ArrestSurrenderDate", a."AccusedName",
             d."DistrictName" AS arrest_district
           FROM "ArrestSurrender" ar
@@ -62,13 +65,13 @@ export async function GET(req: NextRequest) {
           LEFT JOIN "District" d ON d."DistrictID" = ar."ArrestSurrenderDistrictId"
           WHERE ar."CaseMasterID" = ${caseId}`,
 
-        prisma.$queryRaw<Record<string, unknown>[]>`
+        db.$queryRaw<Record<string, unknown>[]>`
           SELECT cd."csdate", cd."cstype", e."FirstName" AS filed_by
           FROM "ChargesheetDetails" cd
           LEFT JOIN "Employee" e ON e."EmployeeID" = cd."PolicePersonID"
           WHERE cd."CaseMasterID" = ${caseId}`,
 
-        prisma.$queryRaw<Record<string, unknown>[]>`
+        db.$queryRaw<Record<string, unknown>[]>`
           SELECT asa."ActCode", asa."SectionCode", s."SectionDescription"
           FROM "ActSectionAssociation" asa
           LEFT JOIN "Section" s ON s."ActCode" = asa."ActCode" AND s."SectionCode" = asa."SectionCode"

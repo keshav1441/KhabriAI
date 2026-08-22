@@ -17,6 +17,7 @@ import {
   type FindSimilarCasesResult,
 } from "./tools";
 import { logAuditStep, logAuditRun } from "./audit-log";
+import { getScope } from "../chat-auth";
 
 const ORCH_MODEL = process.env.MISTRAL_ORCH_MODEL ?? "mistral-large-latest";
 const MAX_ITERATIONS = 4;
@@ -90,11 +91,11 @@ async function executeTool(
       return { status: value.status, value };
     }
     case "findSimilarCases": {
-      const value = await runFindSimilarCases(args as Parameters<typeof runFindSimilarCases>[0]);
+      const value = await runFindSimilarCases(args as Parameters<typeof runFindSimilarCases>[0], req);
       return { status: value.status, value };
     }
     case "searchRelatedCases": {
-      const value = await runSearchRelatedCases(args as { query: string });
+      const value = await runSearchRelatedCases(args as { query: string }, req);
       return { status: value.status, value };
     }
     case "checkInsights": {
@@ -132,8 +133,12 @@ export async function* runAgent(
 ): AsyncGenerator<AgentEvent> {
   const llm = getLlmClient();
   const runId = randomUUID();
+  const scope = await getScope(req);
+  const scopeNote = scope.districtName
+    ? ` This officer is posted to ${scope.districtName} district and can only see that district's data - every count, list and link is within ${scope.districtName}. Say "in ${scope.districtName}", never "statewide".`
+    : "";
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: SYSTEM_PROMPT + scopeNote },
     ...history.slice(-6).map((h) => ({ role: h.role, content: h.content }) as OpenAI.Chat.ChatCompletionMessageParam),
     { role: "user", content: question },
   ];
@@ -233,7 +238,7 @@ export async function* runAgent(
     lang === "kn"
       ? FINAL_SYNTHESIS_PROMPT + " Write the entire narrative in Kannada (ಕನ್ನಡ). Keep proper nouns (district names, crime section codes) as-is; numbers may stay in digits."
       : FINAL_SYNTHESIS_PROMPT;
-  messages.push({ role: "system", content: synthesisPrompt });
+  messages.push({ role: "system", content: synthesisPrompt + scopeNote });
 
   let finalAnswer = "";
   try {

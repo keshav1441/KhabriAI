@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/db";
-import { requireUser } from "@/lib/chat-auth";
+import { requireUser, scopedDb } from "@/lib/chat-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -10,13 +9,14 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   const denied = await requireUser(req);
   if (denied) return denied;
+  const { db } = await scopedDb(req);
 
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return Response.json({ error: "Missing id" }, { status: 400 });
 
   try {
     const [personRows, caseRows] = await Promise.all([
-      prisma.$queryRaw<
+      db.$queryRaw<
         { name: string | null; age: number | null; gender_id: number | null; cases: bigint }[]
       >`
         SELECT MAX("AccusedName") AS name,
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
         WHERE "PersonID" = ${id}
         GROUP BY "PersonID"
       `,
-      prisma.$queryRaw<
+      db.$queryRaw<
         {
           id: number; crime_no: string | null; crime_name: string | null; crime_group: string | null;
           status: string | null; district: string | null; station: string | null;

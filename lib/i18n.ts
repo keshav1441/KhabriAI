@@ -20,6 +20,8 @@ export const STRINGS = {
 
   // Top bar
   "header.restricted": { en: "RESTRICTED", kn: "ನಿರ್ಬಂಧಿತ" },
+  "header.statewide":  { en: "STATEWIDE", kn: "ರಾಜ್ಯವ್ಯಾಪಿ" },
+  "header.scope":      { en: "SCOPE", kn: "ವ್ಯಾಪ್ತಿ" },
   "header.live":        { en: "LIVE", kn: "ಲೈವ್" },
   "header.exportPdf":   { en: "Export conversation as PDF", kn: "ಸಂಭಾಷಣೆಯನ್ನು PDF ಆಗಿ ರಫ್ತು ಮಾಡಿ" },
 

@@ -57,6 +57,16 @@ Open **Profiling** for `KSP-P-00928` (case history, associates, timeline) or ask
 What they see: a probability with signed per-feature contributions, not a bare score.
 Then **↓ PDF** on the conversation: the whole investigation, citations included, as a document.
 
+### 2:35 — Scope (optional, 15 s)
+Sign out and sign in as the district account (`sho.mysuru@ksp.test`, created with
+`npm run set-scope -- --email=sho.mysuru@ksp.test --district=Mysuru`). The header badge reads
+**SCOPE · MYSURU**. Ask
+> **How many FIRs in the last 30 days?**
+
+What they see: only Mysuru's count, the narrative says "in Mysuru"; open any case from another
+district → not found. Say: *"Same assistant, same question — the database itself decides what this
+officer may see. Row-level security, not a prompt."*
+
 ### 2:45 — Kannada
 Toggle **ಕನ್ನಡ**, ask
 > **ಬೆಂಗಳೂರು ನಗರದಲ್ಲಿ ಎಷ್ಟು ಪ್ರಕರಣಗಳು ಇನ್ನೂ ತನಿಖೆಯಲ್ಲಿವೆ?**

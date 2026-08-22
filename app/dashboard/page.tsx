@@ -218,6 +218,13 @@ export default function DashboardPage() {
               {(() => { const it = NAV_ITEMS.find((n) => n.view === activeView); return it ? t(it.labelKey, lang) : ""; })()}
             </span>
             <span className="badge-classified hidden md:inline-flex">{t("header.restricted", lang)}</span>
+            <span
+              className="hidden md:inline-flex font-data text-[10px] tracking-widest px-2 py-0.5 rounded"
+              title={user.districtName ? `Data limited to ${user.districtName} district` : "Statewide data access"}
+              style={{ color: user.districtName ? "var(--red)" : "var(--text-muted)", border: "1px solid currentColor" }}
+            >
+              {user.districtName ? `${t("header.scope", lang)} · ${String(user.districtName).toUpperCase()}` : t("header.statewide", lang)}
+            </span>
           </div>
 
           <div className="flex items-center gap-3">

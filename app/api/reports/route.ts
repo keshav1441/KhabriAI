@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/db";
-import { requireUser } from "@/lib/chat-auth";
+import { requireUser, scopedDb } from "@/lib/chat-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +16,7 @@ type ReportRow = {
 export async function GET(req: NextRequest) {
   const denied = await requireUser(req);
   if (denied) return denied;
+  const { db } = await scopedDb(req);
   const { searchParams } = new URL(req.url);
   const search = (searchParams.get("q") ?? "").trim();
   const limit = Math.min(Number(searchParams.get("limit") ?? 100), 200);
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
 
     if (search) {
       const like = `%${search}%`;
-      rows = await prisma.$queryRaw<ReportRow[]>`
+      rows = await db.$queryRaw<ReportRow[]>`
         SELECT
           cm."CaseMasterID"               AS case_id,
           cm."CrimeNo"                    AS crime_no,
@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
         LIMIT ${limit}
       `;
     } else {
-      rows = await prisma.$queryRaw<ReportRow[]>`
+      rows = await db.$queryRaw<ReportRow[]>`
         SELECT
           cm."CaseMasterID"               AS case_id,
           cm."CrimeNo"                    AS crime_no,

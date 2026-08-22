@@ -332,6 +332,8 @@ model KhabriUser {
   email        String        @unique
   passwordHash String?       // null for Google-only accounts
   salt         String?
+  role         String        @default("HQ") // HQ = statewide, SHO = bound to districtId (enforced by RLS)
+  districtId   Int?
   createdAt    DateTime      @default(now())
   chatSessions ChatSession[]
 }

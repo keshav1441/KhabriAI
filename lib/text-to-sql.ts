@@ -5,6 +5,7 @@ import { validateSQL, sanitizeSQL, enforceLimit } from "./sql-validator";
 import { executeWithRepair } from "./sql-repair";
 import { runGuardedQuery, prisma } from "./db";
 import { resolveLiterals, similarNames, ambiguousPerson, type Vocab, type Substitution } from "./entity-resolve";
+import { getScope } from "./chat-auth";
 
 export type ChatTurn = { role: "user" | "assistant"; content: string };
 
@@ -64,16 +65,21 @@ export async function answerWithSQL(
   const examples = await findSimilar(question, fewShotK, excludeIndex, req);
   const fewShot = examples.map((e) => `-- Q: ${e.question}\n${e.sql}`).join("\n\n");
   const { vocab, accused } = await loadVocab();
-  const resolved = resolveLiterals(prepare(await generateSQL(DB_SCHEMA, fewShot, question, history)), vocab);
+  const scope = await getScope(req);
+  // RLS does the enforcing; the note stops the model from adding a contradictory district filter.
+  const schema = scope.districtId
+    ? `${DB_SCHEMA}\n-- ACCESS SCOPE: this officer only sees ${scope.districtName} district. Rows are already limited to it by the database; do NOT add a district filter unless the question names a different district (which will return nothing).`
+    : DB_SCHEMA;
+  const resolved = resolveLiterals(prepare(await generateSQL(schema, fewShot, question, history)), vocab);
   const sql = resolved.sql;
   const substitutions: Substitution[] = resolved.substitutions;
 
-  const run = (s: string) => runGuardedQuery(s, { timeoutMs: QUERY_TIMEOUT_MS });
+  const run = (s: string) => runGuardedQuery(s, { timeoutMs: QUERY_TIMEOUT_MS, districtId: scope.districtId });
   const out = repair
     ? await executeWithRepair({
         sql,
         run,
-        repair: async (bad, err) => prepare(await repairSQL(DB_SCHEMA, question, bad, err)),
+        repair: async (bad, err) => prepare(await repairSQL(schema, question, bad, err)),
       })
     : { sql, rows: await run(sql), repaired: false };
 
