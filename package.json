@@ -11,7 +11,10 @@
     "eval": "tsx eval/run.ts",
     "eval:similarity": "tsx eval/similarity.ts",
     "enrich": "tsx scripts/enrich-briefs.ts",
-    "embed": "tsx scripts/backfill-embeddings.ts"
+    "embed": "tsx scripts/backfill-embeddings.ts",
+    "shift-dates": "tsx scripts/shift-dates.ts",
+    "demo:check": "tsx scripts/demo-check.ts",
+    "loadtest": "tsx scripts/loadtest.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

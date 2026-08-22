@@ -168,6 +168,12 @@ narrative alone, and 100% of those crew links cross a district boundary. Specifi
 28% because the synthetic MO signatures are per crime group (a "Cheating"-labelled case can read like
 a burglary) — a limitation of the generated data, not of the linker. 313 ms per query over pgvector HNSW.
 
+**Load** (`npm run loadtest`, production build, 5 concurrent officers × 2 rounds, 10/10 answered): a
+question takes ~7 s to the first narrative token (planner → SQL generation → execution → synthesis);
+a second burst of 5 within the same minute hit the Mistral tier's rate limit and stretched to 38 s
+(p95). Single-demo and small-station use is comfortable; sustained concurrency needs a higher Mistral
+tier, not a code change.
+
 Per-question SQL, verdict, repair flag and latency for every run are committed under `eval/results/`.
 The remaining misses are presentation choices the model makes (`TO_CHAR 'YYYY-MM'` vs `DATE_TRUNC`,
 an extra ID column) and occasional syntax slips — not wrong joins or wrong filters.

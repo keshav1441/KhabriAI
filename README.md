@@ -164,6 +164,16 @@ Every run writes `eval/results/<timestamp>.json` with per-question SQL, verdict,
 
 Unit tests for the guards, the repair loop, the comparator and entity resolution: `npm test`.
 
+### Demo readiness
+
+```bash
+npm run shift-dates -- --apply   # move the synthetic corpus so the newest FIR is yesterday (dates, CrimeNo year, narrative text, insights)
+npm run demo:check               # assert the anchors in docs/DEMO.md still hold
+npm run loadtest -- --concurrency=5 --rounds=2   # p50/p95 time-to-first-token against a running instance (--base=URL for AppSail)
+```
+
+The 3-minute script with exact questions and expected outcomes is in [docs/DEMO.md](docs/DEMO.md).
+
 ### Modus-operandi linking
 
 ```bash
