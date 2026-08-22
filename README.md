@@ -164,6 +164,16 @@ Every run writes `eval/results/<timestamp>.json` with per-question SQL, verdict,
 
 Unit tests for the guards, the repair loop, the comparator and entity resolution: `npm test`.
 
+### Modus-operandi linking
+
+```bash
+npm run enrich            # LLM-expand templated BriefFacts into narratives (MO series for repeat offenders)
+npm run embed             # embed narratives into CaseMaster.BriefFactsEmbedding (pgvector, mistral-embed 1024-d)
+npm run eval:similarity   # type@5 / group@5 / series recall@5 / cross-district share
+```
+
+`lib/case-retrieval.ts` exposes `similarCasesTo(caseId)` and `similarCasesToText(description)`; the agent tool `findSimilarCases` and `GET /api/case/similar?id=` (Case Drawer panel) sit on top. Mistral free/low tiers rate-limit at ~3 concurrent chat calls: set `ENRICH_CONCURRENCY=3` if `npm run enrich` logs 429s, and re-run it — failed batches stay templated and are retried.
+
 ### Entity resolution & clarification
 
 `lib/entity-resolve.ts` checks district / station / crime-type literals in generated SQL against the real vocabulary (in-memory trigram similarity + an alias table for legacy names such as Bangalore, Mysore, Belgaum, Gulbarga, Tumkur) and rewrites near-misses; the Case Board shows the correction. Person names are never rewritten: a zero-row person query returns `suggestions` (closest real names), and a bare first name matching many people returns `ambiguousPerson` with no rows. The orchestrator has an `askClarification` tool that ends the turn with a question instead of a query. The previous turn's SQL is appended to assistant history (`[SQL used: …]`) so follow-ups refine it.
@@ -200,7 +210,7 @@ lib/
     tools.ts          5 tool implementations + JSON schemas
     audit-log.ts      Fire-and-forget audit trail to Catalyst Data Store
   rag.ts                RAG router (embeddings → LLM fallback) — few-shot SQL examples only
-  embeddings-gemini.ts  Gemini embedding API + on-disk cache
+  embeddings.ts         Mistral embeddings (mistral-embed, 1024-dim) + on-disk cache
   rag-llm.ts            LLM example-selection fallback
   mistral-client.ts     Shared Mistral client (openai SDK, Mistral base URL)
   rag-keywords.ts       Keyword Jaccard (eval baseline only)
@@ -240,7 +250,7 @@ scripts/
 | `DATABASE_URL` | Yes | Neon PostgreSQL connection string |
 | `MISTRAL_API_KEY` | Yes | Mistral API key |
 | `MISTRAL_SQL_MODEL` | No | SQL model (default `mistral-large-latest`) |
-| `GEMINI_API_KEY` | No | Enables embedding-based example retrieval (falls back to LLM picker without it) |
+| `MISTRAL_EMBED_MODEL` | No | Embedding model (default `mistral-embed`); embeddings use `MISTRAL_API_KEY` |
 | `MISTRAL_RAG_MODEL` | No | LLM example-picker fallback (default `mistral-small-latest`) |
 | `RAG_MODE` | No | `embed` or `llm` to force retrieval mode |
 | `MISTRAL_SUMMARY_MODEL` | No | Summary model (default `mistral-small-latest`) |

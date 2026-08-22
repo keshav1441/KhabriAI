@@ -1,15 +1,18 @@
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join } from "path";
 import { cacheGet, cacheSet } from "./catalyst-cache";
+import { getLlmClient } from "./mistral-client";
 
-// Gemini is the embedding backend; the chat provider (Mistral) is unrelated here.
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const EMBED_MODEL = "gemini-embedding-2";
-export const EMBED_DIM = 768;
+// Mistral is the embedding backend (same key as chat). mistral-embed returns a
+// 1024-dim unit vector; the CaseMaster.BriefFactsEmbedding column is vector(1024).
+// encoding_format must be "float": the OpenAI SDK defaults to base64 and
+// Mistral answers with plain floats, which the SDK silently decodes to zeros.
+const EMBED_MODEL = process.env.MISTRAL_EMBED_MODEL ?? "mistral-embed";
+export const EMBED_DIM = 1024;
 const BATCH_SIZE = 100;
 
 const CACHE_PATH = join(process.cwd(), "lib/rag-embeddings-cache.json");
-const CATALYST_CACHE_KEY = "rag:embeddings:v3";
+const CATALYST_CACHE_KEY = `rag:embeddings:v4:${EMBED_MODEL}:${EMBED_DIM}`;
 const CATALYST_CACHE_TTL_MINUTES = 10080; // 7 days — examples change rarely
 
 type Example = { question: string; sql: string };
@@ -18,7 +21,7 @@ type CachedExample = { question: string; sql: string; embedding: number[] };
 let exampleVectors: CachedExample[] | null = null;
 
 export function embeddingAvailable(): boolean {
-  return Boolean(GEMINI_API_KEY);
+  return Boolean(process.env.MISTRAL_API_KEY);
 }
 
 function cosine(a: number[], b: number[]): number {
@@ -36,36 +39,25 @@ function loadExamples(): Example[] {
 }
 
 export async function embedTexts(texts: string[]): Promise<number[][]> {
-  if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY not configured");
+  if (!embeddingAvailable()) throw new Error("MISTRAL_API_KEY not configured");
+  const llm = getLlmClient();
   const out: number[][] = [];
-
   for (let i = 0; i < texts.length; i += BATCH_SIZE) {
-    const chunk = texts.slice(i, i + BATCH_SIZE);
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${EMBED_MODEL}:batchEmbedContents?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          requests: chunk.map((text) => ({
-            model: `models/${EMBED_MODEL}`,
-            content: { parts: [{ text }] },
-            outputDimensionality: EMBED_DIM,
-          })),
-        }),
-      }
-    );
-    if (!res.ok) throw new Error(`Gemini embed batch failed: ${res.status} ${await res.text()}`);
-    const data = (await res.json()) as { embeddings: { values: number[] }[] };
-    out.push(...data.embeddings.map((e) => e.values));
+    const res = await llm.embeddings.create({ model: EMBED_MODEL, input: texts.slice(i, i + BATCH_SIZE), encoding_format: "float" });
+    for (const d of res.data) {
+      if (d.embedding.length !== EMBED_DIM) throw new Error(`embedding dim ${d.embedding.length} != ${EMBED_DIM}; column type must match`);
+      out.push(d.embedding);
+    }
   }
-
   return out;
 }
 
 export async function embedText(text: string): Promise<number[]> {
-  const [vec] = await embedTexts([text]);
-  return vec;
+  return (await embedTexts([text]))[0];
+}
+
+export function toVectorLiteral(v: number[]): string {
+  return `[${v.join(",")}]`;
 }
 
 function loadLocalFileCache(): CachedExample[] | null {
@@ -101,22 +93,27 @@ async function saveCache(data: CachedExample[], req?: Request): Promise<void> {
   await cacheSet(CATALYST_CACHE_KEY, JSON.stringify(data), CATALYST_CACHE_TTL_MINUTES, req);
 }
 
+// Cache is valid only if it covers exactly the current example questions at
+// the current dimension — a changed example or provider forces a re-embed.
+function cacheMatches(cached: CachedExample[] | null, examples: Example[]): cached is CachedExample[] {
+  if (!cached || cached.length !== examples.length) return false;
+  if (cached.some((c) => c.embedding?.length !== EMBED_DIM)) return false;
+  const qs = new Set(cached.map((c) => c.question));
+  return examples.every((e) => qs.has(e.question));
+}
+
 async function getExampleVectors(req?: Request): Promise<CachedExample[]> {
   if (exampleVectors) return exampleVectors;
 
   const examples = loadExamples();
   const cached = await loadCache(req);
-  if (cached?.length === examples.length) {
+  if (cacheMatches(cached, examples)) {
     exampleVectors = cached;
     return exampleVectors;
   }
 
   const embeddings = await embedTexts(examples.map((e) => e.question));
-  exampleVectors = examples.map((ex, i) => ({
-    question: ex.question,
-    sql: ex.sql,
-    embedding: embeddings[i],
-  }));
+  exampleVectors = examples.map((ex, i) => ({ question: ex.question, sql: ex.sql, embedding: embeddings[i] }));
   await saveCache(exampleVectors, req);
   return exampleVectors;
 }
@@ -141,11 +138,7 @@ export async function findSimilarEmbeddings(
   const byQuestion = new Map(vectors.map((v) => [v.question, v.embedding]));
 
   return examples
-    .map((example, i) => ({
-      ...example,
-      score: cosine(qEmb, byQuestion.get(example.question) ?? []),
-      i,
-    }))
+    .map((example, i) => ({ ...example, score: cosine(qEmb, byQuestion.get(example.question) ?? []), i }))
     .filter(({ i }) => i !== excludeIndex)
     .sort((a, b) => b.score - a.score)
     .slice(0, topK);

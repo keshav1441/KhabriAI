@@ -57,6 +57,8 @@ export const STRINGS = {
   "board.tool.getNetworkOrMapData": { en: "Network / Map Data", kn: "ಜಾಲ / ನಕ್ಷೆ ಡೇಟಾ" },
   "board.tool.predictRisk":         { en: "Risk Prediction", kn: "ಅಪಾಯ ಮುನ್ಸೂಚನೆ" },
   "board.tool.askClarification":    { en: "Clarify", kn: "ಸ್ಪಷ್ಟೀಕರಣ" },
+  "board.tool.findSimilarCases":    { en: "Modus Operandi Link", kn: "ಅಪರಾಧ ವಿಧಾನ ಹೊಂದಾಣಿಕೆ" },
+  "board.linkedCases":              { en: "linked case(s)", kn: "ಹೊಂದಿದ ಪ್ರಕರಣ(ಗಳು)" },
   "board.clarify":                  { en: "Needs your input", kn: "ನಿಮ್ಮ ಉತ್ತರ ಅಗತ್ಯ" },
   "board.peopleMatch":              { en: "different people match", kn: "ವಿಭಿನ್ನ ವ್ಯಕ್ತಿಗಳು ಹೊಂದುತ್ತಾರೆ" },
 

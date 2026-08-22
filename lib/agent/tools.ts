@@ -1,7 +1,8 @@
 import type OpenAI from "openai";
 import { classifyQuery, type VizType } from "../query-classifier";
 import { answerWithSQL, type ChatTurn } from "../text-to-sql";
-import { findSimilarCases, type RelatedCase } from "../case-retrieval";
+import { findSimilarCases, similarCasesTo, similarCasesToText, type RelatedCase } from "../case-retrieval";
+import { prisma as db } from "../db";
 import { getCachedInsights, setCachedInsights, type InsightItem } from "../insights-cache";
 import { computeInsights } from "../insights-compute";
 import { prisma } from "../db";
@@ -19,6 +20,14 @@ export interface QueryDatabaseResult {
   substitutions?: { column: string; from: string; to: string }[];
   suggestions?: string[];
   ambiguousPerson?: { token: string; count: number; examples: string[] } | null;
+  message?: string;
+}
+
+export interface FindSimilarCasesResult {
+  status: "ok" | "error";
+  sourceCaseId?: number;
+  rows?: Record<string, unknown>[];
+  cases?: RelatedCase[];
   message?: string;
 }
 
@@ -145,6 +154,24 @@ export const TOOL_SCHEMAS: OpenAI.Chat.ChatCompletionTool[] = [
   {
     type: "function",
     function: {
+      name: "findSimilarCases",
+      description:
+        "Modus-operandi linking: find FIRs whose narrative describes the same METHOD as a given case (by CaseMasterID or 18-digit CrimeNo) or as a free-text description of a method. Use for 'similar cases', 'same gang/crew', 'linked cases', 'same modus operandi', 'has this happened elsewhere', or cross-district pattern questions. Returns the closest cases with a similarity score, district, crime type, date and status.",
+      parameters: {
+        type: "object",
+        properties: {
+          caseMasterId: { type: "number", description: "CaseMasterID of the source case, if known." },
+          crimeNo: { type: "string", description: "18-digit CrimeNo of the source case, if the officer quoted one." },
+          description: { type: "string", description: "Free-text description of the method, when there is no source case." },
+          excludeSourceDistrict: { type: "boolean", description: "True to return only cases from OTHER districts (cross-jurisdiction links)." },
+          topK: { type: "number", description: "How many cases to return (default 5, max 10)." },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "askClarification",
       description:
         "Ask the officer ONE short clarifying question instead of querying, ONLY when the request cannot be answered without guessing something that changes the answer materially: a person referred to only by a first name or nickname, a place that is not a Karnataka district or station, a time reference with no defined meaning (e.g. 'recently', 'a while ago'), or a comparison with no stated baseline. Do NOT ask when a sensible default exists (no district -> statewide; no period -> all time; 'Bengaluru' -> Bengaluru Urban).",
@@ -175,6 +202,46 @@ export async function runQueryDatabase(
     console.error("queryDatabase tool failed:", e);
     const err = e as Error & { sql?: string };
     return { status: "error", sql: err.sql, message: (err.message ?? "Query execution failed").slice(0, 200) };
+  }
+}
+
+export async function runFindSimilarCases(args: {
+  caseMasterId?: number;
+  crimeNo?: string;
+  description?: string;
+  excludeSourceDistrict?: boolean;
+  topK?: number;
+}): Promise<FindSimilarCasesResult> {
+  const topK = Math.min(Math.max(Number(args.topK) || 5, 1), 10);
+  try {
+    let sourceId = args.caseMasterId ? Number(args.caseMasterId) : undefined;
+    let sourceDistrict: string | null = null;
+    if (!sourceId && args.crimeNo) {
+      const r = await db.$queryRawUnsafe<{ id: number }[]>(`SELECT "CaseMasterID" AS id FROM "CaseMaster" WHERE "CrimeNo" = $1 LIMIT 1`, String(args.crimeNo).trim());
+      sourceId = r[0]?.id;
+      if (!sourceId) return { status: "error", message: `No case with CrimeNo ${args.crimeNo}` };
+    }
+    if (sourceId && args.excludeSourceDistrict) {
+      const r = await db.$queryRawUnsafe<{ district: string }[]>(
+        `SELECT d."DistrictName" AS district FROM "CaseMaster" cm JOIN "Unit" u ON u."UnitID" = cm."PoliceStationID" JOIN "District" d ON d."DistrictID" = u."DistrictID" WHERE cm."CaseMasterID" = $1`, sourceId);
+      sourceDistrict = r[0]?.district ?? null;
+    }
+    const cases = sourceId
+      ? await similarCasesTo(sourceId, { topK, excludeDistrict: sourceDistrict })
+      : args.description
+        ? await similarCasesToText(args.description, { topK })
+        : [];
+    if (!sourceId && !args.description) return { status: "error", message: "Give a case (CaseMasterID or CrimeNo) or a description of the method." };
+    if (!cases.length) return { status: "error", message: "No embedded narratives to compare against (run scripts/backfill-embeddings.ts)." };
+    // Table-shaped rows for the chat viz; the full cases go to the Related Cases panel.
+    const rows = cases.map((c) => ({
+      CaseMasterID: c.id, CrimeNo: c.crimeNo, similarity: Math.round(c.score * 100) / 100,
+      district: c.district, station: c.station, crime: c.crimeType, registered: c.registered, status: c.status,
+    }));
+    return { status: "ok", sourceCaseId: sourceId, rows, cases };
+  } catch (e) {
+    console.error("findSimilarCases tool failed:", e);
+    return { status: "error", message: "Similar-case search failed" };
   }
 }
 

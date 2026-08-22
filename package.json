@@ -8,7 +8,10 @@
     "start": "next start -p ${X_ZOHO_CATALYST_LISTEN_PORT:-3000}",
     "postinstall": "prisma generate",
     "test": "tsx --test test/*.test.ts",
-    "eval": "tsx eval/run.ts"
+    "eval": "tsx eval/run.ts",
+    "eval:similarity": "tsx eval/similarity.ts",
+    "enrich": "tsx scripts/enrich-briefs.ts",
+    "embed": "tsx scripts/backfill-embeddings.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -1,4 +1,4 @@
-import { findSimilarEmbeddings, warmupEmbeddings as warmupGemini, embeddingAvailable } from "./embeddings-gemini";
+import { findSimilarEmbeddings, warmupEmbeddings as warmupGemini, embeddingAvailable } from "./embeddings";
 import { findSimilarLlm } from "./rag-llm";
 
 export type RagExample = { question: string; sql: string; score: number };

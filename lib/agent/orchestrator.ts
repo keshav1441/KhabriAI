@@ -7,12 +7,14 @@ import {
   TOOL_SCHEMAS,
   runQueryDatabase,
   runSearchRelatedCases,
+  runFindSimilarCases,
   runCheckInsights,
   runGetNetworkOrMapData,
   runPredictRisk,
   type ChatTurn,
   type QueryDatabaseResult,
   type SearchRelatedCasesResult,
+  type FindSimilarCasesResult,
 } from "./tools";
 import { logAuditStep, logAuditRun } from "./audit-log";
 
@@ -32,6 +34,7 @@ const FINAL_SYNTHESIS_PROMPT =
   'Start with the answer itself — no heading, no "Analyst Narrative:" preamble. Use **bold** only on key figures and names; no bullet points, no headings. ' +
   'If a queryDatabase result has "substitutions", mention the correction briefly (e.g. "interpreting Belgavi as Belagavi"). ' +
   'If it returned no rows and has "suggestions", say no record matched that exact name and list the suggested names so the officer can choose. ' +
+  'For findSimilarCases results, describe the shared method in one sentence and name the linked cases by CrimeNo and district; call out links that cross district boundaries. ' +
   'If it has "ambiguousPerson", do not summarise any cases: say that N different people named X appear in the database, list the example names, and ask for the full name, PersonID or district.';
 
 export type StepEvent = {
@@ -86,6 +89,10 @@ async function executeTool(
       const value = await runQueryDatabase(args as { question: string }, history, req);
       return { status: value.status, value };
     }
+    case "findSimilarCases": {
+      const value = await runFindSimilarCases(args as Parameters<typeof runFindSimilarCases>[0]);
+      return { status: value.status, value };
+    }
     case "searchRelatedCases": {
       const value = await runSearchRelatedCases(args as { query: string });
       return { status: value.status, value };
@@ -133,6 +140,7 @@ export async function* runAgent(
 
   let lastQueryResult: QueryDatabaseResult | null = null;
   let lastCasesResult: SearchRelatedCasesResult | null = null;
+  let lastSimilarResult: FindSimilarCasesResult | null = null;
   let toolCallCount = 0;
 
   for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
@@ -205,16 +213,20 @@ export async function* runAgent(
       messages.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(capForLLM(value)) });
       if (tc.function.name === "queryDatabase") lastQueryResult = value as QueryDatabaseResult;
       if (tc.function.name === "searchRelatedCases") lastCasesResult = value as SearchRelatedCasesResult;
+      if (tc.function.name === "findSimilarCases") lastSimilarResult = value as FindSimilarCasesResult;
     }
   }
 
+  // A similar-case search is itself the evidence: show its rows as the table
+  // and its cases in the Related Cases panel when no SQL query ran.
+  const similarRows = !lastQueryResult?.rows?.length && lastSimilarResult?.rows?.length ? lastSimilarResult.rows : null;
   yield {
     type: "meta",
     sql: lastQueryResult?.sql ?? "",
-    rows: lastQueryResult?.rows ?? [],
-    vizType: lastQueryResult?.vizType ?? "table",
+    rows: similarRows ?? lastQueryResult?.rows ?? [],
+    vizType: similarRows ? "table" : (lastQueryResult?.vizType ?? "table"),
     sqlError: lastQueryResult?.status === "error" ? (lastQueryResult.message ?? "Query failed") : null,
-    relatedCases: lastCasesResult?.cases ?? [],
+    relatedCases: lastCasesResult?.cases ?? lastSimilarResult?.cases ?? [],
   };
 
   const synthesisPrompt =

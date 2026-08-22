@@ -35,7 +35,8 @@ Agent orchestrator (Mistral) — plans up to 4 tool iterations, first turn must 
    ├─ searchRelatedCases  Postgres full-text search over FIR narratives → citations
    ├─ checkInsights       Precomputed anomalies: spikes, repeat accused, district surges
    ├─ getNetworkOrMapData Accused co-occurrence graph / per-district geospatial counts
-   └─ predictRisk         Chargesheet likelihood — Catalyst QuickML, local explainable fallback
+   ├─ predictRisk         Chargesheet likelihood — Catalyst QuickML, local explainable fallback
+   └─ findSimilarCases    Modus-operandi linking — pgvector cosine over narrative embeddings (Mistral)
    │
    ▼
 SSE stream: tool steps → result metadata (rows, vizType, citations) → narrative tokens
@@ -44,11 +45,12 @@ SSE stream: tool steps → result metadata (rows, vizType, citations) → narrat
 Persisted to Neon (chat history) · audited to Catalyst Data Store
 ```
 
-**Retrieval is two independent subsystems.** Few-shot example selection for SQL generation uses
-Gemini embeddings with cached vectors, falling back to an LLM picker when the embeddings API is
-unavailable. Case citations use native Postgres `tsvector`/`ts_rank` full-text search with a
+**Retrieval is three subsystems.** Few-shot example selection for SQL generation uses Mistral
+embeddings (`mistral-embed`, cached vectors), falling back to an LLM picker when the embeddings API
+is unavailable. Case citations use native Postgres `tsvector`/`ts_rank` full-text search with a
 ≥2-content-word overlap gate — this is what stops aggregate questions ("how many FIRs last
-month") from surfacing spurious "related" cases that a raw score threshold would let through.
+month") from surfacing spurious "related" cases. Modus-operandi linking (below) uses pgvector
+cosine distance over narrative embeddings stored on `CaseMaster.BriefFactsEmbedding`.
 
 ## What's built
 
@@ -61,9 +63,32 @@ month") from surfacing spurious "related" cases that a raw score threshold would
 | Profiling view | Per-person case history, associates, timeline |
 | Reports & early warning | Anomaly insights + least-squares 6-month trend forecast per district × crime group |
 | Risk prediction | Chargesheet likelihood with **per-feature contributions**, not a bare score |
+| **Modus-operandi linking** | pgvector nearest-narrative search: "which cases, anywhere in the state, describe the same method?" — from a case, a CrimeNo, or a free-text description; cross-district links flagged |
 | Kannada localization | Full nav/chat UI in Kannada, questions accepted in either language |
 | Voice + export | Speech in/out, conversation PDF export, CSV result export |
 | Auth & history | PBKDF2-SHA512, HMAC-signed session cookie, per-user chat threads in Neon |
+
+## Modus-operandi linking — the capability a station cannot have on its own
+
+A station sees its own FIRs. A crew that cuts window grilles between 1 and 3 am and takes only gold
+is one unsolved burglary in Tumakuru, another in Mandya, a third in Ramanagara — three separate
+files, three investigating officers, no link. KhabriAI embeds every narrative (`mistral-embed`,
+pgvector) and answers "what else looks like this?":
+
+- **From a case.** Open any case; the drawer shows *Similar Modus Operandi* — the five nearest
+  narratives statewide with a similarity score, links that cross a district boundary marked in red.
+  Click one to walk the chain.
+- **From the chat.** "Find cases with the same MO as FIR 1000300152026…", "Has anyone else reported
+  a KYC-expiry SMS scam where the money went to Jharkhand ATMs?" → the `findSimilarCases` tool
+  returns the linked cases as a table plus the narratives as citations.
+- **Matched on method, not names.** Narratives never name the accused, so a link means the *facts*
+  match — the same thing an experienced detective notices, done across 210 stations at once.
+
+Measured with `npm run eval:similarity` on a random sample of embedded cases (5 nearest neighbours each):
+how often neighbours share the specific crime type and the crime group, and — for cases that belong
+to a repeat-offender series — how often a same-crew case is found from the narrative alone, and what
+share of those links cross a district boundary. Results are recorded in `eval/results/*-similarity.json`
+and quoted in the Evaluation section below once the full corpus is embedded.
 
 ## Handling real questions, not benchmark questions
 
@@ -104,10 +129,17 @@ The prototype is designed so a police officer can defend an answer in a review.
 act/section associations. The schema mirrors the real KSP structure (29 models), so pointing the
 prototype at production data is a connection-string change, not a rewrite.
 
+Narratives are LLM-expanded from the seed's templated brief facts (`scripts/enrich-briefs.ts`). Where
+the same repeat offender has two or more cases in the same crime group, those cases are written with a
+consistent modus operandi (entry method, time window, target, vehicle, signature habit — chosen
+deterministically per series), the way a real crew's FIRs read. The accused are never named in a
+narrative. This is stated here because it is what makes the MO-linking evaluation meaningful: the
+linker is scored on recovering those series from the text alone.
+
 ## Stack
 
-Next.js 16 (App Router, standalone) · React 19 · Neon PostgreSQL + Prisma 7 · Mistral (agent,
-SQL, narrative) · Gemini embeddings · Zoho Catalyst AppSail (hosting, Cache, Data Store, QuickML,
+Next.js 16 (App Router, standalone) · React 19 · Neon PostgreSQL + Prisma 7 + pgvector · Mistral
+(agent, SQL, narrative, embeddings) · Zoho Catalyst AppSail (hosting, Cache, Data Store, QuickML,
 Job Scheduling) · Leaflet · Cytoscape · Recharts · Zustand · Tailwind v4.
 
 Catalyst services degrade gracefully — the app runs fully on a laptop with only a database URL
@@ -129,6 +161,13 @@ the set of `CaseMasterID`s). Holdout excludes each question's own example from f
 After adding legacy-name and case-number questions (99 q): 81% match, 97% executes, 10/10 Kannada.
 Run-to-run LLM variance is a few points; treat the figure as low-to-mid 80s, not a single number.
 
+**Modus-operandi linking** (`npm run eval:similarity`, 200 random embedded cases, 5 nearest neighbours each,
+measured with 38% of the corpus embedded): neighbours share the crime group 94% of the time; for cases
+in a repeat-offender series, a same-crew case is among the 5 neighbours 22% of the time from the
+narrative alone, and 100% of those crew links cross a district boundary. Specific-type agreement is
+28% because the synthetic MO signatures are per crime group (a "Cheating"-labelled case can read like
+a burglary) — a limitation of the generated data, not of the linker. 313 ms per query over pgvector HNSW.
+
 Per-question SQL, verdict, repair flag and latency for every run are committed under `eval/results/`.
 The remaining misses are presentation choices the model makes (`TO_CHAR 'YYYY-MM'` vs `DATE_TRUNC`,
 an extra ID column) and occasional syntax slips — not wrong joins or wrong filters.
@@ -145,8 +184,8 @@ Working end-to-end and deployed on Catalyst AppSail. Known boundaries:
 - Case citations depend on narrative enrichment (`scripts/enrich-briefs.ts`); on raw seed data the
   templated `BriefFacts` are too generic to retrieve meaningfully.
 - QuickML risk prediction is AppSail-only; local runs use the explainable fallback model.
-- Full-text retrieval, not vector search. The upgrade to pgvector touches one file —
-  `lib/case-retrieval.ts` — because everything downstream is provider-agnostic.
+- Embeddings are 1024-dim `mistral-embed`; re-embedding the corpus is a 5-minute script
+  (`npm run embed -- --force`) if a stronger model is preferred.
 
 ## Why it matters
 
