@@ -34,17 +34,21 @@ the previous SQL rather than re-reading the prose (the answer drops from the all
 > **Find cases in other districts with the same modus operandi as case 13778**
 
 What they see: Case Board *Modus Operandi Link — 10 linked cases*; a table of matches from other
-districts with similarity scores; narrative: *"…during a family wedding, offenders climb the compound
-wall to a balcony, take only gold, and leave in a white Bolero — matches in Vijayapura, Kolar,
-Chikkamagaluru, Chamarajanagara…"*. Click any CaseMasterID → the Case File drawer → **Similar Modus
-Operandi** panel, other-district links in red → click one to walk the chain.
-Say: *"Five open cases, five districts, five investigating officers who have never spoken to each
+districts with similarity scores; narrative: *"…between 1 and 3 am, two men on a black Pulsar without
+a number plate cut the CCTV cable, then an armed group storms a warehouse or godown and loads the
+goods — matches in Uttara Kannada, Gadag, Bengaluru Urban, Udupi…"*. Click any CaseMasterID → the
+Case File drawer → **Similar Modus Operandi** panel, other-district links in red → click one to walk
+the chain.
+Say: *"Open cases in five districts, five investigating officers who have never spoken to each
 other. The narratives never name the accused — this is matched on method. A station can't see this;
 the state can."*
 
 Anchor facts (`npm run demo:check` asserts these):
-- Series: repeat offender **KSP-P-00928**, Crimes Against Property, 7 cases in 5 districts, 5 open.
-- Source case **#13778** (Davangere, Dacoity, Under Investigation). Alternates: #539 (Chamarajanagara), #4662 (Vijayapura).
+- Source case **#13778** (Davangere, Dacoity, Under Investigation) — crew signature: black Pulsar
+  without a number plate, 1–3 am, CCTV cable cut first. Its top links are Dacoity cases in Uttara
+  Kannada (#3008), Gadag (#9667), Bengaluru Urban (#9363), Udupi (#10865), all ≥ 92 %.
+- Series: repeat offender **KSP-P-00928**, Crimes Against Property, 11 cases in 7 districts, 6 open
+  (use in Profiling).
 
 ### 2:20 — Explain and export
 Open **Profiling** for `KSP-P-00928` (case history, associates, timeline) or ask
@@ -72,7 +76,8 @@ Close: *"In the language the officer thinks in, at 2 am, with a cited, auditable
 - **"last 30 days" returns nothing:** the corpus has drifted behind the calendar → `npm run shift-dates -- --apply`.
 
 ## Numbers you can quote (see PROTOTYPE_BRIEF.md → Evaluation)
-- Text-to-SQL: 81–84 % execution match on 99 holdout questions, 97–99 % execute, Kannada 10/10.
-- MO linking: neighbours share the crime group 94 %; same-crew case among 5 neighbours 22 % at
-  38 % corpus coverage (re-measure after full embedding); 100 % of crew links cross a district.
+- Text-to-SQL: 81–84 % execution match on 99 holdout questions, 97–100 % execute, Kannada 9–10/10.
+- MO linking (full corpus): neighbours share the crime group 96 % and the specific crime type 67 %;
+  a same-crew case is among the 5 neighbours 18 % of the time from the narrative alone; 87 % of those
+  crew links cross a district boundary.
 - Every query: SELECT-only AST validation, `LIMIT 500`, 8 s statement timeout; every tool call audited.

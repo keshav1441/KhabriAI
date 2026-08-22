@@ -182,6 +182,8 @@ npm run embed             # embed narratives into CaseMaster.BriefFactsEmbedding
 npm run eval:similarity   # type@5 / group@5 / series recall@5 / cross-district share
 ```
 
+After changing `lib/mo-signature.ts`, regenerate with `npm run enrich -- --all` (resumable; chunk it with `--limit=2400` on rate-limited tiers) and then `npm run embed -- --force`.
+
 `lib/case-retrieval.ts` exposes `similarCasesTo(caseId)` and `similarCasesToText(description)`; the agent tool `findSimilarCases` and `GET /api/case/similar?id=` (Case Drawer panel) sit on top. Mistral free/low tiers rate-limit at ~3 concurrent chat calls: set `ENRICH_CONCURRENCY=3` if `npm run enrich` logs 429s, and re-run it — failed batches stay templated and are retried.
 
 ### Entity resolution & clarification

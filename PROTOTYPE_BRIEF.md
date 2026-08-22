@@ -131,8 +131,10 @@ prototype at production data is a connection-string change, not a rewrite.
 
 Narratives are LLM-expanded from the seed's templated brief facts (`scripts/enrich-briefs.ts`). Where
 the same repeat offender has two or more cases in the same crime group, those cases are written with a
-consistent modus operandi (entry method, time window, target, vehicle, signature habit — chosen
-deterministically per series), the way a real crew's FIRs read. The accused are never named in a
+consistent modus operandi in two layers, the way a real crew's FIRs read: *crew* traits (vehicle, time
+window, signature habit) are identical across the series, while *offence* traits (method, target) follow
+the specific crime type, so a Cheating case reads as cheating even when the same crew also burgles.
+Both are chosen deterministically per series (`lib/mo-signature.ts`). The accused are never named in a
 narrative. This is stated here because it is what makes the MO-linking evaluation meaningful: the
 linker is scored on recovering those series from the text alone.
 
@@ -159,14 +161,18 @@ the set of `CaseMasterID`s). Holdout excludes each question's own example from f
 | with one error-feedback repair | 99% | **84%** | 10/10 | 2.4 s |
 
 After adding legacy-name and case-number questions (99 q): 81% match, 97% executes, 10/10 Kannada.
+A later prompt pass (month formatting, no stray ID columns, "per district" vs "most", chargesheet
+semantics, age bands) lifted *executes* to 100% and left *matches* at 82% — the remaining misses are
+interpretation choices (which columns to show, whether "top" implies a limit), not wrong joins.
 Run-to-run LLM variance is a few points; treat the figure as low-to-mid 80s, not a single number.
 
-**Modus-operandi linking** (`npm run eval:similarity`, 200 random embedded cases, 5 nearest neighbours each,
-measured with 38% of the corpus embedded): neighbours share the crime group 94% of the time; for cases
-in a repeat-offender series, a same-crew case is among the 5 neighbours 22% of the time from the
-narrative alone, and 100% of those crew links cross a district boundary. Specific-type agreement is
-28% because the synthetic MO signatures are per crime group (a "Cheating"-labelled case can read like
-a burglary) — a limitation of the generated data, not of the linker. 313 ms per query over pgvector HNSW.
+**Modus-operandi linking** (`npm run eval:similarity`, 300 random cases, 5 nearest neighbours each, full
+corpus of 19,975 embedded narratives): neighbours share the crime group **96%** and the specific crime
+type **67%** of the time (28% with the first group-level signatures — the two-layer crew/offence
+signatures fixed that). For cases in a repeat-offender series, a same-crew case is among the 5
+neighbours **18%** of the time from the narrative alone — against 20,000 candidates, many of which share
+two or three of the five MO details — and **87%** of those crew links cross a district boundary, which
+is the link a single station cannot make. 570 ms per query over pgvector HNSW.
 
 **Load** (`npm run loadtest`, production build, 5 concurrent officers × 2 rounds, 10/10 answered): a
 question takes ~7 s to the first narrative token (planner → SQL generation → execution → synthesis);

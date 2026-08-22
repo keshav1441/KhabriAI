@@ -1,6 +1,8 @@
 // Expands the seed's templated BriefFacts ("Burglary reported at station 91.")
 // into realistic FIR narratives so case similarity / citations have text to work on.
-//   npx tsx scripts/enrich-briefs.ts [--limit=N]
+//   npx tsx scripts/enrich-briefs.ts [--limit=N] [--all]
+//   --all re-enriches every case (not only templated ones); use after changing
+//   lib/mo-signature.ts, then `npm run embed -- --force`.
 //
 // Modus operandi series: when the same repeat offender (Accused.PersonID) has
 // two or more cases in the same crime group, those cases share a consistent,
@@ -20,6 +22,10 @@ const CONCURRENCY = Number(process.env.ENRICH_CONCURRENCY) || 3;
 
 const limitArg = process.argv.find((a) => a.startsWith("--limit="));
 const LIMIT = limitArg ? Number(limitArg.split("=")[1]) : undefined;
+const ALL = process.argv.includes("--all");
+// --all is resumable: rows already rewritten carry this marker in the narrative
+// (an invisible word-joiner) so a re-run skips them.
+const DONE_MARK = "⁠";
 
 interface CaseRow {
   id: number;
@@ -56,7 +62,7 @@ async function fetchTemplatedCases(limit?: number): Promise<CaseRow[]> {
      LEFT JOIN "District" d ON d."DistrictID" = u."DistrictID"
      LEFT JOIN "CaseStatusMaster" cs ON cs."CaseStatusID" = cm."CaseStatusID"
      LEFT JOIN case_series x ON x."CaseMasterID" = cm."CaseMasterID"
-     WHERE cm."BriefFacts" ILIKE '%reported at station%'
+     WHERE ${ALL ? `cm."BriefFacts" NOT LIKE '%' || chr(8288) || '%'` : `cm."BriefFacts" ILIKE '%reported at station%'`}
      ORDER BY cm."CaseMasterID"
      ${limit ? "LIMIT $1" : ""}`,
     limit ? [limit] : []
@@ -72,7 +78,7 @@ async function generateNarratives(batch: CaseRow[]): Promise<Map<number, string>
     district: c.district ?? "Unknown",
     status: c.status ?? "Under Investigation",
     date: c.regDate ? new Date(c.regDate).toISOString().slice(0, 10) : "unknown date",
-    ...(c.seriesKey ? { modusOperandi: moSignature(c.seriesKey, c.crimeGroup ?? "") } : {}),
+    ...(c.seriesKey ? { modusOperandi: moSignature(c.seriesKey, c.crimeGroup ?? "", c.crimeType ?? "") } : {}),
   }));
 
   const completion = await llm.chat.completions.create({
@@ -87,7 +93,8 @@ async function generateNarratives(batch: CaseRow[]): Promise<Map<number, string>
           "For each case given, write a 2-4 sentence police-report-style narrative: what happened, where, and relevant detail " +
           "(time, method, items, relationship between parties) consistent with the crime type. Vary phrasing and specifics across cases. " +
           "Never name the accused or suspects - refer to them as unknown persons, the accused, a man/woman, etc. Complainants and victims may have plausible Kannadiga names. " +
-          "If a case has a modusOperandi object, weave EVERY one of its details naturally into the narrative (they describe a repeat crew's consistent method) without listing them as fields. " +
+          "The narrative must clearly be about the given crimeType (a Cheating case reads as cheating, a Burglary as a break-in). " +
+          "If a case has a modusOperandi object, weave EVERY one of its details naturally into the narrative (vehicle, time and signature describe a repeat crew's consistent habits; method and target describe this offence) without listing them as fields. " +
           "Output ONLY a JSON array of {\"id\": <number>, \"narrative\": <string>} objects, one per input case, same order, no markdown, no commentary.",
       },
       { role: "user", content: JSON.stringify(cases) },
@@ -99,7 +106,7 @@ async function generateNarratives(batch: CaseRow[]): Promise<Map<number, string>
   const parsed: Array<{ id: number; narrative: string }> = JSON.parse(cleaned);
 
   const out = new Map<number, string>();
-  for (const { id, narrative } of parsed) if (typeof narrative === "string" && narrative.length > 40) out.set(id, narrative);
+  for (const { id, narrative } of parsed) if (typeof narrative === "string" && narrative.length > 40) out.set(id, narrative.trim() + DONE_MARK);
   return out;
 }
 

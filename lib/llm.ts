@@ -22,7 +22,12 @@ Rules:
 - GenderID: 1=Male, 2=Female, 3=Transgender. When a result shows gender, return the label via CASE "GenderID" WHEN 1 THEN 'Male' WHEN 2 THEN 'Female' WHEN 3 THEN 'Transgender' END AS gender, not the raw ID.
 - "top", "most", "highest" over a plural ("which districts", "which stations"): ORDER BY the count DESC LIMIT 10, unless the question states a number. A singular ("which district", "which court", "which officer") means exactly one answer: LIMIT 1.
 - Return only the columns the question asks for: for "count by category" return the category label and the count, not also its ID.
-- Round averages and percentages to 1 decimal place: ROUND(AVG(x), 1). Do not add descriptive columns the question did not ask for.`;
+- Round averages and percentages to 1 decimal place: ROUND(AVG(x), 1). Do not add descriptive columns the question did not ask for, and never an *ID column next to its name.
+- Monthly trends: SELECT DATE_TRUNC('month', cm."CrimeRegisteredDate") AS month ... GROUP BY month ORDER BY month. Never TO_CHAR for the month.
+- "per district" / "by district" / "breakdown by X" means every group: GROUP BY with no LIMIT. Only "top"/"most" limit the rows.
+- "chargesheets filed" = ChargesheetDetails rows with "cstype" = 'A', filtered on "csdate".
+- "age distribution" / "age profile": bands via CASE WHEN "AgeYear" < 18 THEN 'Under 18' WHEN "AgeYear" < 26 THEN '18-25' WHEN "AgeYear" < 36 THEN '26-35' WHEN "AgeYear" < 46 THEN '36-45' ELSE '46+' END AS age_band, with COUNT(*) per band.
+- String literals use single quotes and must be closed with a single quote - never mix ' and ".`;
 
 export async function generateSQL(
   schema: string,
