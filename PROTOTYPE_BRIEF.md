@@ -66,7 +66,7 @@ cosine distance over narrative embeddings stored on `CaseMaster.BriefFactsEmbedd
 | **Modus-operandi linking** | pgvector nearest-narrative search: "which cases, anywhere in the state, describe the same method?" — from a case, a CrimeNo, or a free-text description; cross-district links flagged |
 | Kannada localization | Full nav/chat UI in Kannada, questions accepted in either language |
 | Voice + export | Speech in/out, conversation PDF export, CSV result export |
-| Auth & history | PBKDF2-SHA512 or Google sign-in, HMAC-signed session cookie, per-user chat threads in Neon |
+| Auth & history | Neon Auth (Google via shared OAuth, email one-time codes) bridged to an HMAC-signed app session; password accounts for scripts; per-user chat threads in Neon |
 | **Role-based scope** | An SHO is bound to one district; an HQ user is statewide. Enforced by Postgres row-level security on every case table — the model's SQL, the Case File drawer, profiling, network, map and MO links all see only that district |
 
 ## Modus-operandi linking — the capability a station cannot have on its own

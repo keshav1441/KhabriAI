@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!user.passwordHash || !user.salt) {
-      return Response.json({ error: "This account uses Google sign-in. Use the Google button below." }, { status: 401 });
+      return Response.json({ error: "This account signs in with Google or an email code. Use the options below." }, { status: 401 });
     }
     const hash = hashPassword(password, user.salt);
     if (hash !== user.passwordHash) {

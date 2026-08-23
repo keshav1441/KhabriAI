@@ -137,11 +137,23 @@ Open **http://localhost:3000** → sign up or log in → dashboard.
 - **New chat** starts a fresh thread; the first message auto-titles the session.
 - API routes resolve the user from the session cookie (`lib/chat-auth.ts`).
 
-### Google sign-in (optional)
+### Neon Auth: Google and email one-time codes
 
-- Set `GOOGLE_CLIENT_ID` and `NEXT_PUBLIC_GOOGLE_CLIENT_ID` to the same OAuth 2.0 **Web application** client ID (Google Cloud Console → APIs & Services → Credentials → Create credentials → OAuth client ID). Leave both empty and the button is not rendered.
-- **Authorized JavaScript origins** must include `http://localhost:3000` and your Catalyst AppSail URL (e.g. `https://<app>.catalystserverless.in`). No redirect URI is needed — the GIS button posts the ID token to `POST /api/auth/google`.
-- The token is verified via Google's `tokeninfo` endpoint (no extra dependency), then the `KhabriUser` is found or created by email and the same `khabri_session` cookie is issued. Google-only accounts have a null `passwordHash` and cannot use the password form.
+Identity is handled by **Neon Auth** (managed Better Auth, enabled on the project's Neon branch): **Continue with Google** uses
+Neon's shared OAuth credentials (no Google Cloud project needed), and **Email me a code** signs in with a 6-digit one-time
+code sent by Neon's shared email provider. The app keeps its own `KhabriUser` row (role, district → RLS scope) and its own
+`khabri_session` cookie: after a Neon sign-in, `POST /api/auth/bridge` finds-or-creates the user by email and issues the
+session exactly like the password login. New Neon users start as HQ (statewide); give them a district with
+`npm run set-scope`. The password login/signup routes remain for scripted and legacy accounts.
+
+```
+NEON_AUTH_URL=https://<endpoint-id>.neonauth.<region>.aws.neon.tech/neondb/auth   # Neon Console → Branch → Auth ("Auth URL"; NEON_AUTH_BASE_URL also accepted)
+NEON_AUTH_COOKIE_SECRET=<32+ random chars>
+```
+
+Files: `lib/neon-auth.ts` (server instance + bridge), `app/api/auth/[...path]/route.ts` (proxy), `lib/auth-client.ts`,
+`app/auth/callback/page.tsx` (Google return URL — add `http://localhost:3000` and the AppSail URL as trusted origins in the
+Neon Console). Without `NEON_AUTH_BASE_URL` the Neon buttons return a clear error and the password form still works.
 
 ---
 
@@ -279,7 +291,6 @@ scripts/
 | `MISTRAL_SUMMARY_MODEL` | No | Summary model (default `mistral-small-latest`) |
 | `MISTRAL_ORCH_MODEL` | No | Agent orchestrator model (default `mistral-large-latest`) |
 | `SESSION_SECRET` | Prod | HMAC key for session cookies — required in production |
-| `GOOGLE_CLIENT_ID` / `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | No | OAuth Web client ID (same value) — enables "Sign in with Google" |
 | `CATALYST_AUTOML_MODEL_ID` | No | QuickML model ID for the `predictRisk` tool (AppSail only) |
 | `CRON_SECRET` | No | Bearer token guarding `/api/cron/insights` precompute |
 
