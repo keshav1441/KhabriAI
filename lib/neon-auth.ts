@@ -1,21 +1,10 @@
-import { createNeonAuth } from "@neondatabase/auth/next/server";
 import { prisma } from "./db";
+export { neonAuth, neonAuthConfigured } from "./neon-auth-server";
 
 // Neon Auth (managed Better Auth) handles identity: Google (Neon's shared OAuth
 // credentials) and email one-time codes. The app keeps its own KhabriUser row
 // (role, district -> RLS scope) and its own session cookie; bridgeNeonUser()
 // joins the two by email after a Neon sign-in.
-// Neon's console labels it "Auth URL"; the SDK docs call it NEON_AUTH_BASE_URL. Accept both.
-const BASE_URL = process.env.NEON_AUTH_BASE_URL ?? process.env.NEON_AUTH_URL ?? "";
-
-export const neonAuth = createNeonAuth({
-  baseUrl: BASE_URL,
-  cookies: { secret: process.env.NEON_AUTH_COOKIE_SECRET ?? "dev-insecure-neon-auth-cookie-secret-32chars" },
-});
-
-export function neonAuthConfigured(): boolean {
-  return Boolean(BASE_URL);
-}
 
 export type BridgedUser = { firstName: string; lastName: string; email: string; role: string; districtName: string | null };
 

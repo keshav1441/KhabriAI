@@ -151,8 +151,9 @@ NEON_AUTH_URL=https://<endpoint-id>.neonauth.<region>.aws.neon.tech/neondb/auth 
 NEON_AUTH_COOKIE_SECRET=<32+ random chars>
 ```
 
-Files: `lib/neon-auth.ts` (server instance + bridge), `app/api/auth/[...path]/route.ts` (proxy), `lib/auth-client.ts`,
-`app/auth/callback/page.tsx` (Google return URL — add `http://localhost:3000` and the AppSail URL as trusted origins in the
+Files: `lib/neon-auth-server.ts` (edge-safe instance), `lib/neon-auth.ts` (bridge), `app/api/auth/[...path]/route.ts` (API proxy),
+`proxy.ts` (Next middleware: exchanges the `?neon_auth_session_verifier` Google returns with for the Neon session cookie, then
+sends the user to `/auth/callback`), `lib/auth-client.ts`, `app/auth/callback/page.tsx` (Google return URL — add `http://localhost:3000` and the AppSail URL as trusted origins in the
 Neon Console). Without `NEON_AUTH_BASE_URL` the Neon buttons return a clear error and the password form still works.
 
 ---

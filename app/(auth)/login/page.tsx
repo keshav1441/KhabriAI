@@ -182,7 +182,8 @@ function NeonSignIn({ onError }: { onError: (msg: string) => void }) {
   const google = async () => {
     onError(""); setBusy("google");
     try {
-      const r = await authClient.signIn.social({ provider: "google", callbackURL: "/auth/callback" });
+      // Absolute URL: a relative callbackURL came back as "/" on the Neon side.
+      const r = await authClient.signIn.social({ provider: "google", callbackURL: `${window.location.origin}/auth/callback` });
       if (r?.error) onError(r.error.message ?? "Google sign-in failed.");
     } catch { onError("Google sign-in is unavailable."); }
     finally { setBusy(""); }
