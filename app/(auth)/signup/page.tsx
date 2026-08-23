@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { NeonSignIn } from "@/components/auth/NeonSignIn";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -147,6 +148,12 @@ export default function SignupPage() {
             )}
           </button>
         </form>
+
+        <NeonSignIn
+          onError={setError}
+          googleLabel="Sign up with Google"
+          posting={{ role: form.role === "SHO" ? "SHO" : "HQ", districtId: form.districtId ? Number(form.districtId) : null }}
+        />
 
         <div style={{ borderTop: "1px solid var(--border)", marginTop: "1.5rem", paddingTop: "1.5rem" }}>
           <p className="text-sm text-center" style={{ color: "var(--text-muted)" }}>

@@ -143,8 +143,9 @@ Identity is handled by **Neon Auth** (managed Better Auth, enabled on the projec
 Neon's shared OAuth credentials (no Google Cloud project needed), and **Email me a code** signs in with a 6-digit one-time
 code sent by Neon's shared email provider. The app keeps its own `KhabriUser` row (role, district → RLS scope) and its own
 `khabri_session` cookie: after a Neon sign-in, `POST /api/auth/bridge` finds-or-creates the user by email and issues the
-session exactly like the password login. New Neon users start as HQ (statewide); give them a district with
-`npm run set-scope`. The password login/signup routes remain for scripted and legacy accounts.
+session exactly like the password login. Both options are also on `/signup`: the Posting / District chosen there is carried through the Google
+redirect (sessionStorage) and applied when the account is first created; a later sign-in never changes an existing
+officer's posting. Accounts created from `/login` start as HQ (statewide); give them a district with `npm run set-scope`. The password login/signup routes remain for scripted and legacy accounts.
 
 ```
 NEON_AUTH_URL=https://<endpoint-id>.neonauth.<region>.aws.neon.tech/neondb/auth   # Neon Console → Branch → Auth ("Auth URL"; NEON_AUTH_BASE_URL also accepted)

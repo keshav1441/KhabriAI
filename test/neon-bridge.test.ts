@@ -20,3 +20,17 @@ test("a repeat sign-in keeps the existing role and district", async () => {
   assert.equal(u.districtName, "Mysuru");
   assert.equal(u.firstName, "Asha");
 });
+
+test("a posting chosen at sign-up is applied when the account is first created, never afterwards", async () => {
+  const EMAIL2 = "bridge.posting@ksp.test";
+  await prisma.khabriUser.deleteMany({ where: { email: EMAIL2 } });
+  try {
+    const created = await bridgeNeonUser({ email: EMAIL2, name: "Kiran N" }, { role: "SHO", districtId: 3 });
+    assert.equal(created.role, "SHO");
+    assert.equal(created.districtName, "Mysuru");
+    const again = await bridgeNeonUser({ email: EMAIL2, name: "Kiran N" }, { role: "SHO", districtId: 1 });
+    assert.equal(again.districtName, "Mysuru", "an existing account's posting is not changed by a later sign-in");
+  } finally {
+    await prisma.khabriUser.deleteMany({ where: { email: EMAIL2 } });
+  }
+});

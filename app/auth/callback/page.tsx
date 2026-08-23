@@ -1,14 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { completeNeonSignIn } from "@/lib/auth-client";
+import { completeNeonSignIn, takeStashedPosting } from "@/lib/auth-client";
 
 // Google sign-in lands here (callbackURL). Bridge the Neon session into the app session, then go to the dashboard.
 export default function NeonAuthCallback() {
   const router = useRouter();
   const [error, setError] = useState("");
   useEffect(() => {
-    completeNeonSignIn().then((r) => (r.ok ? router.replace("/dashboard") : setError(r.error)));
+    completeNeonSignIn(takeStashedPosting()).then((r) => (r.ok ? router.replace("/dashboard") : setError(r.error)));
   }, [router]);
   return (
     <main className="min-h-screen flex items-center justify-center" style={{ background: "var(--bg-base)", color: "var(--text-secondary)" }}>
