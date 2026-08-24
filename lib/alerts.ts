@@ -253,11 +253,21 @@ export function fanOut(
 ): AlertInsert[] {
   return users.flatMap((u) => {
     const statewide = u.role !== "SHO" || !u.districtId;
+    const seen = new Set<string>();
     return candidates
       // An SHO gets their own district's findings plus statewide ones; a
       // finding from another district is outside their scope, the same way the
       // row-level security hides that district's cases.
       .filter((c) => statewide || c.districtId == null || c.districtId === u.districtId)
+      // A cross-district finding is emitted once per district so both stations
+      // are told. For an officer who can see both, that is one event, not two -
+      // and the same pair listed twice in the feed reads as two duplicates.
+      .filter((c) => {
+        if (!statewide) return true;
+        if (seen.has(c.dedupe)) return false;
+        seen.add(c.dedupe);
+        return true;
+      })
       .map((c) => ({
         userId: u.id,
         kind: c.type,
