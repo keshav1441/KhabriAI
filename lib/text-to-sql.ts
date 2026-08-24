@@ -59,7 +59,20 @@ function prepare(raw: string): string {
 export async function answerWithSQL(
   question: string,
   opts: { history?: ChatTurn[]; req?: Request; repair?: boolean; excludeIndex?: number; fewShotK?: number } = {}
-): Promise<{ sql: string; rows: Record<string, unknown>[]; repaired: boolean; substitutions: Substitution[]; suggestions: string[]; ambiguousPerson: { token: string; count: number; examples: string[] } | null; retrievalScores: number[] }> {
+): Promise<{
+  sql: string;
+  rows: Record<string, unknown>[];
+  repaired: boolean;
+  /** The database error that forced the repair, when one did. */
+  repairError?: string;
+  substitutions: Substitution[];
+  suggestions: string[];
+  ambiguousPerson: { token: string; count: number; examples: string[] } | null;
+  retrievalScores: number[];
+  /** The few-shot questions this SQL was written from - the trace shows them so
+   *  an officer can see which precedents the query was modelled on. */
+  fewShot: { question: string; score: number }[];
+}> {
   const { history = [], req, repair = true, excludeIndex, fewShotK = 2 } = opts;
   await warmupEmbeddings(req);
   const examples = await findSimilar(question, fewShotK, excludeIndex, req);
@@ -96,5 +109,6 @@ export async function answerWithSQL(
     suggestions: accusedSuggestions(out.sql, rows, accused),
     ambiguousPerson: ambiguous,
     retrievalScores: examples.map((e) => e.score),
+    fewShot: examples.map((e) => ({ question: e.question, score: e.score })),
   };
 }

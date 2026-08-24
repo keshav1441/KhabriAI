@@ -287,6 +287,7 @@ export const STRINGS = {
   "dup.open":             { en: "Open the other file", kn: "ಇನ್ನೊಂದು ಕಡತ ತೆರೆಯಿರಿ" },
 
   // Officer's desk
+  "nav.command":          { en: "Command Centre", kn: "ಕಮಾಂಡ್ ಕೇಂದ್ರ" },
   "nav.desk":             { en: "My Desk", kn: "ನನ್ನ ಮೇಜು" },
   "desk.title":           { en: "Cases on my desk", kn: "ನನ್ನ ಮೇಜಿನ ಪ್ರಕರಣಗಳು" },
   "desk.subtitle":        { en: "What is open, what is overdue, and what is closest to slipping.",
@@ -301,6 +302,104 @@ export const STRINGS = {
   "desk.filter.overdue":  { en: "Overdue", kn: "ವಿಳಂಬ" },
   "desk.filter.noArrest": { en: "No arrest", kn: "ಬಂಧನವಿಲ್ಲ" },
   "desk.court":           { en: "Court", kn: "ನ್ಯಾಯಾಲಯ" },
+  // Identity resolution (same person across FIRs, without a PersonID)
+  "identity.title":       { en: "Same person, other files", kn: "ಅದೇ ವ್ಯಕ್ತಿ, ಇತರ ಕಡತಗಳು" },
+  "identity.hint":        { en: "Records that look like the same person by name, age and gender — the only identifying fields this register holds. Nothing is merged; the officer decides.",
+                            kn: "ಹೆಸರು, ವಯಸ್ಸು ಮತ್ತು ಲಿಂಗದಿಂದ ಒಂದೇ ವ್ಯಕ್ತಿ ಎಂದು ಕಾಣುವ ದಾಖಲೆಗಳು — ಈ ದಾಖಲೆಯಲ್ಲಿ ಇರುವ ಗುರುತಿನ ಮಾಹಿತಿ ಅಷ್ಟೇ. ಯಾವುದನ್ನೂ ವಿಲೀನಗೊಳಿಸಿಲ್ಲ; ಅಧಿಕಾರಿ ನಿರ್ಧರಿಸುತ್ತಾರೆ." },
+  "identity.confidence":  { en: "Confidence", kn: "ವಿಶ್ವಾಸ" },
+  "identity.none":        { en: "No other records look like this person", kn: "ಈ ವ್ಯಕ್ತಿಯಂತೆ ಕಾಣುವ ಬೇರೆ ದಾಖಲೆಗಳಿಲ್ಲ" },
+  "identity.checking":    { en: "Looking for the same person…", kn: "ಅದೇ ವ್ಯಕ್ತಿಯನ್ನು ಹುಡುಕಲಾಗುತ್ತಿದೆ…" },
+  "identity.why":         { en: "What matched", kn: "ಏನು ಹೊಂದಿಕೆಯಾಯಿತು" },
+  "identity.cases":       { en: "cases in this cluster", kn: "ಈ ಗುಂಪಿನಲ್ಲಿ ಪ್ರಕರಣಗಳು" },
+
+  // Court pipeline
+  "nav.pipeline":         { en: "Case Pipeline", kn: "ಪ್ರಕರಣ ಹರಿವು" },
+  "pipeline.title":       { en: "From FIR to court", kn: "ಎಫ್‌ಐಆರ್‌ನಿಂದ ನ್ಯಾಯಾಲಯದವರೆಗೆ" },
+  "pipeline.subtitle":    { en: "Where cases move quickly, and where they stop.", kn: "ಪ್ರಕರಣಗಳು ಎಲ್ಲಿ ವೇಗವಾಗಿ ಸಾಗುತ್ತವೆ, ಮತ್ತು ಎಲ್ಲಿ ನಿಲ್ಲುತ್ತವೆ." },
+  "pipeline.registered":  { en: "FIR registered", kn: "ಎಫ್‌ಐಆರ್ ದಾಖಲು" },
+  "pipeline.arrested":    { en: "Arrest made", kn: "ಬಂಧನ" },
+  "pipeline.chargesheet": { en: "Chargesheet filed", kn: "ಆರೋಪಪಟ್ಟಿ ಸಲ್ಲಿಕೆ" },
+  "pipeline.court":       { en: "Sent to court", kn: "ನ್ಯಾಯಾಲಯಕ್ಕೆ" },
+  "pipeline.medianDays":  { en: "median days", kn: "ಸರಾಸರಿ ದಿನಗಳು" },
+  "pipeline.bottleneck":  { en: "Slowest step", kn: "ಅತ್ಯಂತ ನಿಧಾನ ಹಂತ" },
+  "pipeline.dropoff":     { en: "Cases that never reach this step", kn: "ಈ ಹಂತ ತಲುಪದ ಪ್ರಕರಣಗಳು" },
+  "pipeline.empty":       { en: "Not enough completed cases to measure", kn: "ಅಳೆಯಲು ಸಾಕಷ್ಟು ಪೂರ್ಣ ಪ್ರಕರಣಗಳಿಲ್ಲ" },
+
+  // Incident-level map
+  "map.layer.incidents":  { en: "Incidents", kn: "ಘಟನೆಗಳು" },
+  "map.incidentHint":     { en: "Each point is one FIR, placed at its recorded location.", kn: "ಪ್ರತಿ ಬಿಂದು ಒಂದು ಎಫ್‌ಐಆರ್, ಅದರ ದಾಖಲಿತ ಸ್ಥಳದಲ್ಲಿ." },
+  "map.incidentCount":    { en: "incidents shown", kn: "ಘಟನೆಗಳು ತೋರಿಸಲಾಗಿದೆ" },
+  "map.noCoords":         { en: "without recorded coordinates", kn: "ದಾಖಲಿತ ನಿರ್ದೇಶಾಂಕಗಳಿಲ್ಲದೆ" },
+
+  // Time-of-day / day-of-week patterns
+  "nav.patterns":         { en: "When Crime Happens", kn: "ಅಪರಾಧ ಯಾವಾಗ" },
+  "patterns.title":       { en: "When crime happens", kn: "ಅಪರಾಧ ಯಾವಾಗ ನಡೆಯುತ್ತದೆ" },
+  "patterns.subtitle":    { en: "The hotspot map answers where. This answers when — the other half of a shift plan.",
+                            kn: "ನಕ್ಷೆ ಎಲ್ಲಿ ಎಂದು ಹೇಳುತ್ತದೆ. ಇದು ಯಾವಾಗ ಎಂದು ಹೇಳುತ್ತದೆ — ಪಾಳಿ ಯೋಜನೆಯ ಇನ್ನೊಂದು ಅರ್ಧ." },
+  "patterns.hour":        { en: "Hour of day", kn: "ದಿನದ ಗಂಟೆ" },
+  "patterns.weekday":     { en: "Day of week", kn: "ವಾರದ ದಿನ" },
+  "patterns.peak":        { en: "Busiest window", kn: "ಅತ್ಯಂತ ಬಿಡುವಿಲ್ಲದ ಅವಧಿ" },
+  "patterns.allCrime":    { en: "All crime", kn: "ಎಲ್ಲಾ ಅಪರಾಧ" },
+  "patterns.empty":       { en: "No cases in this selection", kn: "ಈ ಆಯ್ಕೆಯಲ್ಲಿ ಪ್ರಕರಣಗಳಿಲ್ಲ" },
+  "patterns.caveat":      { en: "Measured on the registration timestamp, which is when the FIR was written, not always when the offence happened.",
+                            kn: "ಎಫ್‌ಐಆರ್ ಬರೆದ ಸಮಯದ ಆಧಾರದ ಮೇಲೆ ಅಳೆಯಲಾಗಿದೆ, ಇದು ಯಾವಾಗಲೂ ಅಪರಾಧ ನಡೆದ ಸಮಯವಲ್ಲ." },
+  // Show-your-working trace under an answer
+  "trace.show":           { en: "Show the working", kn: "ಕಾರ್ಯವಿಧಾನ ತೋರಿಸಿ" },
+  "trace.hide":           { en: "Hide the working", kn: "ಕಾರ್ಯವಿಧಾನ ಮರೆಮಾಡಿ" },
+  "trace.title":          { en: "How this answer was produced", kn: "ಈ ಉತ್ತರ ಹೇಗೆ ಬಂತು" },
+  "trace.sql":            { en: "Query run against the database", kn: "ಡೇಟಾಬೇಸ್‌ನಲ್ಲಿ ಚಲಾಯಿಸಿದ ಪ್ರಶ್ನೆ" },
+  "trace.rows":           { en: "rows returned", kn: "ಸಾಲುಗಳು ಬಂದವು" },
+  "trace.tools":          { en: "Tools used", kn: "ಬಳಸಿದ ಸಾಧನಗಳು" },
+  "trace.examples":       { en: "Examples the query was written from", kn: "ಪ್ರಶ್ನೆ ಬರೆಯಲು ಬಳಸಿದ ಉದಾಹರಣೆಗಳು" },
+  "trace.scope":          { en: "Data the query could see", kn: "ಪ್ರಶ್ನೆಗೆ ಕಾಣುವ ಮಾಹಿತಿ" },
+  "trace.timing":         { en: "Time taken", kn: "ತೆಗೆದುಕೊಂಡ ಸಮಯ" },
+  "trace.repaired":       { en: "The first query failed and was corrected", kn: "ಮೊದಲ ಪ್ರಶ್ನೆ ವಿಫಲವಾಗಿ ಸರಿಪಡಿಸಲಾಯಿತು" },
+
+  // Section suggestion on FIR registration
+  "section.suggest":      { en: "Suggest sections from the facts", kn: "ವಿವರಗಳಿಂದ ಸೆಕ್ಷನ್ ಸೂಚಿಸಿ" },
+  "section.suggesting":   { en: "Reading the facts…", kn: "ವಿವರಗಳನ್ನು ಓದಲಾಗುತ್ತಿದೆ…" },
+  "section.why":          { en: "Why this section", kn: "ಈ ಸೆಕ್ಷನ್ ಏಕೆ" },
+  "section.basedOn":      { en: "Applied in similar cases", kn: "ಸಮಾನ ಪ್ರಕರಣಗಳಲ್ಲಿ ಅನ್ವಯಿಸಲಾಗಿದೆ" },
+  "section.confidence":   { en: "Confidence", kn: "ವಿಶ್ವಾಸ" },
+  "section.none":         { en: "No section could be suggested from these facts", kn: "ಈ ವಿವರಗಳಿಂದ ಯಾವ ಸೆಕ್ಷನ್ ಸೂಚಿಸಲಾಗಲಿಲ್ಲ" },
+  "section.add":          { en: "Add", kn: "ಸೇರಿಸಿ" },
+  "section.caveat":       { en: "A suggestion from past filings, not legal advice. The officer decides what is charged.",
+                            kn: "ಹಿಂದಿನ ದಾಖಲಾತಿಗಳಿಂದ ಸೂಚನೆ, ಕಾನೂನು ಸಲಹೆ ಅಲ್ಲ. ಏನನ್ನು ಆರೋಪಿಸಬೇಕೆಂದು ಅಧಿಕಾರಿ ನಿರ್ಧರಿಸುತ್ತಾರೆ." },
+
+  // Repeat victimisation
+  "nav.victims":          { en: "Repeat Victims", kn: "ಪುನರಾವರ್ತಿತ ಸಂತ್ರಸ್ತರು" },
+  "victims.title":        { en: "People victimised more than once", kn: "ಒಂದಕ್ಕಿಂತ ಹೆಚ್ಚು ಬಾರಿ ಸಂತ್ರಸ್ತರಾದವರು" },
+  "victims.subtitle":     { en: "A small number of people absorb a large share of crime. These are the ones this data can see.",
+                            kn: "ಕಡಿಮೆ ಸಂಖ್ಯೆಯ ಜನರು ಹೆಚ್ಚಿನ ಅಪರಾಧವನ್ನು ಅನುಭವಿಸುತ್ತಾರೆ. ಈ ಮಾಹಿತಿಯಲ್ಲಿ ಕಾಣುವವರು ಇವರು." },
+  "victims.cases":        { en: "times victimised", kn: "ಬಾರಿ ಸಂತ್ರಸ್ತರಾಗಿದ್ದಾರೆ" },
+  "victims.span":         { en: "Between", kn: "ನಡುವೆ" },
+  "victims.empty":        { en: "No repeat victimisation found in this scope", kn: "ಈ ವ್ಯಾಪ್ತಿಯಲ್ಲಿ ಪುನರಾವರ್ತಿತ ಸಂತ್ರಸ್ತತೆ ಕಂಡುಬಂದಿಲ್ಲ" },
+  "victims.caveat":       { en: "Matched on name, age and gender only — the victim record carries no address, so two people with the same name cannot always be told apart.",
+                            kn: "ಹೆಸರು, ವಯಸ್ಸು ಮತ್ತು ಲಿಂಗದ ಆಧಾರದ ಮೇಲೆ ಮಾತ್ರ — ಸಂತ್ರಸ್ತ ದಾಖಲೆಯಲ್ಲಿ ವಿಳಾಸವಿಲ್ಲ, ಆದ್ದರಿಂದ ಒಂದೇ ಹೆಸರಿನ ಇಬ್ಬರನ್ನು ಯಾವಾಗಲೂ ಬೇರ್ಪಡಿಸಲಾಗದು." },
+  "victims.confidence":   { en: "Match confidence", kn: "ಹೊಂದಾಣಿಕೆ ವಿಶ್ವಾಸ" },
+  // Case handover brief
+  "handover.title":       { en: "Handover brief", kn: "ಹಸ್ತಾಂತರ ಟಿಪ್ಪಣಿ" },
+  "handover.build":       { en: "Prepare handover brief", kn: "ಹಸ್ತಾಂತರ ಟಿಪ್ಪಣಿ ಸಿದ್ಧಪಡಿಸಿ" },
+  "handover.building":    { en: "Preparing…", kn: "ಸಿದ್ಧಪಡಿಸಲಾಗುತ್ತಿದೆ…" },
+  "handover.whatHappened":{ en: "What happened", kn: "ಏನಾಯಿತು" },
+  "handover.doneSoFar":   { en: "Done so far", kn: "ಇಲ್ಲಿಯವರೆಗೆ ಆಗಿದ್ದು" },
+  "handover.outstanding": { en: "Outstanding", kn: "ಬಾಕಿ ಇರುವುದು" },
+  "handover.linked":      { en: "Linked cases", kn: "ಸಂಬಂಧಿತ ಪ್ರಕರಣಗಳು" },
+  "handover.deadline":    { en: "Next deadline", kn: "ಮುಂದಿನ ಗಡುವು" },
+  "handover.print":       { en: "Print", kn: "ಮುದ್ರಿಸಿ" },
+  "handover.caveat":      { en: "Assembled from the case record. Check it before signing anything.",
+                            kn: "ಪ್ರಕರಣ ದಾಖಲೆಯಿಂದ ಸಿದ್ಧಪಡಿಸಲಾಗಿದೆ. ಸಹಿ ಮಾಡುವ ಮೊದಲು ಪರಿಶೀಲಿಸಿ." },
+
+  // Custody position
+  "custody.title":        { en: "Custody position", kn: "ವಶದ ಸ್ಥಿತಿ" },
+  "custody.arrested":     { en: "Arrested", kn: "ಬಂಧಿತ" },
+  "custody.surrendered":  { en: "Surrendered", kn: "ಶರಣಾಗತ" },
+  "custody.none":         { en: "Never brought in", kn: "ಎಂದೂ ಹಾಜರುಪಡಿಸಿಲ್ಲ" },
+  "custody.filter":       { en: "Custody", kn: "ವಶ" },
+  "custody.csNoCustody":  { en: "Chargesheeted with nobody in custody", kn: "ಯಾರೂ ವಶದಲ್ಲಿಲ್ಲದೆ ಆರೋಪಪಟ್ಟಿ" },
+  "custody.stale":        { en: "No custody action since", kn: "ಇಂದಿನಿಂದ ವಶದ ಕ್ರಮವಿಲ್ಲ" },
+  "custody.caveat":       { en: "The record shows arrest and surrender only — it carries no bail or custody status.",
+                            kn: "ದಾಖಲೆಯಲ್ಲಿ ಬಂಧನ ಮತ್ತು ಶರಣಾಗತಿ ಮಾತ್ರ — ಜಾಮೀನು ಅಥವಾ ವಶದ ಸ್ಥಿತಿ ಇಲ್ಲ." },
 } as const;
 
 export type StringKey = keyof typeof STRINGS;

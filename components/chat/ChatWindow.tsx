@@ -219,7 +219,15 @@ export function ChatWindow() {
               if (parsed.vizType !== undefined) patch.vizType = parsed.vizType as VizType;
               if (parsed.sqlError !== undefined) patch.sqlError = parsed.sqlError;
               if (parsed.relatedCases !== undefined) patch.relatedCases = parsed.relatedCases;
-              if (parsed.groundedness !== undefined) patch.groundedness = parsed.groundedness;
+              if (parsed.trace !== undefined) patch.trace = parsed.trace;
+              if (parsed.groundedness !== undefined) {
+                patch.groundedness = parsed.groundedness;
+                // The verdict cannot exist until the narrative does, so it lands
+                // on the second `meta` - fold it back into the trace that came
+                // with the first one, keeping the working in one object.
+                const base = patch.trace ?? meta.trace;
+                if (base) patch.trace = { ...base, groundedness: parsed.groundedness };
+              }
               meta = { ...meta, ...patch };
               updateMessage(asstMsgId, patch);
             } else if (parsed.type === "token") {

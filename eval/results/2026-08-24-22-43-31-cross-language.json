@@ -1,0 +1,1797 @@
+{
+  "slice": 192,
+  "k": 5,
+  "corpus": "English",
+  "query": "Kannada (machine-translated from the same case's English narrative)",
+  "seriesRecallBaseline": "20%",
+  "seriesRecallCrossLanguage": "2%",
+  "seriesRecallRetained": "10%",
+  "neighbourRecallAtK": "8%",
+  "sameLanguageShareOfRawTopK": "100%",
+  "groupAgreementBaseline": "98%",
+  "groupAgreementCrossLanguage": "74%",
+  "top1ScoreBaseline": {
+    "mean": 0.928,
+    "median": 0.929
+  },
+  "top1ScoreCrossLanguage": {
+    "mean": 0.869,
+    "median": 0.868
+  },
+  "meanTopKScoreBaseline": 0.92,
+  "meanTopKScoreCrossLanguage": 0.865,
+  "crossDistrictShareOfCrossLanguageHits": "100%",
+  "msPerCase": 898,
+  "examples": [
+    {
+      "caseId": 35,
+      "kannadaNarrative": "೨೦೨೬ನೇ ಆಗಸ್ಟ್ ೧೩ ರಂದು ಬೆಳಿಗ್ಗೆ ಬಳ್ಳಾರಿ ನಗರದ bus stand ನಲ್ಲಿ ನಿಲ್ಲಿಸಲಾಗಿದ್ದ ನೀಲಿ ಬಣ್ಣದ auto rickshaw ಅನ್ನು ಅಪರಾಧಿ ಬಾಡಿಗೆಗೆ ಪಡೆದು, daughter ರಿಗೆ temple visit ಎಂದು ನಂಬಿಸಿ ಕರೆದೊಯ್ದನು; auto rickshaw driver ಸಾಕ್ಷಿಯ ಪ್ರಕಾರ ಹುಡುಗಿ ಅಪಹರಣಗೊಂಡಾಗ ಆಕೆಯ ಸಂಬಂಧಿಕರು ಮನೆಯೊಳಗಿದ್ದರು.⁠",
+      "englishOriginal": "On the morning of 13-08-2026 in Ballari, the accused hired the same blue autorickshaw stationed at the bus stand, convinced the daughter to accompany him under the pretext of a temple visit, and drove away; the autorickshaw driver stated the girl’s relatives were inside the house when the abduction occurred.⁠",
+      "matchedCaseId": 5892,
+      "matchedEnglishNarrative": "On 06-09-2025 at 08:10 near Kalaburagi City Bus Stand, a daughter aged 16 was taken by an autorickshaw driver on the pretext of visiting a temple; the accused's family members were present at the stand and prevented the girl's brother from intervening before she was taken to a undisclosed location.⁠",
+      "matchedScore": 0.883,
+      "sameSeries": true,
+      "rank": 2
+    },
+    {
+      "caseId": 112,
+      "kannadaNarrative": "ಕೊಪ್ಪಳದಲ್ಲಿ ೦೧-೧೨-೨೦೨೪ರವರೆಗೆ ಮೂರು ತಿಂಗಳುಗಳ ಅವಧಿಯಲ್ಲಿ ಒಂದು ರಿಟೇಲ್ ಚೈನ್ ನ ಹಣದ collections ಅನ್ನು ಪ್ರತಿ गुरुवಾರ overnight locked ಆಗುತ್ತಿದ್ದ ಕಚೇರಿಯ vault ನಲ್ಲಿ forged ₹೫೦೦ notes ಗಳನ್ನು print ಮಾಡಿ diverted ಮಾಡಲಾಗುತ್ತಿತ್ತು. ಪ್ರತಿ forged instrument ಮೇಲೆ ಒಂದೇ notary stamp ಇತ್ತು.⁠",
+      "englishOriginal": "Over three months ending 01-12-2024 in Koppal, a retail chain’s cash collections were routinely diverted by printing fake ₹500 notes in the vault of an office that shut overnight every Thursday. A single notary’s stamp appeared on every forged instrument.⁠",
+      "matchedCaseId": 18385,
+      "matchedEnglishNarrative": "From 25-01-2025 to 18-04-2025 at a main road office in Ramanagara that closed overnight, an unknown gang operating weekly printed counterfeit ₹500 notes and used the same notary on every forged document to dupe a local retail chain out of ₹2.8 lakh.⁠",
+      "matchedScore": 0.877,
+      "sameSeries": true,
+      "rank": 2
+    },
+    {
+      "caseId": 233,
+      "kannadaNarrative": "೨೦೨೫ನೇ ಏಪ್ರಿಲ್ ಮೊದಲ ವಾರದಲ್ಲಿ, XYZ-Finance ಎಂಬ weekly ಬದಲಾಗುವ ಟೆಲಿಗ್ರಾಂ ಹ್ಯಾಂಡಲ್ ಮೂಲಕ ಬೆಂಗಳೂರಿನ ಐಟಿ ಉದ್ಯೋಗಿ ಕಿರಣ್ ಅವರನ್ನು ವಾಟ್ಸಾಪ್ ಮೂಲಕ ಸಂಪರ್ಕಿಸಿ, 'ಹೊಸ ಕಾರ್ಪೊರೇಟ್ ನಂಬರ್' ಎಂಬ ನೆಪದಲ್ಲಿ SIM swap ಮಾಡಲು ಮನವೊಲಿಸಿ, ಬ್ಯಾಂಕ್ PIN reset ಮಾಡಿಸಿ, ಜಾರ್ಖಂಡ್‌ನ mule account ಗೆ ₹೮.೯ ಲಕ್ಷ ವರ್ಗಾಯಿಸಿದ್ದಾರೆ.⁠",
+      "englishOriginal": "In first week of Apr 2025 the accused, operating via a Telegram handle that changed weekly under the alias XYZ-Finance, contacted Bengaluru-based IT employee Kiran via WhatsApp, convinced him to perform a SIM swap for a ‘new corporate number,’ reset the bank PIN, and transferred ₹8.9 lakh to a mule account in Jharkhand",
+      "matchedCaseId": 6990,
+      "matchedEnglishNarrative": "On the first week of every month starting 08-12-2024 in Dakshina Kannada, a company’s bank account was compromised via a weekly-changing Telegram handle that led to a SIM swap, allowing the accused to reset the PIN and siphon ₹22.3 lakh to a mule account in Jharkhand.⁠",
+      "matchedScore": 0.885,
+      "sameSeries": true,
+      "rank": 3
+    },
+    {
+      "caseId": 285,
+      "kannadaNarrative": "ದಿನಾಂಕ ೧೫-೦೧-೨೦೨೬ರಂದು ಧಾರವಾಡ ನಗರದಲ್ಲಿ, ಒಂದು ಭೂಮಿಯ ಮಾಲೀಕನು ತನ್ನ ಜಮೀನು ದಾಖಲೆಗಳನ್ನು forgery ಮಾಡಲಾಗಿರುವುದನ್ನು ಪತ್ತೆಹಚ್ಚಿದ. ಯಾವುದೇ ಮಾರಾಟ ನಡೆದಿರದಿದ್ದರೂ, ದಾಖಲೆಯು ಹಿಂದಿನ ಮೂರು forgery casesಗಳಲ್ಲಿದ್ದಂತೆಯೇ sub-registrarನ ಸ್ಟಾಂಪ್ ಮತ್ತು ಸೀಲ್ ಹೊಂದಿತ್ತು. ಈ forgery casesಗಳು WhatsApp ಹೂಡಿಕೆದಾರರ ಗುಂಪಿನೊಂದಿಗೆ ಸಂಬಂಧ ಹೊಂದಿವೆ.⁠",
+      "englishOriginal": "On 15 January 2026 in Dharwad city, a property owner discovered that his land documents had been forged; despite no sale occurring, the deed bore an identical sub-registrar stamp and seal used in three earlier forgery cases linked to the WhatsApp investor group.⁠",
+      "matchedCaseId": 933,
+      "matchedEnglishNarrative": "At quarter-end in Davangere, documents bearing a forged sub-registrar seal were presented to a property owner during a WhatsApp investor group meeting, resulting in the fraudulent sale of land.⁠",
+      "matchedScore": 0.893,
+      "sameSeries": true,
+      "rank": 3
+    }
+  ],
+  "perCase": [
+    {
+      "id": 1,
+      "seriesKey": "KSP-P-02757|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.939,
+      "top1After": 0.854
+    },
+    {
+      "id": 2,
+      "seriesKey": "KSP-P-03903|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.944,
+      "top1After": 0.867
+    },
+    {
+      "id": 4,
+      "seriesKey": "KSP-P-00652|3",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.934,
+      "top1After": 0.858
+    },
+    {
+      "id": 5,
+      "seriesKey": "KSP-P-04972|2",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.936,
+      "top1After": 0.864
+    },
+    {
+      "id": 7,
+      "seriesKey": "KSP-P-04781|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.949,
+      "top1After": 0.862
+    },
+    {
+      "id": 10,
+      "seriesKey": "KSP-P-01332|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.933,
+      "top1After": 0.864
+    },
+    {
+      "id": 11,
+      "seriesKey": "KSP-P-02458|4",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.944,
+      "top1After": 0.886
+    },
+    {
+      "id": 12,
+      "seriesKey": "KSP-P-00671|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.941,
+      "top1After": 0.861
+    },
+    {
+      "id": 15,
+      "seriesKey": "KSP-P-00054|2",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.941,
+      "top1After": 0.859
+    },
+    {
+      "id": 16,
+      "seriesKey": "KSP-P-02164|3",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.941,
+      "top1After": 0.873
+    },
+    {
+      "id": 17,
+      "seriesKey": "KSP-P-04203|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.937,
+      "top1After": 0.867
+    },
+    {
+      "id": 18,
+      "seriesKey": "KSP-P-00392|6",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.928,
+      "top1After": 0.876
+    },
+    {
+      "id": 19,
+      "seriesKey": "KSP-P-03601|2",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.931,
+      "top1After": 0.859
+    },
+    {
+      "id": 21,
+      "seriesKey": "KSP-P-00417|5",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.904,
+      "top1After": 0.855
+    },
+    {
+      "id": 24,
+      "seriesKey": "KSP-P-00549|5",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.936,
+      "top1After": 0.843
+    },
+    {
+      "id": 26,
+      "seriesKey": "KSP-P-02898|4",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.948,
+      "top1After": 0.903
+    },
+    {
+      "id": 27,
+      "seriesKey": "KSP-P-04345|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.937,
+      "top1After": 0.892
+    },
+    {
+      "id": 28,
+      "seriesKey": "KSP-P-04828|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 2,
+      "top1Base": 0.926,
+      "top1After": 0.894
+    },
+    {
+      "id": 29,
+      "seriesKey": "KSP-P-03597|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.922,
+      "top1After": 0.901
+    },
+    {
+      "id": 31,
+      "seriesKey": "KSP-P-02263|5",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.956,
+      "top1After": 0.887
+    },
+    {
+      "id": 32,
+      "seriesKey": "KSP-P-04742|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.925,
+      "top1After": 0.876
+    },
+    {
+      "id": 33,
+      "seriesKey": "KSP-P-04986|3",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.923,
+      "top1After": 0.864
+    },
+    {
+      "id": 35,
+      "seriesKey": "KSP-P-00284|3",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": true,
+      "survivedTopK": 1,
+      "top1Base": 0.922,
+      "top1After": 0.891
+    },
+    {
+      "id": 36,
+      "seriesKey": "KSP-P-03576|6",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.94,
+      "top1After": 0.901
+    },
+    {
+      "id": 37,
+      "seriesKey": "KSP-P-04438|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.933,
+      "top1After": 0.875
+    },
+    {
+      "id": 39,
+      "seriesKey": "KSP-P-01196|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.931,
+      "top1After": 0.87
+    },
+    {
+      "id": 41,
+      "seriesKey": "KSP-P-02025|2",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.92,
+      "top1After": 0.847
+    },
+    {
+      "id": 42,
+      "seriesKey": "KSP-P-03619|6",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.928,
+      "top1After": 0.867
+    },
+    {
+      "id": 43,
+      "seriesKey": "KSP-P-04317|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.932,
+      "top1After": 0.867
+    },
+    {
+      "id": 44,
+      "seriesKey": "KSP-P-03957|5",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.918,
+      "top1After": 0.864
+    },
+    {
+      "id": 45,
+      "seriesKey": "KSP-P-02801|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.936,
+      "top1After": 0.866
+    },
+    {
+      "id": 46,
+      "seriesKey": "KSP-P-00232|3",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.909,
+      "top1After": 0.857
+    },
+    {
+      "id": 48,
+      "seriesKey": "KSP-P-03637|2",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.93,
+      "top1After": 0.861
+    },
+    {
+      "id": 50,
+      "seriesKey": "KSP-P-02740|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.934,
+      "top1After": 0.862
+    },
+    {
+      "id": 51,
+      "seriesKey": "KSP-P-02287|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.913,
+      "top1After": 0.866
+    },
+    {
+      "id": 56,
+      "seriesKey": "KSP-P-02545|3",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.922,
+      "top1After": 0.871
+    },
+    {
+      "id": 57,
+      "seriesKey": "KSP-P-02913|4",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.939,
+      "top1After": 0.868
+    },
+    {
+      "id": 58,
+      "seriesKey": "KSP-P-00272|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.947,
+      "top1After": 0.864
+    },
+    {
+      "id": 60,
+      "seriesKey": "KSP-P-03481|3",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.93,
+      "top1After": 0.856
+    },
+    {
+      "id": 61,
+      "seriesKey": "KSP-P-03051|4",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.926,
+      "top1After": 0.853
+    },
+    {
+      "id": 62,
+      "seriesKey": "KSP-P-00538|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.925,
+      "top1After": 0.863
+    },
+    {
+      "id": 63,
+      "seriesKey": "KSP-P-00348|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.931,
+      "top1After": 0.867
+    },
+    {
+      "id": 64,
+      "seriesKey": "KSP-P-01490|3",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.928,
+      "top1After": 0.859
+    },
+    {
+      "id": 67,
+      "seriesKey": "KSP-P-03088|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.912,
+      "top1After": 0.882
+    },
+    {
+      "id": 69,
+      "seriesKey": "KSP-P-04089|3",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.912,
+      "top1After": 0.853
+    },
+    {
+      "id": 71,
+      "seriesKey": "KSP-P-00685|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.903,
+      "top1After": 0.857
+    },
+    {
+      "id": 74,
+      "seriesKey": "KSP-P-02042|6",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 3,
+      "top1Base": 0.923,
+      "top1After": 0.878
+    },
+    {
+      "id": 76,
+      "seriesKey": "KSP-P-02143|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.922,
+      "top1After": 0.876
+    },
+    {
+      "id": 77,
+      "seriesKey": "KSP-P-01958|6",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.937,
+      "top1After": 0.873
+    },
+    {
+      "id": 79,
+      "seriesKey": "KSP-P-01561|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.921,
+      "top1After": 0.83
+    },
+    {
+      "id": 82,
+      "seriesKey": "KSP-P-01738|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.948,
+      "top1After": 0.861
+    },
+    {
+      "id": 85,
+      "seriesKey": "KSP-P-01207|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.911,
+      "top1After": 0.855
+    },
+    {
+      "id": 87,
+      "seriesKey": "KSP-P-04400|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.913,
+      "top1After": 0.878
+    },
+    {
+      "id": 89,
+      "seriesKey": "KSP-P-00669|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.908,
+      "top1After": 0.861
+    },
+    {
+      "id": 91,
+      "seriesKey": "KSP-P-04394|4",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.903,
+      "top1After": 0.881
+    },
+    {
+      "id": 92,
+      "seriesKey": "KSP-P-00709|1",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.923,
+      "top1After": 0.872
+    },
+    {
+      "id": 93,
+      "seriesKey": "KSP-P-02195|2",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.937,
+      "top1After": 0.869
+    },
+    {
+      "id": 94,
+      "seriesKey": "KSP-P-01250|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.931,
+      "top1After": 0.861
+    },
+    {
+      "id": 95,
+      "seriesKey": "KSP-P-00335|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.926,
+      "top1After": 0.863
+    },
+    {
+      "id": 96,
+      "seriesKey": "KSP-P-00553|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.909,
+      "top1After": 0.855
+    },
+    {
+      "id": 99,
+      "seriesKey": "KSP-P-01125|4",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.911,
+      "top1After": 0.857
+    },
+    {
+      "id": 100,
+      "seriesKey": "KSP-P-03957|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.929,
+      "top1After": 0.853
+    },
+    {
+      "id": 101,
+      "seriesKey": "KSP-P-03830|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.912,
+      "top1After": 0.86
+    },
+    {
+      "id": 103,
+      "seriesKey": "KSP-P-00570|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.913,
+      "top1After": 0.865
+    },
+    {
+      "id": 104,
+      "seriesKey": "KSP-P-02082|3",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.944,
+      "top1After": 0.857
+    },
+    {
+      "id": 105,
+      "seriesKey": "KSP-P-04878|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.916,
+      "top1After": 0.853
+    },
+    {
+      "id": 106,
+      "seriesKey": "KSP-P-00446|5",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.921,
+      "top1After": 0.879
+    },
+    {
+      "id": 107,
+      "seriesKey": "KSP-P-02432|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.933,
+      "top1After": 0.88
+    },
+    {
+      "id": 109,
+      "seriesKey": "KSP-P-02965|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.918,
+      "top1After": 0.888
+    },
+    {
+      "id": 110,
+      "seriesKey": "KSP-P-01832|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.932,
+      "top1After": 0.864
+    },
+    {
+      "id": 111,
+      "seriesKey": "KSP-P-00006|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.937,
+      "top1After": 0.88
+    },
+    {
+      "id": 112,
+      "seriesKey": "KSP-P-00018|5",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": true,
+      "survivedTopK": 2,
+      "top1Base": 0.922,
+      "top1After": 0.883
+    },
+    {
+      "id": 114,
+      "seriesKey": "KSP-P-04177|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.897,
+      "top1After": 0.872
+    },
+    {
+      "id": 115,
+      "seriesKey": "KSP-P-03755|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.927,
+      "top1After": 0.863
+    },
+    {
+      "id": 117,
+      "seriesKey": "KSP-P-02913|3",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.923,
+      "top1After": 0.866
+    },
+    {
+      "id": 119,
+      "seriesKey": "KSP-P-01027|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.927,
+      "top1After": 0.875
+    },
+    {
+      "id": 120,
+      "seriesKey": "KSP-P-00032|5",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 2,
+      "top1Base": 0.908,
+      "top1After": 0.856
+    },
+    {
+      "id": 123,
+      "seriesKey": "KSP-P-01643|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.929,
+      "top1After": 0.864
+    },
+    {
+      "id": 125,
+      "seriesKey": "KSP-P-04508|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.916,
+      "top1After": 0.881
+    },
+    {
+      "id": 126,
+      "seriesKey": "KSP-P-00389|1",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.929,
+      "top1After": 0.871
+    },
+    {
+      "id": 127,
+      "seriesKey": "KSP-P-02999|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.937,
+      "top1After": 0.873
+    },
+    {
+      "id": 128,
+      "seriesKey": "KSP-P-01379|3",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.906,
+      "top1After": 0.862
+    },
+    {
+      "id": 129,
+      "seriesKey": "KSP-P-00510|4",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.932,
+      "top1After": 0.856
+    },
+    {
+      "id": 130,
+      "seriesKey": "KSP-P-01085|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.95,
+      "top1After": 0.871
+    },
+    {
+      "id": 131,
+      "seriesKey": "KSP-P-02619|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 2,
+      "top1Base": 0.935,
+      "top1After": 0.881
+    },
+    {
+      "id": 133,
+      "seriesKey": "KSP-P-04931|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.946,
+      "top1After": 0.865
+    },
+    {
+      "id": 134,
+      "seriesKey": "KSP-P-01648|3",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.927,
+      "top1After": 0.877
+    },
+    {
+      "id": 135,
+      "seriesKey": "KSP-P-04505|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.93,
+      "top1After": 0.875
+    },
+    {
+      "id": 153,
+      "seriesKey": "KSP-P-00642|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.933,
+      "top1After": 0.877
+    },
+    {
+      "id": 155,
+      "seriesKey": "KSP-P-00159|3",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.916,
+      "top1After": 0.888
+    },
+    {
+      "id": 156,
+      "seriesKey": "KSP-P-03301|3",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.915,
+      "top1After": 0.861
+    },
+    {
+      "id": 158,
+      "seriesKey": "KSP-P-00447|8",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.89,
+      "top1After": 0.871
+    },
+    {
+      "id": 160,
+      "seriesKey": "KSP-P-03281|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.929,
+      "top1After": 0.876
+    },
+    {
+      "id": 162,
+      "seriesKey": "KSP-P-04691|3",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.942,
+      "top1After": 0.869
+    },
+    {
+      "id": 163,
+      "seriesKey": "KSP-P-01844|2",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.933,
+      "top1After": 0.876
+    },
+    {
+      "id": 165,
+      "seriesKey": "KSP-P-00248|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.939,
+      "top1After": 0.88
+    },
+    {
+      "id": 166,
+      "seriesKey": "KSP-P-00706|3",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.909,
+      "top1After": 0.864
+    },
+    {
+      "id": 167,
+      "seriesKey": "KSP-P-01841|4",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.943,
+      "top1After": 0.859
+    },
+    {
+      "id": 169,
+      "seriesKey": "KSP-P-02261|7",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.916,
+      "top1After": 0.864
+    },
+    {
+      "id": 170,
+      "seriesKey": "KSP-P-00460|3",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.95,
+      "top1After": 0.891
+    },
+    {
+      "id": 172,
+      "seriesKey": "KSP-P-00571|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.931,
+      "top1After": 0.883
+    },
+    {
+      "id": 174,
+      "seriesKey": "KSP-P-01911|4",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.927,
+      "top1After": 0.869
+    },
+    {
+      "id": 175,
+      "seriesKey": "KSP-P-03496|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.938,
+      "top1After": 0.879
+    },
+    {
+      "id": 178,
+      "seriesKey": "KSP-P-04499|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.926,
+      "top1After": 0.867
+    },
+    {
+      "id": 179,
+      "seriesKey": "KSP-P-01794|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.933,
+      "top1After": 0.862
+    },
+    {
+      "id": 180,
+      "seriesKey": "KSP-P-00608|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.939,
+      "top1After": 0.872
+    },
+    {
+      "id": 181,
+      "seriesKey": "KSP-P-00744|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.934,
+      "top1After": 0.875
+    },
+    {
+      "id": 182,
+      "seriesKey": "KSP-P-01518|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.915,
+      "top1After": 0.866
+    },
+    {
+      "id": 184,
+      "seriesKey": "KSP-P-03723|3",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.921,
+      "top1After": 0.867
+    },
+    {
+      "id": 185,
+      "seriesKey": "KSP-P-02521|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.904,
+      "top1After": 0.859
+    },
+    {
+      "id": 186,
+      "seriesKey": "KSP-P-03785|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.948,
+      "top1After": 0.867
+    },
+    {
+      "id": 187,
+      "seriesKey": "KSP-P-03658|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.897,
+      "top1After": 0.869
+    },
+    {
+      "id": 188,
+      "seriesKey": "KSP-P-01207|4",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.906,
+      "top1After": 0.851
+    },
+    {
+      "id": 189,
+      "seriesKey": "KSP-P-03458|5",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.902,
+      "top1After": 0.845
+    },
+    {
+      "id": 190,
+      "seriesKey": "KSP-P-00202|3",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.918,
+      "top1After": 0.86
+    },
+    {
+      "id": 191,
+      "seriesKey": "KSP-P-04794|4",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.914,
+      "top1After": 0.88
+    },
+    {
+      "id": 193,
+      "seriesKey": "KSP-P-01790|4",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 2,
+      "top1Base": 0.917,
+      "top1After": 0.87
+    },
+    {
+      "id": 194,
+      "seriesKey": "KSP-P-03629|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.923,
+      "top1After": 0.88
+    },
+    {
+      "id": 195,
+      "seriesKey": "KSP-P-01909|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.937,
+      "top1After": 0.851
+    },
+    {
+      "id": 199,
+      "seriesKey": "KSP-P-01317|2",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.927,
+      "top1After": 0.868
+    },
+    {
+      "id": 201,
+      "seriesKey": "KSP-P-01772|4",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.935,
+      "top1After": 0.868
+    },
+    {
+      "id": 202,
+      "seriesKey": "KSP-P-01494|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.947,
+      "top1After": 0.873
+    },
+    {
+      "id": 203,
+      "seriesKey": "KSP-P-04475|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 2,
+      "top1Base": 0.924,
+      "top1After": 0.859
+    },
+    {
+      "id": 204,
+      "seriesKey": "KSP-P-03894|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.943,
+      "top1After": 0.844
+    },
+    {
+      "id": 205,
+      "seriesKey": "KSP-P-02920|3",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.933,
+      "top1After": 0.869
+    },
+    {
+      "id": 207,
+      "seriesKey": "KSP-P-00238|2",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.938,
+      "top1After": 0.872
+    },
+    {
+      "id": 208,
+      "seriesKey": "KSP-P-00468|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.931,
+      "top1After": 0.87
+    },
+    {
+      "id": 209,
+      "seriesKey": "KSP-P-01389|6",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.944,
+      "top1After": 0.881
+    },
+    {
+      "id": 210,
+      "seriesKey": "KSP-P-04331|3",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.925,
+      "top1After": 0.855
+    },
+    {
+      "id": 212,
+      "seriesKey": "KSP-P-03247|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.925,
+      "top1After": 0.873
+    },
+    {
+      "id": 213,
+      "seriesKey": "KSP-P-00467|3",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.944,
+      "top1After": 0.859
+    },
+    {
+      "id": 214,
+      "seriesKey": "KSP-P-02110|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.952,
+      "top1After": 0.853
+    },
+    {
+      "id": 215,
+      "seriesKey": "KSP-P-04441|3",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.929,
+      "top1After": 0.856
+    },
+    {
+      "id": 216,
+      "seriesKey": "KSP-P-03960|2",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.953,
+      "top1After": 0.864
+    },
+    {
+      "id": 219,
+      "seriesKey": "KSP-P-01210|6",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.935,
+      "top1After": 0.866
+    },
+    {
+      "id": 220,
+      "seriesKey": "KSP-P-00537|3",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 2,
+      "top1Base": 0.941,
+      "top1After": 0.875
+    },
+    {
+      "id": 221,
+      "seriesKey": "KSP-P-04294|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.937,
+      "top1After": 0.86
+    },
+    {
+      "id": 222,
+      "seriesKey": "KSP-P-03865|5",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.934,
+      "top1After": 0.882
+    },
+    {
+      "id": 223,
+      "seriesKey": "KSP-P-00631|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.938,
+      "top1After": 0.864
+    },
+    {
+      "id": 226,
+      "seriesKey": "KSP-P-04011|3",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.973,
+      "top1After": 0.871
+    },
+    {
+      "id": 230,
+      "seriesKey": "KSP-P-04394|2",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.939,
+      "top1After": 0.878
+    },
+    {
+      "id": 231,
+      "seriesKey": "KSP-P-00148|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.944,
+      "top1After": 0.884
+    },
+    {
+      "id": 233,
+      "seriesKey": "KSP-P-00149|4",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": true,
+      "survivedTopK": 2,
+      "top1Base": 0.931,
+      "top1After": 0.898
+    },
+    {
+      "id": 234,
+      "seriesKey": "KSP-P-00880|3",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.931,
+      "top1After": 0.878
+    },
+    {
+      "id": 235,
+      "seriesKey": "KSP-P-04205|1",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.902,
+      "top1After": 0.875
+    },
+    {
+      "id": 236,
+      "seriesKey": "KSP-P-01364|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.929,
+      "top1After": 0.869
+    },
+    {
+      "id": 237,
+      "seriesKey": "KSP-P-00699|3",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.928,
+      "top1After": 0.868
+    },
+    {
+      "id": 240,
+      "seriesKey": "KSP-P-00332|4",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.919,
+      "top1After": 0.887
+    },
+    {
+      "id": 241,
+      "seriesKey": "KSP-P-03976|2",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.924,
+      "top1After": 0.876
+    },
+    {
+      "id": 242,
+      "seriesKey": "KSP-P-02787|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.952,
+      "top1After": 0.868
+    },
+    {
+      "id": 243,
+      "seriesKey": "KSP-P-03144|4",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.914,
+      "top1After": 0.87
+    },
+    {
+      "id": 244,
+      "seriesKey": "KSP-P-02133|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.916,
+      "top1After": 0.871
+    },
+    {
+      "id": 245,
+      "seriesKey": "KSP-P-01159|3",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.923,
+      "top1After": 0.865
+    },
+    {
+      "id": 246,
+      "seriesKey": "KSP-P-00683|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.92,
+      "top1After": 0.861
+    },
+    {
+      "id": 247,
+      "seriesKey": "KSP-P-01006|1",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.921,
+      "top1After": 0.846
+    },
+    {
+      "id": 248,
+      "seriesKey": "KSP-P-04587|5",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.912,
+      "top1After": 0.855
+    },
+    {
+      "id": 250,
+      "seriesKey": "KSP-P-03530|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.936,
+      "top1After": 0.88
+    },
+    {
+      "id": 252,
+      "seriesKey": "KSP-P-04300|3",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.925,
+      "top1After": 0.859
+    },
+    {
+      "id": 253,
+      "seriesKey": "KSP-P-00018|3",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.93,
+      "top1After": 0.866
+    },
+    {
+      "id": 256,
+      "seriesKey": "KSP-P-01321|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.931,
+      "top1After": 0.855
+    },
+    {
+      "id": 257,
+      "seriesKey": "KSP-P-04910|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.943,
+      "top1After": 0.872
+    },
+    {
+      "id": 260,
+      "seriesKey": "KSP-P-00074|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.939,
+      "top1After": 0.877
+    },
+    {
+      "id": 261,
+      "seriesKey": "KSP-P-03175|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.917,
+      "top1After": 0.871
+    },
+    {
+      "id": 264,
+      "seriesKey": "KSP-P-00779|4",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.94,
+      "top1After": 0.866
+    },
+    {
+      "id": 266,
+      "seriesKey": "KSP-P-00577|2",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.942,
+      "top1After": 0.872
+    },
+    {
+      "id": 267,
+      "seriesKey": "KSP-P-01374|4",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.922,
+      "top1After": 0.852
+    },
+    {
+      "id": 270,
+      "seriesKey": "KSP-P-00139|6",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.918,
+      "top1After": 0.874
+    },
+    {
+      "id": 271,
+      "seriesKey": "KSP-P-02804|3",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.938,
+      "top1After": 0.857
+    },
+    {
+      "id": 272,
+      "seriesKey": "KSP-P-00382|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.911,
+      "top1After": 0.874
+    },
+    {
+      "id": 273,
+      "seriesKey": "KSP-P-04281|5",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 2,
+      "top1Base": 0.926,
+      "top1After": 0.887
+    },
+    {
+      "id": 274,
+      "seriesKey": "KSP-P-00290|4",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.945,
+      "top1After": 0.89
+    },
+    {
+      "id": 275,
+      "seriesKey": "KSP-P-02987|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.919,
+      "top1After": 0.881
+    },
+    {
+      "id": 276,
+      "seriesKey": "KSP-P-01514|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.917,
+      "top1After": 0.872
+    },
+    {
+      "id": 277,
+      "seriesKey": "KSP-P-04318|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.926,
+      "top1After": 0.859
+    },
+    {
+      "id": 278,
+      "seriesKey": "KSP-P-00573|3",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.919,
+      "top1After": 0.875
+    },
+    {
+      "id": 280,
+      "seriesKey": "KSP-P-01869|5",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 2,
+      "top1Base": 0.917,
+      "top1After": 0.892
+    },
+    {
+      "id": 281,
+      "seriesKey": "KSP-P-03601|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.904,
+      "top1After": 0.863
+    },
+    {
+      "id": 282,
+      "seriesKey": "KSP-P-00809|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.912,
+      "top1After": 0.886
+    },
+    {
+      "id": 284,
+      "seriesKey": "KSP-P-00898|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.935,
+      "top1After": 0.883
+    },
+    {
+      "id": 285,
+      "seriesKey": "KSP-P-03829|5",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": true,
+      "survivedTopK": 1,
+      "top1Base": 0.928,
+      "top1After": 0.896
+    },
+    {
+      "id": 286,
+      "seriesKey": "KSP-P-04101|4",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.924,
+      "top1After": 0.894
+    },
+    {
+      "id": 289,
+      "seriesKey": "KSP-P-04222|6",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.943,
+      "top1After": 0.881
+    },
+    {
+      "id": 291,
+      "seriesKey": "KSP-P-04888|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.925,
+      "top1After": 0.889
+    },
+    {
+      "id": 292,
+      "seriesKey": "KSP-P-01922|1",
+      "baselineSeriesHit": true,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.937,
+      "top1After": 0.883
+    },
+    {
+      "id": 293,
+      "seriesKey": "KSP-P-04519|4",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 1,
+      "top1Base": 0.942,
+      "top1After": 0.867
+    },
+    {
+      "id": 294,
+      "seriesKey": "KSP-P-03972|5",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.905,
+      "top1After": 0.845
+    },
+    {
+      "id": 295,
+      "seriesKey": "KSP-P-04022|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.933,
+      "top1After": 0.861
+    },
+    {
+      "id": 296,
+      "seriesKey": "KSP-P-00492|3",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.942,
+      "top1After": 0.868
+    },
+    {
+      "id": 297,
+      "seriesKey": "KSP-P-03597|3",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.933,
+      "top1After": 0.867
+    },
+    {
+      "id": 298,
+      "seriesKey": "KSP-P-00096|2",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.946,
+      "top1After": 0.869
+    },
+    {
+      "id": 300,
+      "seriesKey": "KSP-P-01856|6",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.942,
+      "top1After": 0.873
+    },
+    {
+      "id": 301,
+      "seriesKey": "KSP-P-00812|1",
+      "baselineSeriesHit": false,
+      "kannadaSeriesHit": false,
+      "survivedTopK": 0,
+      "top1Base": 0.914,
+      "top1After": 0.851
+    }
+  ]
+}

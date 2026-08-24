@@ -2,6 +2,9 @@
 import { useEffect, useState } from "react";
 import { STATUS_STYLE } from "@/lib/caseStatus";
 import { CrewDossier } from "../crew/CrewDossier";
+// Type-only — lib/handover.ts reaches for the server Prisma client, so this
+// import must never survive into the browser bundle.
+import type { HandoverBrief as Brief, OutstandingItem, HandoverLinkedCase } from "@/lib/handover";
 import { useChatStore } from "@/store/chat";
 import { t } from "@/lib/i18n";
 
@@ -41,8 +44,15 @@ export function CaseDrawer({ caseId: requestedId, onClose }: { caseId: number | 
   }, [caseId]);
   const [data, setData] = useState<CaseData | null>(null);
   const [loading, setLoading] = useState(false);
-  const [crewFor, setCrewFor] = useState<number | null>(null);
+  // One panel at a time, by construction. Both the crew dossier and the
+  // handover brief mount a `.print-root`, and two of those printing at once
+  // would interleave a dossier and a legal handover on the same page — so the
+  // drawer cannot open both, rather than trusting itself to remember not to.
+  const [panel, setPanel] = useState<"crew" | "handover" | null>(null);
   const lang = useChatStore((s) => s.lang);
+
+  // Navigating to a linked case leaves a panel describing the previous one.
+  useEffect(() => { setPanel(null); }, [caseId]);
 
   useEffect(() => {
     if (!caseId) { setData(null); return; }
@@ -262,7 +272,7 @@ export function CaseDrawer({ caseId: requestedId, onClose }: { caseId: number | 
             {/* One MO hit is a lead; the crew walk is the series behind it. */}
             <button
               type="button"
-              onClick={() => setCrewFor(caseId)}
+              onClick={() => setPanel("crew")}
               className="w-full text-left rounded-md px-3 py-2.5 transition-all"
               style={{ background: "var(--khaki-dim)", border: "1px solid var(--khaki)" }}
             >
@@ -271,6 +281,22 @@ export function CaseDrawer({ caseId: requestedId, onClose }: { caseId: number | 
               </div>
               <div className="text-[11px] mt-0.5" style={{ color: "var(--text-secondary)" }}>
                 {t("crew.buildHint", lang)}
+              </div>
+            </button>
+
+            {/* Everything above, plus the clock and the linked files, in the
+                order the next officer needs to read them. */}
+            <button
+              type="button"
+              onClick={() => setPanel("handover")}
+              className="w-full text-left rounded-md px-3 py-2.5 transition-all"
+              style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)" }}
+            >
+              <div className="text-xs font-bold font-data tracking-wide" style={{ color: "var(--ink)" }}>
+                {t("handover.build", lang)} →
+              </div>
+              <div className="text-[11px] mt-0.5" style={{ color: "var(--text-secondary)" }}>
+                {t("handover.caveat", lang)}
               </div>
             </button>
 
@@ -343,14 +369,285 @@ export function CaseDrawer({ caseId: requestedId, onClose }: { caseId: number | 
         </div>{/* dialog */}
       </div>{/* backdrop */}
 
-      {crewFor && (
+      {panel === "crew" && (
         <CrewDossier
-          caseId={crewFor}
-          onClose={() => setCrewFor(null)}
-          onOpenCase={(id) => { setCrewFor(null); setCaseId(id); }}
+          caseId={caseId}
+          onClose={() => setPanel(null)}
+          onOpenCase={(id) => { setPanel(null); setCaseId(id); }}
+        />
+      )}
+
+      {panel === "handover" && (
+        <HandoverPanel
+          caseId={caseId}
+          onClose={() => setPanel(null)}
+          onOpenCase={(id) => { setPanel(null); setCaseId(id); }}
         />
       )}
     </>
+  );
+}
+
+// ---- handover brief --------------------------------------------------------
+
+const fmtDay = (d: string | null) =>
+  d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+
+/**
+ * The handover brief, floated over the case file. Everything shown here comes
+ * off the record via /api/handover — no sentence on this panel was written by
+ * a model, which is why the caveat below is printed rather than tucked into a
+ * tooltip: the officer signing off needs to know what they are reading.
+ */
+function HandoverPanel({ caseId, onClose, onOpenCase }: { caseId: number; onClose: () => void; onOpenCase: (id: number) => void }) {
+  const lang = useChatStore((s) => s.lang);
+  const [brief, setBrief] = useState<Brief | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    setBrief(null);
+    setError("");
+    fetch(`/api/handover?caseId=${caseId}`)
+      .then(async (r) => {
+        const body = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(body.error || "");
+        return body;
+      })
+      .then((body) => { if (!cancelled) setBrief(body.brief ?? null); })
+      .catch((e: Error) => { if (!cancelled) setError(e.message || "Failed to assemble the brief"); });
+    return () => { cancelled = true; };
+  }, [caseId]);
+
+  const w = brief?.whatHappened;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 backdrop-blur-sm flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.55)" }}
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full flex flex-col"
+        style={{
+          maxWidth: 720, maxHeight: "88vh", background: "var(--bg-surface)",
+          border: "1px solid var(--border)", borderRadius: 10,
+          boxShadow: "0 24px 64px rgba(0,0,0,0.4)", overflow: "hidden",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="shrink-0 px-5 py-4 flex items-center justify-between"
+             style={{ background: "var(--bg-surface)", borderBottom: "1px solid var(--border)" }}>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className="badge-classified">{t("handover.title", lang)}</span>
+            </div>
+            <h2 className="font-bold tracking-tight truncate" style={{ color: "var(--text-primary)" }}>
+              {brief?.crimeNo ?? `#${caseId}`}
+            </h2>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => window.print()}
+              disabled={!brief}
+              className="text-xs font-medium px-3 py-1.5 rounded-md transition-all disabled:opacity-40"
+              style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}
+              title={t("handover.print", lang)}
+            >
+              ↓ {t("handover.print", lang)}
+            </button>
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-md flex items-center justify-center text-lg transition-all"
+              style={{ color: "var(--text-muted)", border: "1px solid var(--border)" }}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+
+        <div className="overflow-y-auto p-5 space-y-5 animate-fade-up" style={{ maxHeight: "calc(88vh - 72px)" }}>
+          {!brief && !error && (
+            <p className="text-xs font-data py-10 text-center" style={{ color: "var(--text-muted)" }}>
+              {t("handover.building", lang)}
+            </p>
+          )}
+          {error && <p className="text-xs py-10 text-center" style={{ color: "var(--red)" }}>{error}</p>}
+
+          {brief && w && (
+            <>
+              <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{t("handover.caveat", lang)}</p>
+
+              <Section title={t("handover.whatHappened", lang)}>
+                <Row label="Crime No." value={brief.crimeNo} mono />
+                <Row label="Registered" value={fmtDay(brief.registered)} />
+                <Row label="Station" value={brief.station} />
+                <Row label="District" value={brief.district} />
+                <Row label="Offence" value={[brief.crimeGroup, brief.crimeType].filter(Boolean).join(" · ")} />
+                <Row label="Gravity" value={brief.gravity} />
+                <Row label="Status" value={brief.status} />
+                <Row label="Court" value={brief.court} />
+                <Row label="Officer" value={brief.officer} />
+                <Row label="Sections" value={w.sections.map((s) => `${s.act} §${s.section}`).join(", ")} />
+                <Row label="Complainant" value={w.complainants.map((p) => p.name).join(", ")} />
+                <Row label="Victims" value={w.victims.map((p) => p.name).join(", ")} />
+                <Row label="Accused" value={w.accused.map((p) => p.name).join(", ")} />
+                {w.narrative && (
+                  <p className="text-xs leading-relaxed pt-2" style={{ color: "var(--text-secondary)" }}>{w.narrative}</p>
+                )}
+              </Section>
+
+              <Section title={t("handover.doneSoFar", lang)}>
+                {brief.doneSoFar.arrests.length === 0 && brief.doneSoFar.chargesheets.length === 0 && (
+                  <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>No arrest and no chargesheet on the record.</p>
+                )}
+                {brief.doneSoFar.arrests.map((a, i) => (
+                  <Row key={`a${i}`} label={a.name ?? "Arrest"} value={`${fmtDay(a.date)}${a.district ? ` · ${a.district}` : ""}`} />
+                ))}
+                {brief.doneSoFar.chargesheets.map((cs, i) => (
+                  <Row key={`c${i}`} label={cs.type ?? "Chargesheet"} value={`${fmtDay(cs.date)}${cs.filedBy ? ` · ${cs.filedBy}` : ""}`} />
+                ))}
+              </Section>
+
+              <Section title={t("handover.outstanding", lang)}>
+                {brief.clock && !brief.doneSoFar.chargesheetFiled && (
+                  <Row
+                    label={t("handover.deadline", lang)}
+                    value={
+                      brief.clock.state === "overdue"
+                        ? `${brief.clock.daysOverdue} days overdue (${brief.clock.limitDays}-day limit, ${brief.clock.basis})`
+                        : `${brief.clock.daysRemaining} days left (${brief.clock.limitDays}-day limit, ${brief.clock.basis})`
+                    }
+                  />
+                )}
+                <ul className="space-y-1 pt-1">
+                  {brief.outstanding.items.map((o: OutstandingItem, i) => (
+                    <li key={i} className="text-xs leading-relaxed"
+                        style={{ color: o.severity === "urgent" ? "var(--red)" : "var(--text-secondary)" }}>
+                      • {o.label}
+                    </li>
+                  ))}
+                </ul>
+              </Section>
+
+              <Section title={t("handover.linked", lang)}>
+                <LinkedList rows={brief.linked.moMatches} heading="Same method" onOpenCase={onOpenCase} />
+                <LinkedList rows={brief.linked.crew?.cases ?? []} heading="Crew — other files" onOpenCase={onOpenCase} />
+                <LinkedList rows={brief.linked.duplicates} heading="Possible duplicate FIR" onOpenCase={onOpenCase} />
+                {brief.linked.moMatches.length === 0 &&
+                  !brief.linked.crew?.cases.length &&
+                  brief.linked.duplicates.length === 0 && (
+                    <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>No linked case found.</p>
+                  )}
+              </Section>
+            </>
+          )}
+        </div>
+      </div>
+
+      {brief && <PrintHandover brief={brief} caveat={t("handover.caveat", lang)} />}
+    </div>
+  );
+}
+
+function LinkedList({ rows, heading, onOpenCase }: { rows: HandoverLinkedCase[]; heading: string; onOpenCase: (id: number) => void }) {
+  if (!rows.length) return null;
+  return (
+    <div className="pt-1">
+      <div className="text-[10px] uppercase tracking-wide font-data mb-1" style={{ color: "var(--text-muted)" }}>{heading}</div>
+      <div className="space-y-1.5">
+        {rows.map((r) => (
+          <button
+            key={`${heading}-${r.id}`}
+            type="button"
+            onClick={() => onOpenCase(r.id)}
+            className="w-full text-left rounded px-2.5 py-2"
+            style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)" }}
+          >
+            <div className="font-data text-xs" style={{ color: "var(--ink)" }}>{r.crimeNo ?? `#${r.id}`}</div>
+            <div className="text-[11px] mt-0.5" style={{ color: "var(--text-secondary)" }}>
+              {[r.crimeType, r.district, r.date, r.status].filter(Boolean).join(" · ")}
+            </div>
+            <div className="text-[11px] mt-0.5" style={{ color: "var(--text-muted)" }}>{r.why}</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Print-only rendering — the same browser-print route as the chat transcript
+ * and the crew dossier, so a brief reaches a case file as paper without a PDF
+ * dependency. The drawer can only ever have one panel open, and the extra
+ * `.print-handover` class lets globals.css suppress any other `.print-root`
+ * that happens to be mounted elsewhere on the page.
+ */
+function PrintHandover({ brief, caveat }: { brief: Brief; caveat: string }) {
+  const w = brief.whatHappened;
+  const linkedRows = (rows: HandoverLinkedCase[], heading: string) =>
+    rows.length ? (
+      <div className="print-section">
+        <div className="print-section-title">{heading}</div>
+        {rows.map((r) => (
+          <div key={`${heading}-${r.id}`} className="print-kv">
+            {r.crimeNo ?? `#${r.id}`} — {[r.crimeType, r.district, r.date, r.status].filter(Boolean).join(" · ")} — {r.why}
+          </div>
+        ))}
+      </div>
+    ) : null;
+
+  return (
+    <div className="print-root print-handover">
+      <div className="print-header">
+        <strong>KHABRI AI</strong> · KSP Intelligence — Handover Brief · {brief.crimeNo ?? `#${brief.caseId}`}
+      </div>
+      <div className="print-note">{caveat} Assembled {new Date(brief.generatedAt).toLocaleString("en-IN")}.</div>
+
+      <div className="print-section">
+        <div className="print-section-title">What happened</div>
+        <div className="print-kv">Crime No. {brief.crimeNo ?? "—"} · Case No. {brief.caseNo ?? "—"} · Registered {fmtDay(brief.registered)}</div>
+        <div className="print-kv">{[brief.station, brief.district].filter(Boolean).join(" · ") || "—"}</div>
+        <div className="print-kv">Offence {[brief.crimeGroup, brief.crimeType].filter(Boolean).join(" · ") || "—"} · Gravity {brief.gravity ?? "—"} · Status {brief.status ?? "—"}</div>
+        <div className="print-kv">Court {brief.court ?? "—"} · Officer {brief.officer ?? "—"}</div>
+        <div className="print-kv">Sections {w.sections.map((s) => `${s.act} §${s.section}`).join(", ") || "—"}</div>
+        <div className="print-kv">Complainant {w.complainants.map((p) => p.name).join(", ") || "—"}</div>
+        <div className="print-kv">Victims {w.victims.map((p) => p.name).join(", ") || "—"}</div>
+        <div className="print-kv">Accused {w.accused.map((p) => p.name).join(", ") || "—"}</div>
+        {w.narrative && <div className="print-content">{w.narrative}</div>}
+      </div>
+
+      <div className="print-section">
+        <div className="print-section-title">Done so far</div>
+        {brief.doneSoFar.arrests.length === 0 && brief.doneSoFar.chargesheets.length === 0 && (
+          <div className="print-kv">No arrest and no chargesheet on the record.</div>
+        )}
+        {brief.doneSoFar.arrests.map((a, i) => (
+          <div key={`a${i}`} className="print-kv">Arrest — {a.name ?? "—"} · {fmtDay(a.date)}{a.district ? ` · ${a.district}` : ""}</div>
+        ))}
+        {brief.doneSoFar.chargesheets.map((cs, i) => (
+          <div key={`c${i}`} className="print-kv">{cs.type ?? "Chargesheet"} — {fmtDay(cs.date)}{cs.filedBy ? ` · ${cs.filedBy}` : ""}</div>
+        ))}
+      </div>
+
+      <div className="print-section">
+        <div className="print-section-title">Outstanding</div>
+        {brief.clock && !brief.doneSoFar.chargesheetFiled && (
+          <div className="print-kv">
+            Next deadline —{" "}
+            {brief.clock.state === "overdue"
+              ? `${brief.clock.daysOverdue} days overdue`
+              : `${brief.clock.daysRemaining} days left`}{" "}
+            ({brief.clock.limitDays}-day limit, basis: {brief.clock.basis})
+          </div>
+        )}
+        {brief.outstanding.items.map((o, i) => <div key={i} className="print-kv">• {o.label}</div>)}
+      </div>
+
+      {linkedRows(brief.linked.moMatches, "Linked — same method")}
+      {linkedRows(brief.linked.crew?.cases ?? [], "Linked — crew's other files")}
+      {linkedRows(brief.linked.duplicates, "Linked — possible duplicate FIR")}
+    </div>
   );
 }
 

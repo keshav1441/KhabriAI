@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { StreamingText } from "./StreamingText";
 import { ResultsTable } from "../viz/ResultsTable";
 import { CrimeChart } from "../viz/CrimeChart";
@@ -203,6 +203,138 @@ function GroundednessMark({ message }: { message: ChatMessage }) {
   );
 }
 
+/**
+ * The working behind an answer. Collapsed by default and off the SQL-free
+ * default view on purpose: the officer who never asks "how do I know this?"
+ * should not have to read a query, and the one who does should not have to ask
+ * anyone. Nothing here is recomputed - it is the run's own evidence, replayed.
+ */
+function TracePanel({ message }: { message: ChatMessage }) {
+  const lang = useChatStore((s) => s.lang);
+  const [open, setOpen] = useState(false);
+  const trace = message.trace;
+  if (!trace) return null;
+
+  const row = (label: string, body: ReactNode) => (
+    <div className="space-y-1">
+      <p className="text-[10px] font-data font-bold uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
+        {label}
+      </p>
+      {body}
+    </div>
+  );
+
+  const verdict = trace.groundedness ?? message.groundedness;
+
+  return (
+    <div className="space-y-1.5">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="inline-flex items-center gap-1 text-xs font-data transition-colors"
+        style={{ color: "var(--text-muted)" }}
+        onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--ink)"; }}
+        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-muted)"; }}
+        aria-expanded={open}
+      >
+        <span aria-hidden style={{ display: "inline-block", transform: open ? "rotate(90deg)" : "none", transition: "transform 120ms ease" }}>
+          ▸
+        </span>
+        {t(open ? "trace.hide" : "trace.show", lang)}
+      </button>
+
+      {open && (
+        <div
+          className="rounded-md px-3 py-2.5 space-y-3"
+          style={{ background: "var(--bg-raised)", border: "1px solid var(--border)" }}
+        >
+          <p className="text-xs font-data font-bold" style={{ color: "var(--text-primary)" }}>
+            {t("trace.title", lang)}
+          </p>
+
+          {row(
+            t("trace.tools", lang),
+            <ul className="space-y-0.5">
+              {trace.tools.map((tool, i) => (
+                <li key={i} className="text-xs font-data" style={{ color: "var(--text-secondary)" }}>
+                  <span style={{ color: tool.status === "error" ? "var(--red)" : "var(--green)" }} aria-hidden>
+                    {tool.status === "error" ? "✕" : "✓"}
+                  </span>{" "}
+                  {tool.tool} · {tool.durationMs} ms
+                  {tool.error && <span style={{ color: "var(--red)" }}> · {tool.error}</span>}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {trace.sql &&
+            row(
+              t("trace.sql", lang),
+              <>
+                {/* min-w-0 + overflow-x on the block itself: a wide query scrolls
+                    inside its own box instead of stretching the transcript. */}
+                <pre
+                  className="text-xs font-data rounded px-2 py-1.5 overflow-x-auto max-h-56 overflow-y-auto"
+                  style={{ background: "var(--bg-input)", border: "1px solid var(--border)", color: "var(--text-primary)", maxWidth: "100%" }}
+                >
+                  {trace.sql}
+                </pre>
+                <p className="text-xs font-data" style={{ color: "var(--text-muted)" }}>
+                  {trace.rowCount} {t("trace.rows", lang)}
+                </p>
+                {trace.repaired && (
+                  <p className="text-xs font-data" style={{ color: "var(--amber)" }}>
+                    ⚠ {t("trace.repaired", lang)}
+                    {trace.repairError && <span style={{ color: "var(--text-muted)" }}> · {trace.repairError}</span>}
+                  </p>
+                )}
+                {trace.substitutions.length > 0 && (
+                  <p className="text-xs font-data" style={{ color: "var(--text-secondary)" }}>
+                    {trace.substitutions.map((sub) => `${sub.from} → ${sub.to}`).join(", ")}
+                  </p>
+                )}
+              </>
+            )}
+
+          {trace.examples.length > 0 &&
+            row(
+              t("trace.examples", lang),
+              <ul className="space-y-0.5">
+                {trace.examples.map((ex, i) => (
+                  <li key={i} className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                    {ex.question}
+                    <span className="font-data" style={{ color: "var(--text-muted)" }}> · {Math.round(ex.score * 100)}%</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+          <div className="flex flex-wrap gap-x-6 gap-y-2">
+            {row(
+              t("trace.scope", lang),
+              <p className="text-xs font-data" style={{ color: "var(--text-secondary)" }}>
+                {trace.scope.districtName ?? t("header.statewide", lang)}
+              </p>
+            )}
+            {row(
+              t("trace.timing", lang),
+              <p className="text-xs font-data" style={{ color: "var(--text-secondary)" }}>
+                {(trace.totalMs / 1000).toFixed(1)} s
+              </p>
+            )}
+          </div>
+
+          {verdict && verdict.checked > 0 && (
+            <p className="text-xs font-data" style={{ color: verdict.grounded ? "var(--text-muted)" : "var(--red)" }}>
+              {verdict.grounded ? `✓ ${t("answer.grounded", lang)}` : `⚠ ${t("answer.ungrounded", lang)}`}
+              {" "}({verdict.checked})
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function MessageBubble({ message }: { message: ChatMessage }) {
   const lang = useChatStore((s) => s.lang);
   if (message.role === "user") {
@@ -272,6 +404,8 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
         </div>
 
         {!message.loading && message.content && <GroundednessMark message={message} />}
+
+        {!message.loading && message.content && <TracePanel message={message} />}
 
         {!message.loading && message.content && <AnswerFeedback message={message} />}
 

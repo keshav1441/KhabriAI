@@ -11,6 +11,10 @@ import { CrewView } from "@/components/views/CrewView";
 import { ProfilingView } from "@/components/views/ProfilingView";
 import { ReportsView } from "@/components/views/ReportsView";
 import { DeskView } from "@/components/views/DeskView";
+import { CommandView } from "@/components/views/CommandView";
+import { PatternsView } from "@/components/views/PatternsView";
+import { VictimsView } from "@/components/views/VictimsView";
+import { PipelineView } from "@/components/views/PipelineView";
 import { RegisterFirView } from "@/components/views/RegisterFirView";
 import { AboutView } from "@/components/views/AboutView";
 import { ConversationExport } from "@/components/chat/ConversationExport";
@@ -19,15 +23,21 @@ import { useTheme } from "@/components/ThemeProvider";
 import { useChatStore } from "@/store/chat";
 import { t, type StringKey } from "@/lib/i18n";
 
-type View = "chat" | "desk" | "map" | "network" | "crew" | "profiling" | "reports" | "registerFir" | "about";
+type View =
+  | "command" | "chat" | "desk" | "map" | "patterns" | "network" | "crew"
+  | "profiling" | "victims" | "pipeline" | "reports" | "registerFir" | "about";
 
 const NAV_ITEMS: Array<{ icon: React.ReactNode; labelKey: StringKey; view: View }> = [
+  { icon: <CommandIcon />, labelKey: "nav.command", view: "command" },
   { icon: <ChatIcon />, labelKey: "nav.chat", view: "chat" },
   { icon: <DeskIcon />, labelKey: "nav.desk", view: "desk" },
   { icon: <MapIcon />, labelKey: "nav.map", view: "map" },
+  { icon: <ClockIcon />, labelKey: "nav.patterns", view: "patterns" },
   { icon: <NetworkIcon />, labelKey: "nav.network", view: "network" },
   { icon: <CrewIcon />, labelKey: "nav.crew", view: "crew" },
   { icon: <ProfileIcon />, labelKey: "nav.profiling", view: "profiling" },
+  { icon: <VictimIcon />, labelKey: "nav.victims", view: "victims" },
+  { icon: <PipelineIcon />, labelKey: "nav.pipeline", view: "pipeline" },
   { icon: <ReportIcon />, labelKey: "nav.reports", view: "reports" },
   { icon: <FilePlusIcon />, labelKey: "nav.registerFir", view: "registerFir" },
   { icon: <InfoIcon />, labelKey: "nav.about", view: "about" },
@@ -305,7 +315,15 @@ export default function DashboardPage() {
           {activeView === "network" && <NetworkView />}
           {activeView === "crew" && <CrewView />}
           {activeView === "profiling" && <ProfilingView />}
+          {activeView === "command" && (
+            // The command centre routes into the other views rather than
+            // duplicating them, so it needs the setter the nav uses.
+            <CommandView onNavigate={(view) => setActiveView(view as View)} />
+          )}
           {activeView === "desk" && <DeskView />}
+          {activeView === "patterns" && <PatternsView />}
+          {activeView === "victims" && <VictimsView />}
+          {activeView === "pipeline" && <PipelineView />}
           {activeView === "reports" && <ReportsView />}
           {activeView === "registerFir" && <RegisterFirView onAskAssistant={() => setActiveView("chat")} />}
           {activeView === "about" && <AboutView />}
@@ -461,6 +479,42 @@ function MapIcon() {
 function InfoIcon() {
   return <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><circle cx="12" cy="12" r="10" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-4m0-4h.01" /></svg>;
 }
+function CommandIcon() {
+  return (
+    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <rect x="3" y="4" width="8" height="7" rx="1" />
+      <rect x="13" y="4" width="8" height="4" rx="1" />
+      <rect x="3" y="13" width="8" height="7" rx="1" />
+      <rect x="13" y="10" width="8" height="10" rx="1" />
+    </svg>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path strokeLinecap="round" d="M12 7v5.3l3.4 2" />
+    </svg>
+  );
+}
+
+function VictimIcon() {
+  return (
+    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 20.5s-7-4.4-7-9.4a3.9 3.9 0 017-2.4 3.9 3.9 0 017 2.4c0 5-7 9.4-7 9.4z" />
+    </svg>
+  );
+}
+
+function PipelineIcon() {
+  return (
+    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 5h18l-6.5 7.4V20l-5-2.6v-5z" />
+    </svg>
+  );
+}
+
 // A clipboard with a clock: the desk is a list of things against a deadline.
 function DeskIcon() {
   return (

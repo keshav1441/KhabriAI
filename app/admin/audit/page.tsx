@@ -75,6 +75,21 @@ export default function AuditConsolePage() {
       .finally(() => setLoadingRuns(false));
   }, [days, debouncedOfficer, tool, scope, status, debouncedQ]);
 
+  // The misuse console links here with the officer already chosen. Read it off
+  // the URL once on mount rather than through useSearchParams, which would need
+  // this whole page wrapped in a Suspense boundary to keep the build static.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const asStatus = params.get("status");
+    if (params.get("officer")) setOfficer(params.get("officer")!);
+    if (params.get("tool")) setTool(params.get("tool")!);
+    if (params.get("scope")) setScope(params.get("scope")!);
+    if (asStatus === "ok" || asStatus === "error") setStatus(asStatus);
+    if (params.get("q")) setQ(params.get("q")!);
+    const asDays = Number(params.get("days"));
+    if (Number.isFinite(asDays) && asDays > 0) setDays(asDays);
+  }, []);
+
   useEffect(() => { loadSummary(); }, [loadSummary]);
   useEffect(() => { loadRuns(); }, [loadRuns]);
 
@@ -113,6 +128,7 @@ export default function AuditConsolePage() {
               <Chip key={d} active={days === d} onClick={() => setDays(d)}>{`${d}d`}</Chip>
             ))}
           </div>
+          <Link href="/admin/misuse" className="text-xs font-medium px-3 py-1.5 rounded-md transition-all" style={{ color: "var(--red)", border: "1px solid var(--red)", background: "var(--red-dim)" }}>Misuse watch →</Link>
           <Link
             href="/admin/feedback"
             className="text-xs font-medium px-3 py-1.5 rounded-md transition-all"

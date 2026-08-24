@@ -2,6 +2,7 @@
 import { create } from "zustand";
 import type { ChatSessionSummary } from "@/lib/chat-api";
 import type { GroundednessVerdict } from "@/lib/groundedness";
+import type { AnswerTrace } from "@/lib/agent/trace";
 
 export type VizType = "table" | "chart" | "graph";
 export type Lang = "en" | "kn";
@@ -29,6 +30,9 @@ export interface ChatMessage {
   /** Whether every figure in this answer was found in the returned data.
    *  Arrives on the trailing `meta` event, after the narrative is complete. */
   groundedness?: GroundednessVerdict;
+  /** The working behind this answer, shown on demand. Client-only — the
+   *  persisted history payload lists its fields explicitly and omits this. */
+  trace?: AnswerTrace;
   /** This officer's vote on this answer. Client-only — never sent to /api/chats. */
   feedback?: "up" | "down";
   loading?: boolean;

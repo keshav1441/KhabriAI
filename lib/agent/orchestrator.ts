@@ -21,6 +21,7 @@ import {
 } from "./tools";
 import { logAuditStep, logAuditRun } from "./audit-log";
 import { checkGroundedness, type GroundednessVerdict } from "../groundedness";
+import { buildTrace, type AnswerTrace, type TraceCall } from "./trace";
 import { getScope } from "../chat-auth";
 
 const ORCH_MODEL = process.env.MISTRAL_ORCH_MODEL ?? "mistral-large-latest";
@@ -62,6 +63,7 @@ export type MetaEvent = {
   sqlError?: string | null;
   relatedCases?: RelatedCase[];
   groundedness?: GroundednessVerdict;
+  trace?: AnswerTrace;
 };
 export type TokenEvent = { type: "token"; token: string };
 export type DoneEvent = { type: "done" };
@@ -178,6 +180,9 @@ export async function* runAgent(
   // Everything the tools handed back this run - the only evidence the
   // groundedness guard is allowed to judge the narrative against.
   const toolResults: unknown[] = [];
+  // The same calls again, with their timing and status - the evidence the
+  // "show the working" panel is assembled from.
+  const traceCalls: TraceCall[] = [];
 
   for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
     let assistantMsg: OpenAI.Chat.ChatCompletionMessage | undefined;
@@ -223,7 +228,13 @@ export async function* runAgent(
       const result = { status: "ok" as const, question: q, options };
       yield { type: "step", id: clarify.tc.id, tool: "askClarification", args: clarify.args, result, status: "ok" };
       void logAuditStep({ runId, question, tool: "askClarification", args: clarify.args, result, status: "ok", actor }, req);
-      yield { type: "meta", sql: "", rows: [], vizType: "table", sqlError: null, relatedCases: [] };
+      yield {
+        type: "meta", sql: "", rows: [], vizType: "table", sqlError: null, relatedCases: [],
+        trace: buildTrace({
+          calls: [{ tool: "askClarification", status: "ok", durationMs: 0, result }],
+          scope, totalMs: Date.now() - runStartedAt,
+        }),
+      };
       const text = options.length ? [q, "", ...options.map((o) => "\u2022 " + o)].join("\n") : q;
       yield { type: "token", token: text };
       void logAuditRun({ runId, question, toolCallCount: 1, finalAnswer: text, durationMs: Date.now() - runStartedAt, actor }, req);
@@ -246,6 +257,7 @@ export async function* runAgent(
     for (const { tc, args, status, value, durationMs } of executed) {
       toolCallCount++;
       toolResults.push(value);
+      traceCalls.push({ tool: tc.function.name, status, durationMs, result: value });
       yield { type: "step", id: tc.id, tool: tc.function.name, args, result: value, status };
       void logAuditStep({ runId, question, tool: tc.function.name, args, result: value, status, durationMs, actor }, req);
       messages.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(capForLLM(value)) });
@@ -270,6 +282,7 @@ export async function* runAgent(
     vizType: fallbackRows ? "table" : (lastQueryResult?.vizType ?? "table"),
     sqlError: lastQueryResult?.status === "error" ? (lastQueryResult.message ?? "Query failed") : null,
     relatedCases: lastCasesResult?.cases ?? lastSimilarResult?.cases ?? [],
+    trace: buildTrace({ calls: traceCalls, scope, totalMs: Date.now() - runStartedAt }),
   };
 
   const synthesisPrompt =

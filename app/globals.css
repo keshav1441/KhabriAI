@@ -222,4 +222,12 @@ body::before {
   .print-section-title { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; border-bottom: 1px solid #000; padding-bottom: 2px; margin-bottom: 6px; }
   .print-kv { font-size: 11px; line-height: 1.55; }
   .print-note { font-size: 10px; color: #555; margin: 2px 0 4px; }
+
+  /* The handover brief is a legal document, and the chat transcript's
+     .print-root is mounted for as long as the chat view is on screen. When a
+     brief is open it is the only thing that may reach the page — otherwise a
+     transcript would print interleaved with a handover and neither would be
+     safe to sign. The drawer already refuses to open the crew dossier and the
+     brief at once; this is the belt to that pair of braces. */
+  body:has(.print-handover) .print-root:not(.print-handover) { display: none; visibility: hidden; }
 }

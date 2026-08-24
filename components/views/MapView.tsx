@@ -1,11 +1,14 @@
 "use client";
 import "leaflet/dist/leaflet.css";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useChatStore } from "@/store/chat";
 import { t, type StringKey } from "@/lib/i18n";
 import { PatrolPriorities } from "./PatrolPriorities";
+import { CaseDrawer } from "../viz/CaseDrawer";
 // Type-only: hotspot-forecast imports Prisma, which must never reach the bundle.
 import type { HotspotForecast, HotspotDistrict } from "@/lib/hotspot-forecast";
+// map-points takes its db client as an argument, so only the pure half compiles in.
+import { thinPoints, cellDegForZoom, type IncidentPoint, type Bounds } from "@/lib/map-points";
 
 const DISTRICT_COORDS: Record<string, [number, number]> = {
   "Bagalkot": [16.1826, 75.6966], "Ballari": [15.1394, 76.9214],
@@ -26,7 +29,11 @@ const DISTRICT_COORDS: Record<string, [number, number]> = {
 };
 
 type District = { name: string; count: number };
-type Layer = "observed" | "predicted";
+type Layer = "observed" | "predicted" | "incidents";
+
+/** Hard DOM ceiling. The server already caps the fetch; this is the second lock. */
+const MARKER_BUDGET = 4000;
+const REFETCH_DEBOUNCE_MS = 400;
 
 /** One row of whichever layer is active — `count` is what sizes the pin. */
 type Row = { name: string; count: number; forecast?: HotspotDistrict };
@@ -74,6 +81,17 @@ export function MapView() {
   const [forecastState, setForecastState] = useState<"idle" | "loading" | "error" | "ready">("idle");
   const [showPriorities, setShowPriorities] = useState(false);
 
+  // Incident layer. `mapEpoch` bumps whenever a Leaflet map is (re)built, which
+  // is how the incident effects learn there is an instance to attach to.
+  const [mapEpoch, setMapEpoch] = useState(0);
+  const [points, setPoints] = useState<IncidentPoint[]>([]);
+  const [pointMeta, setPointMeta] = useState({ total: 0, missingCoords: 0, capped: false });
+  const [pointState, setPointState] = useState<"idle" | "loading" | "error" | "ready">("idle");
+  const [shown, setShown] = useState(0);
+  const [zoom, setZoom] = useState(7);
+  const [openCaseId, setOpenCaseId] = useState<number | null>(null);
+  const pointSeq = useRef(0);
+
   useEffect(() => {
     fetch("/api/map-data")
       .then((r) => r.json())
@@ -91,10 +109,28 @@ export function MapView() {
       .catch(() => setForecastState("error"));
   };
 
+  // Points are fetched per viewport, not once for the state. That is what makes
+  // the cap tolerable: statewide you get a capped sample and are told so; zoom
+  // to a taluk and the same cap returns every FIR inside it.
+  const loadPoints = useCallback((b?: Bounds) => {
+    const seq = ++pointSeq.current;
+    setPointState((s) => (s === "ready" ? s : "loading"));
+    const bbox = b ? `&bbox=${[b.south, b.west, b.north, b.east].map((v) => v.toFixed(4)).join(",")}` : "";
+    fetch(`/api/map-data?mode=points${bbox}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("points failed"))))
+      .then((d) => {
+        if (seq !== pointSeq.current) return; // a later pan already superseded this
+        setPoints(d.points ?? []);
+        setPointMeta({ total: d.total ?? 0, missingCoords: d.missingCoords ?? 0, capped: Boolean(d.capped) });
+        setPointState("ready");
+      })
+      .catch(() => { if (seq === pointSeq.current) setPointState("error"); });
+  }, []);
+
   const rows: Row[] =
-    layer === "observed"
-      ? districts
-      : (forecast?.districts ?? []).map((f) => ({ name: f.district, count: f.predicted30, forecast: f }));
+    layer === "predicted"
+      ? (forecast?.districts ?? []).map((f) => ({ name: f.district, count: f.predicted30, forecast: f }))
+      : districts;
 
   useEffect(() => {
     if (loading || !mapRef.current || !rows.length) return;
@@ -118,6 +154,12 @@ export function MapView() {
       // Only resize if this map is still the mounted instance — else Leaflet
       // throws "_leaflet_pos" on a removed map when the tab switches fast.
       setTimeout(() => { if (mapInstance.current === map) map.invalidateSize(); }, 200);
+
+      setMapEpoch((e) => e + 1); // the incident effects hang off this, not off a ref
+
+      // The incident layer draws its own markers from CaseMaster coordinates —
+      // district centroids would only clutter the real ones.
+      if (layer === "incidents") return;
 
       const maxCount = Math.max(...rows.map((d) => d.count), 1);
 
@@ -193,8 +235,82 @@ export function MapView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, districts, layer, forecast, lang]);
 
+  // Viewport tracking for the incident layer: zoom drives how coarse the grid
+  // is, and a settled pan triggers a refetch for the new box.
+  useEffect(() => {
+    const map = mapInstance.current;
+    if (layer !== "incidents" || !map) return;
+
+    const boxOf = () => {
+      const b = map.getBounds();
+      return { south: b.getSouth(), west: b.getWest(), north: b.getNorth(), east: b.getEast() };
+    };
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const onMove = () => {
+      setZoom(map.getZoom());
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => loadPoints(boxOf()), REFETCH_DEBOUNCE_MS);
+    };
+
+    setZoom(map.getZoom());
+    loadPoints(boxOf());
+    map.on("moveend", onMove);
+    return () => { if (timer) clearTimeout(timer); map.off("moveend", onMove); };
+  }, [layer, mapEpoch, loadPoints]);
+
+  // Marker layer for the incident points. Rebuilt whenever the data or the zoom
+  // changes; never added to the map that is already gone.
+  useEffect(() => {
+    const map = mapInstance.current;
+    if (layer !== "incidents" || !map) return;
+
+    let cancelled = false;
+    let group: import("leaflet").LayerGroup | null = null;
+
+    import("leaflet").then(({ default: L }) => {
+      if (cancelled || mapInstance.current !== map) return;
+      group = L.layerGroup().addTo(map);
+
+      const thinned = thinPoints(points, { cellDeg: cellDegForZoom(zoom), cap: MARKER_BUDGET });
+      setShown(thinned.shown);
+
+      for (const c of thinned.clusters) {
+        const single = c.count === 1;
+        const size = single ? 12 : Math.min(40, 20 + Math.round(Math.log2(c.count) * 5));
+        const html = single
+          ? `<div style="width:12px;height:12px;border-radius:50%;background:#E63946;border:2px solid rgba(255,255,255,.85);box-shadow:0 0 0 1px rgba(0,0,0,.3)"></div>`
+          : `<div style="width:${size}px;height:${size}px;border-radius:50%;background:rgba(230,57,70,.82);border:2px solid rgba(255,255,255,.9);color:#fff;display:flex;align-items:center;justify-content:center;font:600 ${size < 28 ? 10 : 11}px system-ui,sans-serif">${c.count.toLocaleString()}</div>`;
+
+        const marker = L.marker([c.lat, c.lng], {
+          icon: L.divIcon({ html, className: "", iconSize: [size, size], iconAnchor: [size / 2, size / 2] }),
+        }).addTo(group!);
+
+        if (single) {
+          const s = c.sample;
+          marker.bindTooltip(
+            `<b>${esc(s.crimeNo ?? "—")}</b><br/>${esc(s.crimeType ?? s.crimeGroup ?? "")}<br/>` +
+            `<span style="color:#666">${esc(s.station ?? "")}${s.date ? ` · ${esc(s.date)}` : ""}</span>`,
+            { direction: "top", offset: [0, -8] }
+          );
+          // The view hosts the drawer, so a point goes straight to the case.
+          marker.on("click", () => setOpenCaseId(s.id));
+        } else {
+          marker.bindTooltip(`${c.count.toLocaleString()} ${esc(t("map.cases", lang))}`, { direction: "top", offset: [0, -size / 2] });
+          marker.on("click", () => map.setView([c.lat, c.lng], Math.min(18, map.getZoom() + 2)));
+        }
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      if (group && mapInstance.current === map) map.removeLayer(group);
+    };
+  }, [layer, mapEpoch, points, zoom, lang]);
+
   const maxCount = Math.max(...rows.map((d) => d.count), 1);
   const predicting = layer === "predicted";
+  const plotting = layer === "incidents";
 
   const switchLayer = (next: Layer) => {
     setLayer(next);
@@ -214,7 +330,7 @@ export function MapView() {
             {t("map.layer", lang)}
           </span>
           <div className="flex rounded-md overflow-hidden" style={{ border: "1px solid var(--border)" }}>
-            {(["observed", "predicted"] as Layer[]).map((l) => (
+            {(["observed", "predicted", "incidents"] as Layer[]).map((l) => (
               <button
                 key={l}
                 onClick={() => switchLayer(l)}
@@ -225,7 +341,7 @@ export function MapView() {
                   fontWeight: layer === l ? 700 : 400,
                 }}
               >
-                {t(l === "observed" ? "map.layer.observed" : "map.layer.predicted", lang)}
+                {t(`map.layer.${l}` as StringKey, lang)}
               </button>
             ))}
           </div>
@@ -249,7 +365,36 @@ export function MapView() {
           {predicting && forecastState === "error" && (
             <span className="font-data text-xs" style={{ color: "var(--red)" }}>{t("hotspot.error", lang)}</span>
           )}
+
+          {/* Both numbers, always together: what is drawn, and what could not be. */}
+          {plotting && pointState === "ready" && (
+            <>
+              <span className="font-data text-xs" style={{ color: "var(--red)" }}>
+                {shown.toLocaleString()}
+                {pointMeta.capped && ` / ${pointMeta.total.toLocaleString()}`}{" "}
+                <span style={{ color: "var(--text-muted)" }}>{t("map.incidentCount", lang)}</span>
+              </span>
+              {pointMeta.missingCoords > 0 && (
+                <span className="font-data text-xs" style={{ color: "var(--amber)" }}>
+                  {pointMeta.missingCoords.toLocaleString()}{" "}
+                  <span style={{ color: "var(--text-muted)" }}>{t("map.noCoords", lang)}</span>
+                </span>
+              )}
+            </>
+          )}
+          {plotting && pointState === "loading" && (
+            <span className="font-data text-xs" style={{ color: "var(--text-muted)" }}>{t("map.loading", lang)}</span>
+          )}
+          {plotting && pointState === "error" && (
+            <span className="font-data text-xs" style={{ color: "var(--red)" }}>{t("hotspot.error", lang)}</span>
+          )}
         </div>
+
+        {plotting && (
+          <div className="shrink-0 px-4 py-1.5" style={{ borderBottom: "1px solid var(--border-subtle)", background: "var(--bg-raised)" }}>
+            <p className="text-[11px] leading-snug" style={{ color: "var(--text-muted)" }}>{t("map.incidentHint", lang)}</p>
+          </div>
+        )}
 
         {/* Method disclosure — visible with the projection, not hidden in a tooltip. */}
         {predicting && forecast && (
@@ -361,6 +506,10 @@ export function MapView() {
           })}
         </div>
       </div>
+
+      {/* A point on the map is a case, so clicking one lands in the same drawer
+          the desk and the results table open. */}
+      <CaseDrawer caseId={openCaseId} onClose={() => setOpenCaseId(null)} />
     </div>
   );
 }

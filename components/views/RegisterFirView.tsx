@@ -95,6 +95,8 @@ export function RegisterFirView({ onAskAssistant }: { onAskAssistant: () => void
     setNotFound(data.missing ?? []);
     setDocWarnings(data.warnings ?? []);
     setError(null);
+    setSuggestions(null); // suggestions belong to the facts they were asked about
+    setSuggestError(null);
   };
 
   // Reads a document into the form and stops there: registering is still a separate,
@@ -116,6 +118,43 @@ export function RegisterFirView({ onAskAssistant }: { onAskAssistant: () => void
     } finally {
       setDocBusy(false);
     }
+  };
+
+  // Section suggestion — reads the brief facts (typed, or filled by the document
+  // block above) and asks what past filings on facts like these were booked under.
+  type Suggestion = { actCode: string; sectionCode: string; description: string | null; confidence: number; usedByCases: number; exampleCrimeNos: string[] };
+  const [suggestBusy, setSuggestBusy] = useState(false);
+  const [suggestError, setSuggestError] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<Suggestion[] | null>(null);
+
+  const factsReady = form.briefFacts.trim().length >= 20;
+
+  const suggestSections = async () => {
+    setSuggestBusy(true);
+    setSuggestError(null);
+    try {
+      const res = await fetch("/api/sections/suggest", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          briefFacts: form.briefFacts,
+          crimeMajorHeadId: num(form.crimeMajorHeadId),
+          crimeMinorHeadId: num(form.crimeMinorHeadId),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setSuggestError(data.error ?? `HTTP ${res.status}`); return; }
+      setSuggestions(data.suggestions ?? []);
+    } catch {
+      setSuggestError("Network error");
+    } finally {
+      setSuggestBusy(false);
+    }
+  };
+
+  const addSuggested = (s: Suggestion) => {
+    const k = `${s.actCode}|${s.sectionCode}`;
+    if (form.sections.includes(k) || form.sections.length >= MAX_ROWS) return;
+    set("sections", [...form.sections, k]);
   };
 
   const district = lookups?.districts.find((d) => String(d.DistrictID) === form.districtId);
@@ -158,7 +197,7 @@ export function RegisterFirView({ onAskAssistant }: { onAskAssistant: () => void
     }
   };
 
-  const reset = () => { setForm(initialForm()); setDone(null); setError(null); discardDoc(); };
+  const reset = () => { setForm(initialForm()); setDone(null); setError(null); discardDoc(); setSuggestions(null); setSuggestError(null); };
 
   if (loadError) {
     return (
@@ -337,6 +376,63 @@ export function RegisterFirView({ onAskAssistant }: { onAskAssistant: () => void
         </Section>
 
         <Section title={L("fir.sec.sections")} hint={L("fir.maxRows")} source={mark("sections")}>
+          <div className="mb-3 rounded-md p-3" style={{ border: "1px dashed var(--ink)" }}>
+            <div className="flex flex-wrap items-center gap-2">
+              <button type="button" disabled={!factsReady || suggestBusy} onClick={suggestSections}
+                className="text-xs font-bold px-3 py-1.5 rounded-md"
+                style={{ color: "var(--ink)", border: "1px solid var(--ink)", opacity: !factsReady || suggestBusy ? 0.4 : 1, cursor: factsReady && !suggestBusy ? "pointer" : "not-allowed" }}>
+                {suggestBusy ? L("section.suggesting") : L("section.suggest")}
+              </button>
+              {suggestions && suggestions.length > 0 && (
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>{L("section.why")}</span>
+              )}
+            </div>
+
+            {/* The caveat is text, not a tooltip: whoever reads the suggestion must
+                read the limit on it in the same glance. */}
+            <p className="text-xs mt-2" style={{ color: "var(--text-muted)" }}>{L("section.caveat")}</p>
+
+            {suggestError && (
+              <div role="alert" className="mt-2 rounded-md px-3 py-2 text-xs" style={{ background: "var(--red-dim)", border: "1px solid var(--red)", color: "var(--red)" }}>
+                {suggestError}
+              </div>
+            )}
+            {suggestions?.length === 0 && !suggestBusy && (
+              <p className="text-xs mt-2" style={{ color: "var(--text-secondary)" }}>{L("section.none")}</p>
+            )}
+
+            {suggestions && suggestions.length > 0 && (
+              <ul className="mt-2 space-y-1.5">
+                {suggestions.map((s) => {
+                  const k = `${s.actCode}|${s.sectionCode}`;
+                  const already = form.sections.includes(k);
+                  const full = !already && form.sections.length >= MAX_ROWS;
+                  return (
+                    <li key={k} className="flex items-start justify-between gap-3 text-xs rounded-md px-2 py-1.5" style={{ background: "var(--bg-input)" }}>
+                      <div className="min-w-0">
+                        <span className="font-data font-bold">{s.actCode} {s.sectionCode}</span>
+                        {s.description && <span style={{ color: "var(--text-secondary)" }}> · {s.description}</span>}
+                        <div className="mt-0.5" style={{ color: "var(--text-muted)" }}>
+                          {L("section.confidence")}: <span className="font-data">{Math.round(s.confidence * 100)}%</span>
+                          {" · "}
+                          {L("section.basedOn")}: <span className="font-data">{s.usedByCases}</span>
+                        </div>
+                        {s.exampleCrimeNos.length > 0 && (
+                          <div className="font-data truncate" style={{ color: "var(--text-muted)" }}>{s.exampleCrimeNos.join(" · ")}</div>
+                        )}
+                      </div>
+                      <button type="button" disabled={already || full} onClick={() => addSuggested(s)}
+                        className="shrink-0 text-xs font-bold px-2.5 py-1 rounded-md"
+                        style={{ background: already ? "transparent" : "var(--ink)", color: already ? "var(--text-muted)" : "var(--bg-input)", border: "1px solid var(--ink)", opacity: already || full ? 0.4 : 1 }}>
+                        {already ? "✓" : L("section.add")}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+
           <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
             {sections.map((s) => {
               const key = `${s.ActCode}|${s.SectionCode}`;

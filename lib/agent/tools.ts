@@ -22,6 +22,10 @@ export interface QueryDatabaseResult {
   rows?: Record<string, unknown>[];
   vizType?: VizType;
   repaired?: boolean;
+  /** The database error the repair fixed - kept so the trace can show both. */
+  repairError?: string;
+  /** Few-shot questions the SQL was written from, with their retrieval scores. */
+  fewShot?: { question: string; score: number }[];
   substitutions?: { column: string; from: string; to: string }[];
   suggestions?: string[];
   ambiguousPerson?: { token: string; count: number; examples: string[] } | null;
@@ -256,8 +260,8 @@ export async function runQueryDatabase(
   if (!question) return { status: "error", message: "Missing question" };
 
   try {
-    const { sql, rows, repaired, substitutions, suggestions, ambiguousPerson } = await answerWithSQL(question, { history, req });
-    return { status: "ok", sql, rows, vizType: classifyQuery(sql), repaired, substitutions, suggestions, ambiguousPerson };
+    const { sql, rows, repaired, repairError, fewShot, substitutions, suggestions, ambiguousPerson } = await answerWithSQL(question, { history, req });
+    return { status: "ok", sql, rows, vizType: classifyQuery(sql), repaired, repairError, fewShot, substitutions, suggestions, ambiguousPerson };
   } catch (e) {
     console.error("queryDatabase tool failed:", e);
     const err = e as Error & { sql?: string };
