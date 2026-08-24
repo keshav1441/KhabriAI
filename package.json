@@ -16,6 +16,7 @@
     "demo:check": "tsx scripts/demo-check.ts",
     "alerts": "tsx scripts/run-alerts.ts",
     "crew": "tsx scripts/crew-check.ts",
+    "hotspots": "tsx scripts/hotspot-check.ts",
     "loadtest": "tsx scripts/loadtest.ts",
     "set-scope": "tsx scripts/set-scope.ts"
   },

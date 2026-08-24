@@ -9,6 +9,7 @@ import {
   runSearchRelatedCases,
   runFindSimilarCases,
   runCheckInsights,
+  runPredictHotspots,
   runGetNetworkOrMapData,
   runPredictRisk,
   runBuildCrewDossier,
@@ -106,6 +107,10 @@ async function executeTool(
     }
     case "checkInsights": {
       const value = await runCheckInsights(req);
+      return { status: value.status, value };
+    }
+    case "predictHotspots": {
+      const value = await runPredictHotspots(args as Parameters<typeof runPredictHotspots>[0], req);
       return { status: value.status, value };
     }
     case "getNetworkOrMapData": {

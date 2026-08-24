@@ -12,6 +12,7 @@ const TOOL_LABEL_KEYS: Record<string, StringKey> = {
   askClarification: "board.tool.askClarification",
   findSimilarCases: "board.tool.findSimilarCases",
   buildCrewDossier: "board.tool.buildCrewDossier",
+  predictHotspots: "board.tool.predictHotspots",
 };
 
 type Contribution = { label: string; sign: "+" | "-"; strength: number };

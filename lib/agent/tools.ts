@@ -6,6 +6,7 @@ import { prisma as db } from "../db";
 import { getScope } from "../chat-auth";
 import { getCachedInsights, setCachedInsights, type InsightItem } from "../insights-cache";
 import { computeInsights } from "../insights-compute";
+import { computeHotspots, type PatrolPriority } from "../hotspot-forecast";
 import { prisma } from "../db";
 import { getCatalystApp, withCatalystTimeout } from "../catalyst-client";
 import { predictChargesheetRisk, type RiskContribution } from "../risk-model";
@@ -49,6 +50,16 @@ export interface CheckInsightsResult {
 
 export interface NetworkOrMapResult {
   status: "ok" | "error";
+  rows?: Record<string, unknown>[];
+  vizType?: VizType;
+  message?: string;
+}
+
+export interface PredictHotspotsResult {
+  status: "ok" | "error";
+  horizonDays?: number;
+  method?: string;
+  priorities?: PatrolPriority[];
   rows?: Record<string, unknown>[];
   vizType?: VizType;
   message?: string;
@@ -122,6 +133,22 @@ export const TOOL_SCHEMAS: OpenAI.Chat.ChatCompletionTool[] = [
       description:
         "Get precomputed anomaly insights: district-level crime spikes, repeat-accused patterns, statewide weekly crime surges. Use for questions about trends, anomalies, or what's notable right now.",
       parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "predictHotspots",
+      description:
+        "Forecast where cases are likely to land next and which stations should be told. Returns ranked patrol priorities: district x crime group with a least-squares trend over the last six complete months, the projected count for the coming period, how well the line fits, and the stations carrying that district's recent load. Use for forward-looking or deployment questions - where to patrol, what is expected to rise, where to place resources. Do NOT use for what has already happened; that is queryDatabase.",
+      parameters: {
+        type: "object",
+        properties: {
+          district: { type: "string", description: "Limit the answer to one district, if the officer named one." },
+          crimeGroup: { type: "string", description: "Limit to one crime group, e.g. Crimes Against Property." },
+          horizonDays: { type: "number", description: "Projection window in days, 7-90. Defaults to 30." },
+        },
+      },
     },
   },
   {
@@ -303,6 +330,66 @@ export async function runCheckInsights(req?: Request): Promise<CheckInsightsResu
   } catch (e) {
     console.error("checkInsights tool failed:", e);
     return { status: "error", message: "Insights lookup failed" };
+  }
+}
+
+/**
+ * Deployment questions, answered with the same transparent trend the reports
+ * view uses. The planner gets the ranked cells and the sentence explaining each
+ * one - never a projected number on its own, since a forecast an officer cannot
+ * argue with is not usable in a briefing.
+ */
+export async function runPredictHotspots(
+  args: { district?: string; crimeGroup?: string; horizonDays?: number },
+  req?: Request
+): Promise<PredictHotspotsResult> {
+  try {
+    const horizon = Math.min(Math.max(Number(args.horizonDays) || 30, 7), 90);
+    const forecast = await computeHotspots(horizon);
+
+    // The officer's posting bounds the answer the same way it bounds their SQL.
+    const { districtName } = await getScope(req);
+    const wanted = (args.district ?? districtName ?? "").trim().toLowerCase();
+    const group = (args.crimeGroup ?? "").trim().toLowerCase();
+
+    let priorities = forecast.priorities;
+    if (wanted) priorities = priorities.filter((p) => p.district.toLowerCase().includes(wanted));
+    if (group) priorities = priorities.filter((p) => p.crimeGroup.toLowerCase().includes(group));
+
+    if (!priorities.length) {
+      return {
+        status: "ok",
+        horizonDays: horizon,
+        method: forecast.method,
+        priorities: [],
+        rows: [],
+        vizType: "table",
+        message: wanted
+          ? `No crime group is trending up in ${args.district ?? districtName} with enough history to project.`
+          : "No cell has both a rising trend and enough history to project.",
+      };
+    }
+
+    return {
+      status: "ok",
+      horizonDays: horizon,
+      method: forecast.method,
+      priorities,
+      rows: priorities.map((p) => ({
+        rank: p.rank,
+        district: p.district,
+        crime_group: p.crimeGroup,
+        last_30_days: p.observed30,
+        projected: p.predicted30,
+        trend_per_month: p.slopePerMonth,
+        confidence: p.confidence,
+        stations: p.stations.map((st) => `${st.station} (${st.share}%)`).join(", "),
+      })),
+      vizType: "table",
+    };
+  } catch (e) {
+    console.error("predictHotspots tool failed:", e);
+    return { status: "error", message: "Hotspot forecast failed" };
   }
 }
 

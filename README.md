@@ -21,7 +21,8 @@ Conversational AI for investigators to query crime data in plain English. Sign i
 | Case retrieval | Postgres full-text search (`tsvector`/`ts_rank`) over `CaseMaster.BriefFacts` |
 | Proactive alerts | Scheduled detectors → per-officer `Alert` rows (Postgres unique dedupe) · header bell, 60s poll |
 | Crew dossier | Two-hop walk over co-accused + pgvector MO edges (`lib/crew.ts`) · browser-print PDF briefing |
-| Maps | Leaflet + react-leaflet |
+| Predictive hotspots | Least-squares trend per district × crime group over 6 complete months (`lib/hotspot-forecast.ts`) · patrol priorities · Catalyst Cache 180 min |
+| Maps | Leaflet + react-leaflet — 30 hardcoded district centroids, not per-incident coordinates |
 | Network graph | Cytoscape.js + cose-bilkent |
 | Charts | Recharts |
 | State | Zustand |
@@ -73,7 +74,7 @@ SQL is generated and stored server-side but **not shown in the chat UI** — inv
 | `GROUP BY date/month/week` | Line chart (Recharts) |
 | Everything else | Data table |
 
-Hotspot maps (Leaflet) live in the dedicated **Map** view, not in chat.
+Hotspot maps (Leaflet) live in the dedicated **Map** view, not in chat. They plot **district centroids sized by that district's case count**, not individual incidents — see [Predictive hotspots](#predictive-hotspots).
 
 ---
 
@@ -184,6 +185,42 @@ npm run crew -- --case 13778           # seed from a CaseMasterID
 npm run crew -- --person KSP-P-00928   # seed from a PersonID
 ```
 Prints the summary line, districts, signature, members and the case timeline with `[mo 0.93 ← 13778]`-style provenance on every row, plus how many MO links cross a district boundary. `npm test` covers the signature extractor (`test/crew.test.ts`).
+
+---
+
+## Predictive hotspots
+
+The map answers *where has crime happened*. An officer allocating tomorrow's shift needs *where is it going*. `lib/hotspot-forecast.ts` fits the same transparent least-squares trend the early-warning insights use — one line per **district × crime group** over the last **six complete months** — and projects one month ahead, scaled to the requested horizon (`scale = horizonDays / 30`).
+
+**Why the current month is excluded.** The month now running is always partial: on the 4th it holds four days of cases. Including it in the fit bends every trend downwards and would show a statewide decline that is an artefact of the calendar. So the window ends at last month, and the projection is *for* the month now running.
+
+**Confidence and fit, per cell.** `fitTrend(y)` returns `slope`, `intercept` and the **R²** — how much of the variance the line actually explains — and every cell carries a `low` / `medium` / `high` confidence derived from both case volume and R²: `high` needs a fit ≥ 0.6 on ≥ 24 cases, `medium` a fit ≥ 0.3, and anything under 12 cases of history is `low` regardless of how neat the line looks. The UI never shows a projected number without saying how much to trust it.
+
+**Why district, not station.** 20,000 cases across 210 stations is about **95 cases per station over the whole corpus** — split further by crime group and by month, a station-level series is mostly zeros and ones. A trend line through that is noise wearing a slope, and a confident line through noise is worse than no line at all. So the forecast stops at the district.
+
+**How stations are named instead.** Districts do not patrol; stations do. Each priority therefore names the top three stations by their **share of that district's last 90 days** in that crime group — an observed fact, not a projection. That is what turns "Burglary is rising in Tumakuru" into a patrol order.
+
+**Patrol priorities.** A cell becomes a priority only when all three hold: slope > **0.5** cases/month, ≥ **12** cases of history, and predicted > observed. They are then ranked by `(predicted − observed) × max(fit, 0.05)` — the uplift a shift would absorb, **discounted by how well the line fits**. Without the discount the top of the list fills with thin cells where a jump from 1 case to 8 is arithmetic, not a trend. Top 12 are returned.
+
+**API.**
+
+| Route | Purpose |
+|---|---|
+| `GET /api/forecast/hotspots?horizon=30` | Per-district forecast + ranked patrol priorities. `horizon` clamped to **7–90** days |
+
+Session-guarded (`requireUser`), Catalyst Cache-backed for **180 minutes** (the fit only moves when a month closes, so recomputing per page load buys nothing), and scoped: a district-posted officer gets only their own district's rows and priorities, re-ranked from 1, with the scope name echoed back.
+
+**Agent tool.** `predictHotspots` (`lib/agent/tools.ts`, dispatched in `lib/agent/orchestrator.ts`) takes `district`, `crimeGroup` and `horizonDays` (7–90). The officer's posting bounds the answer the way it bounds their SQL — an unnamed district defaults to their own. It returns the ranked rows as a table plus the `method` string, so the narrative repeats how the number was produced. Forward-looking questions ("where should we patrol next month?") route here; what already happened stays with `queryDatabase`.
+
+**UI.** `components/views/MapView.tsx` carries an **Observed | Predicted** layer toggle. The forecast is fetched lazily — the observed layer never pays for it — and only on first switch. Predicted pins ride an **amber→red ramp** rather than the observed layer's reds, so a projection can never be misread as a count; each popup shows `observed → predicted` with the confidence chip and the crime groups driving it. **Patrol priorities →** opens `components/views/PatrolPriorities.tsx`: rank, district × crime group, observed→predicted, slope/month, fit, the station shares, and the plain-English reason. The method, the months fitted, and the district/station caveats are printed **as text under the numbers, not hidden in a tooltip** — this is a police tool, so a projection should be arguable rather than obeyed.
+
+**Run it without the UI:**
+```bash
+npm run hotspots     # scripts/hotspot-check.ts — districts, months fitted, top priorities
+```
+One run on the synthetic corpus: 30 districts and 12 patrol priorities in ~1.3 s. Top priority was Crimes Against Women in Chikkaballapura — 1 case in the last 30 days against 7 projected, +0.91/month, **medium** confidence, with 77% of the last 90 days sitting at Chikkaballapura City PS (44%), North PS (22%) and Market PS (11%). The highest-confidence cell was Crimes Against Body in Dakshina Kannada, 7 → 11 at +1.23/month with a fit of 0.68. That is one run on seeded data, not an evaluation.
+
+`npm test` covers the estimator itself (`test/hotspot-forecast.test.ts`): exact slope/intercept recovery on a straight line, a flat series reporting no trend and nothing explained, a falling trend kept negative, a zig-zag scoring a poor fit, and the one-step projection.
 
 ---
 
@@ -332,15 +369,18 @@ app/
     alerts/           Alert feed (GET) + mark read (PATCH)
     alerts/generate/  Run detection now (signed-in "Run detection" button)
     crew/             Crew dossier around a case (caseId/crimeNo) or a person (personId)
+    forecast/hotspots/  Predictive hotspots + patrol priorities (?horizon=7-90, cached 180 min)
     cron/insights/    Precompute target for scheduled insight refresh (also fans out alerts)
     cron/alerts/      Scheduled target for the alert engine (Bearer CRON_SECRET)
     cron/register/    Registers the Catalyst cron that calls the two above
-    map-data/         Crime locations with lat/lng
+    map-data/         Per-district case counts (plotted against hardcoded district centroids)
     network-data/     Accused co-occurrence graph
     reports/          Pre-aggregated insight cards
 components/
   chat/             ChatWindow, MessageBubble, CaseBoard (live tool steps), RelatedCases, ChatHistory
   views/            Map, Network, Crew, Reports, About panels
+    MapView.tsx         District-centroid hotspot map + Observed | Predicted layer toggle
+    PatrolPriorities.tsx  Ranked patrol priorities panel — fit, confidence, station shares, method
   crew/             CrewDossier — dossier panel + print-only PDF rendering
   viz/              NetworkGraph, ResultsTable, CrimeChart, CaseDrawer
 lib/
@@ -362,6 +402,7 @@ lib/
   insights-compute.ts  The 3 anomaly-detection queries (spikes, repeat accused, surges)
   alerts.ts            Alert engine — detectors + cross-district MO linker, scope fan-out, dedupe
   crew.ts              Crew dossier — two-hop co-accused + MO walk, caps, signature extraction
+  hotspot-forecast.ts  Predictive hotspots — least-squares trend per district × crime group, patrol priorities
   insights-cache.ts    Insight cache keys/TTL over catalyst-cache
   catalyst-client.ts   Request-scoped Catalyst SDK init + timeout guard (null outside AppSail)
   catalyst-cache.ts    Catalyst Cache get/set with local fallback
@@ -377,12 +418,14 @@ prisma/
   migrations/       …_add_case_fts — GIN full-text index on BriefFacts + ChatMessage.relatedCases
 test/
   crew.test.ts      Signature extractor — recurrence, longest form, clause boundaries
+  hotspot-forecast.test.ts  fitTrend — slope/intercept recovery, R² behaviour, projection
 eval/
   run.ts            Offline accuracy harness
 scripts/
   prepare-standalone.mjs  Copies static/public/rag-examples.json + .env into the AppSail bundle, dereferences symlinks
   enrich-briefs.ts        LLM-expands templated BriefFacts into real FIR narratives
   crew-check.ts           Prints a dossier for a seed without the UI (`npm run crew`)
+  hotspot-check.ts        Prints the forecast and patrol priorities without the map (`npm run hotspots`)
 ```
 
 ---
@@ -473,7 +516,9 @@ Memory: `app-config.json` requests 1024 MB. Lower to 512 if your plan rejects it
    → network graph
 
 5. Open the Map view from the sidebar
-   → Leaflet hotspot map of incidents across Karnataka
+   → Leaflet hotspot map: Karnataka's 30 districts plotted at their centroids, pin size and
+     colour driven by that district's case count
+   → switch the layer to Predicted, then open Patrol priorities
 
 6. Refresh the page → open a saved chat from the sidebar
    → history and results restore from Neon

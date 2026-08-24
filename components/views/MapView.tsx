@@ -1,6 +1,11 @@
 "use client";
 import "leaflet/dist/leaflet.css";
 import { useEffect, useRef, useState } from "react";
+import { useChatStore } from "@/store/chat";
+import { t, type StringKey } from "@/lib/i18n";
+import { PatrolPriorities } from "./PatrolPriorities";
+// Type-only: hotspot-forecast imports Prisma, which must never reach the bundle.
+import type { HotspotForecast, HotspotDistrict } from "@/lib/hotspot-forecast";
 
 const DISTRICT_COORDS: Record<string, [number, number]> = {
   "Bagalkot": [16.1826, 75.6966], "Ballari": [15.1394, 76.9214],
@@ -21,6 +26,21 @@ const DISTRICT_COORDS: Record<string, [number, number]> = {
 };
 
 type District = { name: string; count: number };
+type Layer = "observed" | "predicted";
+
+/** One row of whichever layer is active — `count` is what sizes the pin. */
+type Row = { name: string; count: number; forecast?: HotspotDistrict };
+
+const CONFIDENCE_KEY: Record<HotspotDistrict["confidence"], StringKey> = {
+  low: "hotspot.confidence.low",
+  medium: "hotspot.confidence.medium",
+  high: "hotspot.confidence.high",
+};
+const CONFIDENCE_COLOR: Record<HotspotDistrict["confidence"], string> = {
+  low: "var(--text-muted)",
+  medium: "var(--amber)",
+  high: "var(--red)",
+};
 
 function fuzzyCoords(name: string): [number, number] | null {
   if (DISTRICT_COORDS[name]) return DISTRICT_COORDS[name];
@@ -35,12 +55,24 @@ function gmapsUrl(lat: number, lng: number, name: string) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name + " Karnataka")}`;
 }
 
+// Popups are raw HTML strings; crime group names come from the database, so
+// escape before interpolating rather than trusting the corpus.
+function esc(s: string) {
+  return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]!));
+}
+
 export function MapView() {
+  const lang = useChatStore((s) => s.lang);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<import("leaflet").Map | null>(null);
   const [districts, setDistricts] = useState<District[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<District | null>(null);
+
+  const [layer, setLayer] = useState<Layer>("observed");
+  const [forecast, setForecast] = useState<HotspotForecast | null>(null);
+  const [scope, setScope] = useState<string | undefined>();
+  const [forecastState, setForecastState] = useState<"idle" | "loading" | "error" | "ready">("idle");
+  const [showPriorities, setShowPriorities] = useState(false);
 
   useEffect(() => {
     fetch("/api/map-data")
@@ -48,8 +80,24 @@ export function MapView() {
       .then((d) => { setDistricts(d.districts ?? []); setLoading(false); });
   }, []);
 
+  // The fit is expensive and cached server-side for hours; nobody who stays on
+  // the observed layer should pay for it, so it loads on first demand only.
+  const loadForecast = () => {
+    if (forecastState !== "idle") return;
+    setForecastState("loading");
+    fetch("/api/forecast/hotspots?horizon=30")
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("forecast failed"))))
+      .then((d) => { setForecast(d.forecast ?? null); setScope(d.scope); setForecastState("ready"); })
+      .catch(() => setForecastState("error"));
+  };
+
+  const rows: Row[] =
+    layer === "observed"
+      ? districts
+      : (forecast?.districts ?? []).map((f) => ({ name: f.district, count: f.predicted30, forecast: f }));
+
   useEffect(() => {
-    if (loading || !mapRef.current || !districts.length) return;
+    if (loading || !mapRef.current || !rows.length) return;
     if (typeof window === "undefined") return;
 
     let cancelled = false; // guard against the dynamic import resolving post-unmount
@@ -71,19 +119,20 @@ export function MapView() {
       // throws "_leaflet_pos" on a removed map when the tab switches fast.
       setTimeout(() => { if (mapInstance.current === map) map.invalidateSize(); }, 200);
 
-      const maxCount = Math.max(...districts.map((d) => d.count), 1);
+      const maxCount = Math.max(...rows.map((d) => d.count), 1);
 
-      for (const dist of districts) {
+      for (const dist of rows) {
         const coords = fuzzyCoords(dist.name);
         if (!coords) continue;
         const [lat, lng] = coords;
         const pct = dist.count / maxCount;
 
-        // Color: deep red for hotspots, muted red for low
-        const r = Math.round(180 + pct * 55);
-        const g = Math.round(30 + (1 - pct) * 60);
-        const b = Math.round(30 + (1 - pct) * 30);
-        const pinColor = `rgb(${r},${g},${b})`;
+        // Observed: deep red for hotspots, muted red for low. Predicted rides an
+        // amber→red ramp instead, so nobody mistakes a projection for a count.
+        const pinColor =
+          layer === "observed"
+            ? `rgb(${Math.round(180 + pct * 55)},${Math.round(30 + (1 - pct) * 60)},${Math.round(30 + (1 - pct) * 30)})`
+            : `rgb(${Math.round(200 + pct * 35)},${Math.round(150 - pct * 110)},${Math.round(40 + (1 - pct) * 20)})`;
         const pinSize = Math.round(20 + pct * 14); // 20–34px
 
         const pinSvg = `
@@ -102,16 +151,38 @@ export function MapView() {
         });
 
         const mapsUrl = gmapsUrl(lat, lng, dist.name);
-        const rank = districts.findIndex((d) => d.name === dist.name) + 1;
+        const rank = rows.findIndex((d) => d.name === dist.name) + 1;
+        const f = dist.forecast;
+
+        // A projected number never appears without its confidence beside it.
+        const body = f
+          ? `<div style="font-size:12px;margin:2px 0 4px">
+               <span style="color:#666">${esc(t("hotspot.observed30", lang))}</span>
+               <b>${f.observed30.toLocaleString()}</b>
+               <span style="color:#666">→</span>
+               <b style="color:#E63946">${f.predicted30.toLocaleString()}</b>
+               <span style="color:${f.delta >= 0 ? "#B21F26" : "#2C6B57"};font-weight:600">
+                 ${f.delta >= 0 ? "+" : ""}${f.deltaPct}%
+               </span>
+             </div>
+             <div style="font-size:10px;font-family:monospace;text-transform:uppercase;letter-spacing:.08em;color:#666">
+               ${esc(t("hotspot.confidence", lang))}: <b>${esc(t(CONFIDENCE_KEY[f.confidence], lang))}</b>
+             </div>
+             ${f.drivers.length ? `
+               <div style="margin-top:5px;font-size:11px">
+                 <div style="color:#999;font-size:10px;font-family:monospace;text-transform:uppercase;letter-spacing:.08em">${esc(t("hotspot.drivers", lang))}</div>
+                 ${f.drivers.map((d) => `<div>${esc(d.crimeGroup)} <b style="color:#9A6410">+${d.slopePerMonth}</b>${esc(t("hotspot.perMonth", lang))}</div>`).join("")}
+               </div>` : ""}`
+          : `<span style="font-size:12px;color:#E63946;font-weight:600">${dist.count.toLocaleString()} ${esc(t("map.cases", lang))}</span><br/>`;
 
         L.marker([lat, lng], { icon }).addTo(map).bindPopup(`
-          <div style="font-family:system-ui,sans-serif;min-width:160px;padding:2px">
-            <div style="font-size:10px;color:#999;font-family:monospace;text-transform:uppercase;letter-spacing:.08em">Rank #${rank}</div>
-            <b style="font-size:13px;display:block;margin:2px 0">${dist.name}</b>
-            <span style="font-size:12px;color:#E63946;font-weight:600">${dist.count.toLocaleString()} cases</span><br/>
+          <div style="font-family:system-ui,sans-serif;min-width:180px;padding:2px">
+            <div style="font-size:10px;color:#999;font-family:monospace;text-transform:uppercase;letter-spacing:.08em">${esc(t("map.rank", lang))} #${rank}</div>
+            <b style="font-size:13px;display:block;margin:2px 0">${esc(dist.name)}</b>
+            ${body}
             <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer"
                style="color:#1D4ED8;font-size:11px;text-decoration:none;margin-top:6px;display:inline-flex;align-items:center;gap:3px">
-              Open in Google Maps ↗
+              ${esc(t("map.openInGmaps", lang))}
             </a>
           </div>
         `);
@@ -119,42 +190,123 @@ export function MapView() {
     });
 
     return () => { cancelled = true; mapInstance.current?.remove(); mapInstance.current = null; };
-  }, [loading, districts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, districts, layer, forecast, lang]);
 
-  const maxCount = Math.max(...districts.map((d) => d.count), 1);
+  const maxCount = Math.max(...rows.map((d) => d.count), 1);
+  const predicting = layer === "predicted";
+
+  const switchLayer = (next: Layer) => {
+    setLayer(next);
+    if (next === "predicted") loadForecast();
+    else setShowPriorities(false);
+  };
 
   return (
     <div className="flex h-full overflow-hidden">
-      {/* Map */}
-      <div className="flex-1 relative">
-        {loading && (
-          <div className="absolute inset-0 flex items-center justify-center z-10"
-               style={{ background: "var(--bg-base)" }}>
-            <span className="font-data text-sm" style={{ color: "var(--text-muted)" }}>
-              Loading crime map…
+      {/* Map + layer toolbar */}
+      <div className="flex-1 flex flex-col min-w-0">
+        <div
+          className="shrink-0 flex items-center flex-wrap gap-3 px-4 py-2"
+          style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-surface)" }}
+        >
+          <span className="font-data text-[10px] font-bold tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>
+            {t("map.layer", lang)}
+          </span>
+          <div className="flex rounded-md overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+            {(["observed", "predicted"] as Layer[]).map((l) => (
+              <button
+                key={l}
+                onClick={() => switchLayer(l)}
+                className="font-data text-xs px-3 py-1 transition-all"
+                style={{
+                  background: layer === l ? "var(--red-dim)" : "transparent",
+                  color: layer === l ? "var(--red)" : "var(--text-muted)",
+                  fontWeight: layer === l ? 700 : 400,
+                }}
+              >
+                {t(l === "observed" ? "map.layer.observed" : "map.layer.predicted", lang)}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={() => { loadForecast(); setLayer("predicted"); setShowPriorities(true); }}
+            className="font-data text-xs px-2.5 py-1 rounded-md transition-all"
+            style={{ color: "var(--amber)", border: "1px solid var(--amber)", background: "var(--amber-dim)" }}
+          >
+            {t("hotspot.priorities", lang)} →
+          </button>
+
+          {predicting && scope && (
+            <span className="font-data text-[10px] tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>
+              {t("map.scope", lang)}: {scope}
             </span>
+          )}
+          {predicting && forecastState === "loading" && (
+            <span className="font-data text-xs" style={{ color: "var(--text-muted)" }}>{t("hotspot.loading", lang)}</span>
+          )}
+          {predicting && forecastState === "error" && (
+            <span className="font-data text-xs" style={{ color: "var(--red)" }}>{t("hotspot.error", lang)}</span>
+          )}
+        </div>
+
+        {/* Method disclosure — visible with the projection, not hidden in a tooltip. */}
+        {predicting && forecast && (
+          <div className="shrink-0 px-4 py-1.5" style={{ borderBottom: "1px solid var(--border-subtle)", background: "var(--bg-raised)" }}>
+            <p className="text-[11px] leading-snug" style={{ color: "var(--text-muted)" }}>
+              <b>{t("hotspot.method", lang)}:</b> {forecast.method}{" "}
+              <span className="font-data">{t("hotspot.monthsFitted", lang)}: {forecast.months.join(" · ")}</span>
+            </p>
           </div>
         )}
-        <div ref={mapRef} style={{ height: "100%", width: "100%" }} />
+
+        <div className="flex-1 relative min-h-0">
+          {loading && (
+            <div className="absolute inset-0 flex items-center justify-center z-10"
+                 style={{ background: "var(--bg-base)" }}>
+              <span className="font-data text-sm" style={{ color: "var(--text-muted)" }}>
+                {t("map.loading", lang)}
+              </span>
+            </div>
+          )}
+          <div ref={mapRef} style={{ height: "100%", width: "100%" }} />
+
+          {predicting && forecastState === "ready" && !rows.length && (
+            <div className="absolute inset-0 flex items-center justify-center z-10" style={{ background: "var(--bg-base)" }}>
+              <span className="font-data text-sm" style={{ color: "var(--text-muted)" }}>{t("hotspot.empty", lang)}</span>
+            </div>
+          )}
+
+          {showPriorities && (
+            <PatrolPriorities
+              forecast={forecast}
+              state={forecastState}
+              scope={scope}
+              onClose={() => setShowPriorities(false)}
+            />
+          )}
+        </div>
       </div>
 
-      {/* District list sidebar */}
+      {/* District list sidebar — follows the active layer */}
       <div
         className="w-64 shrink-0 flex flex-col overflow-hidden"
         style={{ borderLeft: "1px solid var(--border)", background: "var(--bg-surface)" }}
       >
         <div className="px-4 py-3 shrink-0" style={{ borderBottom: "1px solid var(--border)" }}>
           <p className="font-data text-xs font-bold tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>
-            Districts by Crime Count
+            {t(predicting ? "map.list.predicted" : "map.list.observed", lang)}
           </p>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {districts.map((d, i) => {
+          {rows.map((d, i) => {
             const coords = fuzzyCoords(d.name);
             const mapsUrl = coords
               ? gmapsUrl(coords[0], coords[1], d.name)
               : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(d.name + " Karnataka")}`;
             const pct = d.count / maxCount;
+            const f = d.forecast;
             return (
               <a
                 key={d.name}
@@ -183,9 +335,25 @@ export function MapView() {
                       style={{ width: `${(pct * 100).toFixed(0)}%`, background: `rgb(${Math.round(pct*255)},${Math.max(0,180-Math.round(pct*255))},60)` }}
                     />
                   </div>
+                  {/* A projected count is never shown bare — confidence rides with it. */}
+                  {f && (
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className="font-data text-[10px]" style={{ color: CONFIDENCE_COLOR[f.confidence] }}>
+                        {t(CONFIDENCE_KEY[f.confidence], lang)}
+                      </span>
+                      <span className="font-data text-[10px]" style={{ color: "var(--text-muted)" }}>
+                        {f.observed30.toLocaleString()} →
+                      </span>
+                    </div>
+                  )}
                 </div>
-                <span className="font-data text-xs shrink-0" style={{ color: "var(--red)" }}>
+                <span className="font-data text-xs shrink-0 text-right" style={{ color: "var(--red)" }}>
                   {d.count.toLocaleString()}
+                  {f && (
+                    <span className="block font-data text-[10px]" style={{ color: f.delta >= 0 ? "var(--amber)" : "var(--green)" }}>
+                      {f.delta >= 0 ? "+" : ""}{f.deltaPct}%
+                    </span>
+                  )}
                 </span>
                 <span className="text-xs opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "var(--blue)" }}>↗</span>
               </a>

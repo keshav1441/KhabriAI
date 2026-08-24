@@ -36,7 +36,8 @@ Agent orchestrator (Mistral) — plans up to 4 tool iterations, first turn must 
    ├─ checkInsights       Precomputed anomalies: spikes, repeat accused, district surges
    ├─ getNetworkOrMapData Accused co-occurrence graph / per-district geospatial counts
    ├─ predictRisk         Chargesheet likelihood — Catalyst QuickML, local explainable fallback
-   └─ findSimilarCases    Modus-operandi linking — pgvector cosine over narrative embeddings (Mistral)
+   ├─ findSimilarCases    Modus-operandi linking — pgvector cosine over narrative embeddings (Mistral)
+   └─ predictHotspots     Where cases are projected to land next, and which stations carry that load
    │
    ▼
 SSE stream: tool steps → result metadata (rows, vizType, citations) → narrative tokens
@@ -58,7 +59,8 @@ cosine distance over narrative embeddings stored on `CaseMaster.BriefFactsEmbedd
 |---|---|
 | Conversational query + live agent trace | SSE streaming, Case Board step timeline |
 | Auto-visualization | SQL shape → table / bar / line / Cytoscape network |
-| Crime hotspot map | Leaflet, per-incident lat/lng across Karnataka |
+| Crime hotspot map | Leaflet — Karnataka's 30 districts plotted at hardcoded centroids, pins sized and coloured by that district's case count (`/api/map-data`); not per-incident coordinates |
+| **Predictive hotspots** | Least-squares trend per district × crime group over the last six *complete* months, projected forward: an Observed \| Predicted layer on the map and a ranked patrol-priorities panel, each row stating its slope, its fit and its confidence, with the stations carrying the district's recent load named from the last 90 days |
 | Criminal network graph | Cytoscape + cose-bilkent, real accused co-occurrence cliques |
 | Profiling view | Per-person case history, associates, timeline |
 | Reports & early warning | Anomaly insights + least-squares 6-month trend forecast per district × crime group |
@@ -130,6 +132,29 @@ have gone looking for. Findings are deduplicated on a unique `(officer, finding)
 re-notifies nobody — an alert is new only when the numbers behind it move. On the synthetic corpus this
 fires on the seeded repeat-offender series; it is a mechanism, not a measured result.
 
+## Predictive hotspots — a map of last month does not allocate next week's shift
+
+A map of what already happened tells an SHO where officers were needed, not where they will be.
+KhabriAI fits a least-squares trend per district × crime group over the last six **complete** months
+— the running month is excluded, because it is always partial and including it bends every trend
+downwards — and projects the next. The map gains an **Observed | Predicted** toggle, predicted pins
+on an amber→red ramp so a projection is never mistaken for a count, and a ranked **patrol
+priorities** panel. Every row states its slope, its R² fit and a low/medium/high confidence drawn
+from both, with the method and the months fitted printed under the numbers rather than behind a
+tooltip — so the projection can be argued with instead of obeyed. A cell qualifies only with a
+rising slope, twelve cases of history and a projection above the current rate, and the ranking
+discounts uplift by fit, so a jump from one case to eight on a poor line does not outrank a
+well-fitted rise. The forecast stops at the district on purpose: ~95 cases per station across the
+whole corpus is too sparse to trend, and a confident line through noise is worse than none. Stations
+are *named* instead, by their share of the district's last 90 days — an observed fact, and what
+turns a trend into a patrol order.
+
+One run on the synthetic corpus (`npm run hotspots`): 30 districts, 12 patrol priorities in ~1.3 s.
+Top priority was Crimes Against Women in Chikkaballapura — 1 case in the last 30 days against 7
+projected, +0.91/month, medium confidence, with 77% of the last 90 days at Chikkaballapura City PS
+(44%), North PS (22%) and Market PS (11%). The highest-confidence cell was Crimes Against Body in
+Dakshina Kannada, 7 → 11 at +1.23/month, fit 0.68. That is one run on seeded data, not an evaluation.
+
 ## Handling real questions, not benchmark questions
 
 Officers type "Belgavi", "Gulbarga", "everything on Ravi" and "now only for 2025". The pipeline is
@@ -164,7 +189,9 @@ The prototype is designed so a police officer can defend an answer in a review.
 - **Risk scores are interpretable.** The local chargesheet model returns signed per-feature
   contributions derived from the data's actual generative process — not a black-box output.
 - **Forecasts are transparent.** A least-squares slope, stated as "rising N cases/month,
-  projected M next month" — auditable arithmetic, not an opaque model.
+  projected M next month" — auditable arithmetic, not an opaque model. The predictive hotspots
+  publish the same line's R² and a confidence level beside every projected number, and the fitted
+  months alongside the method, so an officer can see when the trend does not hold.
 - **Every answer is cited.** Related Cases surfaces the real FIR narratives behind the numbers.
 - **Every tool call is audited** to a Catalyst Data Store table.
 
