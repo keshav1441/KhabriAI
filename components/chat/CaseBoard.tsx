@@ -9,6 +9,8 @@ const TOOL_LABEL_KEYS: Record<string, StringKey> = {
   checkInsights: "board.tool.checkInsights",
   getNetworkOrMapData: "board.tool.getNetworkOrMapData",
   predictRisk: "board.tool.predictRisk",
+  askClarification: "board.tool.askClarification",
+  findSimilarCases: "board.tool.findSimilarCases",
 };
 
 type Contribution = { label: string; sign: "+" | "-"; strength: number };
@@ -41,7 +43,12 @@ function resultSummary(step: CaseBoardStep, lang: import("@/store/chat").Lang): 
   switch (step.tool) {
     case "queryDatabase": {
       const rows = r.rows as unknown[] | undefined;
-      return `${rows?.length ?? 0} ${t("board.rows", lang)}`;
+      const fixed = r.repaired ? ` · ${t("board.repaired", lang)}` : "";
+      const subs = (r.substitutions as { from: string; to: string }[] | undefined) ?? [];
+      const resolved = subs.length ? ` · ${subs.map((s) => `${s.from} \u2192 ${s.to}`).join(", ")}` : "";
+      const amb = r.ambiguousPerson as { token: string; count: number } | null | undefined;
+      if (amb) return `${amb.count} ${t("board.peopleMatch", lang)} "${amb.token}"`;
+      return `${rows?.length ?? 0} ${t("board.rows", lang)}${fixed}${resolved}`;
     }
     case "searchRelatedCases": {
       const cases = r.cases as unknown[] | undefined;
@@ -54,6 +61,12 @@ function resultSummary(step: CaseBoardStep, lang: import("@/store/chat").Lang): 
     case "getNetworkOrMapData": {
       const rows = r.rows as unknown[] | undefined;
       return `${rows?.length ?? 0} ${t("board.rows", lang)}`;
+    }
+    case "askClarification":
+      return t("board.clarify", lang);
+    case "findSimilarCases": {
+      const cases = r.cases as unknown[] | undefined;
+      return `${cases?.length ?? 0} ${t("board.linkedCases", lang)}`;
     }
     case "predictRisk": {
       const prob = typeof r.probability === "number" ? `${Math.round(r.probability * 100)}%` : "—";
@@ -105,8 +118,9 @@ function StepDetail({ step }: { step: CaseBoardStep }) {
   if (r.status === "error") return null; // resultSummary already surfaces the error message
 
   switch (step.tool) {
-    case "searchRelatedCases": {
-      const cases = (r.cases as { crimeNo?: string; briefFacts?: string; district?: string }[] | undefined) ?? [];
+    case "searchRelatedCases":
+    case "findSimilarCases": {
+      const cases = (r.cases as { crimeNo?: string; briefFacts?: string; district?: string; score?: number }[] | undefined) ?? [];
       if (cases.length === 0) return null;
       return (
         <ul className="mt-2 space-y-1.5">
@@ -114,6 +128,7 @@ function StepDetail({ step }: { step: CaseBoardStep }) {
             <li key={i} className="text-xs" style={{ color: "var(--text-secondary)" }}>
               <span className="font-data font-bold" style={{ color: "var(--text-primary)" }}>{c.crimeNo ?? `Case ${i + 1}`}</span>
               {c.district ? ` · ${c.district}` : ""}
+              {step.tool === "findSimilarCases" && typeof c.score === "number" ? ` · ${Math.round(c.score * 100)}%` : ""}
               {c.briefFacts ? <p className="mt-0.5 line-clamp-3">{c.briefFacts}</p> : null}
             </li>
           ))}
@@ -198,7 +213,7 @@ export function CaseBoard() {
           const isExpanded = expanded.has(step.id);
           const canExpand =
             step.status !== "pending" &&
-            ["searchRelatedCases", "checkInsights", "getNetworkOrMapData"].includes(step.tool);
+            ["searchRelatedCases", "checkInsights", "getNetworkOrMapData", "findSimilarCases"].includes(step.tool);
           return (
           <div
             key={step.id}

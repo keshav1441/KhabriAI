@@ -1,30 +1,42 @@
 import { randomUUID } from "node:crypto";
-import type Groq from "groq-sdk";
-import { groqChat } from "../groq-client";
+import type OpenAI from "openai";
+import { getLlmClient } from "../mistral-client";
 import type { VizType } from "../query-classifier";
 import type { RelatedCase } from "../case-retrieval";
 import {
   TOOL_SCHEMAS,
   runQueryDatabase,
   runSearchRelatedCases,
+  runFindSimilarCases,
   runCheckInsights,
   runGetNetworkOrMapData,
   runPredictRisk,
   type ChatTurn,
   type QueryDatabaseResult,
   type SearchRelatedCasesResult,
+  type FindSimilarCasesResult,
 } from "./tools";
 import { logAuditStep, logAuditRun } from "./audit-log";
+import { getScope } from "../chat-auth";
 
+const ORCH_MODEL = process.env.MISTRAL_ORCH_MODEL ?? "mistral-large-latest";
 const MAX_ITERATIONS = 4;
 
 const SYSTEM_PROMPT = `You are KhabriAI, an investigation copilot for the Karnataka State Police FIR (First Information Report) database.
 Use the available tools to gather data before answering. Break multi-part questions into separate tool calls — call several tools in the same turn if needed.
-Once you have enough information, stop calling tools and answer with a concise analyst narrative.`;
+Once you have enough information, stop calling tools and answer with a concise analyst narrative.
+If the request is genuinely ambiguous in a way that changes the answer, call askClarification instead of guessing - but prefer sensible defaults over questions.
+Questions about a named person (accused, victim, complainant) go to queryDatabase first; searchRelatedCases is for narrative/modus-operandi similarity, not name lookup.
+A person identified only by a bare first name or nickname (e.g. "Ravi", "Priya") matches many records: call askClarification asking for the full name, PersonID, or district instead of listing everyone.`;
 
 const FINAL_SYNTHESIS_PROMPT =
   'Based on the tool results above, give a concise final analyst narrative answering the user\'s question. 2-4 sentences, cite concrete numbers where available. Do not call any more tools. ' +
-  'If a tool result has status "error", do not invent, estimate, or guess the missing value — state plainly that this specific piece of information is unavailable, using the tool\'s error message.';
+  'If a tool result has status "error", do not invent, estimate, or guess the missing value — state plainly that this specific piece of information is unavailable, using the tool\'s error message. ' +
+  'Start with the answer itself — no heading, no "Analyst Narrative:" preamble. Use **bold** only on key figures and names; no bullet points, no headings. ' +
+  'If a queryDatabase result has "substitutions", mention the correction briefly (e.g. "interpreting Belgavi as Belagavi"). ' +
+  'If it returned no rows and has "suggestions", say no record matched that exact name and list the suggested names so the officer can choose. ' +
+  'For findSimilarCases results, describe the shared method in one sentence and name the linked cases by CrimeNo and district; call out links that cross district boundaries. ' +
+  'If it has "ambiguousPerson", do not summarise any cases: say that N different people named X appear in the database, list the example names, and ask for the full name, PersonID or district.';
 
 export type StepEvent = {
   type: "step";
@@ -78,8 +90,12 @@ async function executeTool(
       const value = await runQueryDatabase(args as { question: string }, history, req);
       return { status: value.status, value };
     }
+    case "findSimilarCases": {
+      const value = await runFindSimilarCases(args as Parameters<typeof runFindSimilarCases>[0], req);
+      return { status: value.status, value };
+    }
     case "searchRelatedCases": {
-      const value = await runSearchRelatedCases(args as { query: string });
+      const value = await runSearchRelatedCases(args as { query: string }, req);
       return { status: value.status, value };
     }
     case "checkInsights": {
@@ -115,25 +131,32 @@ export async function* runAgent(
   req?: Request,
   lang: "en" | "kn" = "en"
 ): AsyncGenerator<AgentEvent> {
+  const llm = getLlmClient();
   const runId = randomUUID();
-  const messages: Groq.Chat.ChatCompletionMessageParam[] = [
-    { role: "system", content: SYSTEM_PROMPT },
-    ...history.slice(-6).map((h) => ({ role: h.role, content: h.content }) as Groq.Chat.ChatCompletionMessageParam),
+  const scope = await getScope(req);
+  const scopeNote = scope.districtName
+    ? ` This officer is posted to ${scope.districtName} district and can only see that district's data - every count, list and link is within ${scope.districtName}. Say "in ${scope.districtName}", never "statewide".`
+    : "";
+  const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+    { role: "system", content: SYSTEM_PROMPT + scopeNote },
+    ...history.slice(-6).map((h) => ({ role: h.role, content: h.content }) as OpenAI.Chat.ChatCompletionMessageParam),
     { role: "user", content: question },
   ];
 
   let lastQueryResult: QueryDatabaseResult | null = null;
   let lastCasesResult: SearchRelatedCasesResult | null = null;
+  let lastSimilarResult: FindSimilarCasesResult | null = null;
   let toolCallCount = 0;
 
   for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
-    let assistantMsg: Groq.Chat.ChatCompletionMessage | undefined;
-    // Groq's tool-calling occasionally emits malformed function-call syntax
-    // (400 tool_use_failed) instead of structured tool_calls for a given
-    // sample — retry once before degrading to whatever's been gathered so far.
+    let assistantMsg: OpenAI.Chat.ChatCompletionMessage | undefined;
+    // Tool-calling occasionally emits malformed function-call syntax instead of
+    // structured tool_calls for a given sample — retry once before degrading to
+    // whatever's been gathered so far.
     for (let attempt = 0; attempt < 2 && !assistantMsg; attempt++) {
       try {
-        const completion = await groqChat({
+        const completion = await llm.chat.completions.create({
+          model: ORCH_MODEL,
           temperature: 0.2,
           max_tokens: 1024,
           messages,
@@ -150,12 +173,32 @@ export async function* runAgent(
     }
     if (!assistantMsg) break;
 
-    const toolCalls = assistantMsg?.tool_calls ?? [];
+    // The SDK's tool_calls union also covers custom (non-function) calls, which
+    // we never register — keep only function calls so `.function` is defined.
+    const toolCalls = (assistantMsg?.tool_calls ?? []).filter(
+      (tc): tc is OpenAI.Chat.ChatCompletionMessageFunctionToolCall => tc.type === "function"
+    );
     if (!assistantMsg || toolCalls.length === 0) break;
 
     messages.push(assistantMsg);
 
     const parsed = toolCalls.map((tc) => ({ tc, args: safeParseArgs(tc.function.arguments) }));
+
+    // A clarification ends the turn: no query, no synthesis - the question IS the answer.
+    const clarify = parsed.find((p) => p.tc.function.name === "askClarification");
+    if (clarify) {
+      const q = String(clarify.args.question ?? "Could you clarify what you mean?");
+      const options = Array.isArray(clarify.args.options) ? (clarify.args.options as unknown[]).map(String).filter(Boolean) : [];
+      const result = { status: "ok" as const, question: q, options };
+      yield { type: "step", id: clarify.tc.id, tool: "askClarification", args: clarify.args, result, status: "ok" };
+      void logAuditStep({ runId, question, tool: "askClarification", args: clarify.args, result, status: "ok" }, req);
+      yield { type: "meta", sql: "", rows: [], vizType: "table", sqlError: null, relatedCases: [] };
+      const text = options.length ? [q, "", ...options.map((o) => "\u2022 " + o)].join("\n") : q;
+      yield { type: "token", token: text };
+      void logAuditRun({ runId, question, toolCallCount: 1, finalAnswer: text }, req);
+      yield { type: "done" };
+      return;
+    }
 
     for (const { tc, args } of parsed) {
       yield { type: "step", id: tc.id, tool: tc.function.name, args, result: null, status: "pending" };
@@ -175,27 +218,32 @@ export async function* runAgent(
       messages.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(capForLLM(value)) });
       if (tc.function.name === "queryDatabase") lastQueryResult = value as QueryDatabaseResult;
       if (tc.function.name === "searchRelatedCases") lastCasesResult = value as SearchRelatedCasesResult;
+      if (tc.function.name === "findSimilarCases") lastSimilarResult = value as FindSimilarCasesResult;
     }
   }
 
+  // A similar-case search is itself the evidence: show its rows as the table
+  // and its cases in the Related Cases panel when no SQL query ran.
+  const similarRows = !lastQueryResult?.rows?.length && lastSimilarResult?.rows?.length ? lastSimilarResult.rows : null;
   yield {
     type: "meta",
     sql: lastQueryResult?.sql ?? "",
-    rows: lastQueryResult?.rows ?? [],
-    vizType: lastQueryResult?.vizType ?? "table",
+    rows: similarRows ?? lastQueryResult?.rows ?? [],
+    vizType: similarRows ? "table" : (lastQueryResult?.vizType ?? "table"),
     sqlError: lastQueryResult?.status === "error" ? (lastQueryResult.message ?? "Query failed") : null,
-    relatedCases: lastCasesResult?.cases ?? [],
+    relatedCases: lastCasesResult?.cases ?? lastSimilarResult?.cases ?? [],
   };
 
   const synthesisPrompt =
     lang === "kn"
       ? FINAL_SYNTHESIS_PROMPT + " Write the entire narrative in Kannada (ಕನ್ನಡ). Keep proper nouns (district names, crime section codes) as-is; numbers may stay in digits."
       : FINAL_SYNTHESIS_PROMPT;
-  messages.push({ role: "system", content: synthesisPrompt });
+  messages.push({ role: "system", content: synthesisPrompt + scopeNote });
 
   let finalAnswer = "";
   try {
-    const stream = await groqChat({
+    const stream = await llm.chat.completions.create({
+      model: ORCH_MODEL,
       temperature: 0.3,
       max_tokens: 300,
       stream: true,

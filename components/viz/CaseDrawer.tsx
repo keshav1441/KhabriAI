@@ -13,7 +13,18 @@ interface CaseData {
 
 const CSTYPE: Record<string, string> = { A: "Chargesheet Filed", B: "False Case", C: "Undetected" };
 
-export function CaseDrawer({ caseId, onClose }: { caseId: number | null; onClose: () => void }) {
+type SimilarCase = { id: number; crimeNo: string | null; crimeType: string | null; district: string | null; station: string | null; status: string | null; registered: string | null; score: number; briefFacts: string | null };
+
+export function CaseDrawer({ caseId: requestedId, onClose }: { caseId: number | null; onClose: () => void }) {
+  // The drawer can navigate between linked cases without the parent knowing.
+  const [caseId, setCaseId] = useState<number | null>(requestedId);
+  const [similar, setSimilar] = useState<SimilarCase[] | null>(null);
+  useEffect(() => { setCaseId(requestedId); }, [requestedId]);
+  useEffect(() => {
+    if (!caseId) { setSimilar(null); return; }
+    setSimilar(null);
+    fetch(`/api/case/similar?id=${caseId}`).then((r) => (r.ok ? r.json() : { cases: [] })).then((d) => setSimilar(d.cases ?? [])).catch(() => setSimilar([]));
+  }, [caseId]);
   const [data, setData] = useState<CaseData | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -146,6 +157,35 @@ export function CaseDrawer({ caseId, onClose }: { caseId: number | null; onClose
                 <p className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>
                   {c.brieffacts as string}
                 </p>
+              </Section>
+            )}
+
+            {similar && similar.length > 0 && (
+              <Section title={`Similar Modus Operandi (${similar.length})`}>
+                <p className="text-[11px] mb-2" style={{ color: "var(--text-muted)" }}>
+                  Cases whose narrative describes the same method - matched on the facts, not on names.
+                </p>
+                <div className="space-y-1.5">
+                  {similar.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setCaseId(s.id)}
+                      className="w-full text-left rounded px-2.5 py-2 transition-colors"
+                      style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)" }}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-data text-xs" style={{ color: "var(--ink)" }}>{s.crimeNo ?? `#${s.id}`}</span>
+                        <span className="font-data text-[11px]" style={{ color: s.district !== c.district ? "var(--red)" : "var(--text-muted)" }}>
+                          {Math.round(s.score * 100)}% {s.district !== c.district ? "- other district" : ""}
+                        </span>
+                      </div>
+                      <div className="text-[11px] mt-0.5" style={{ color: "var(--text-secondary)" }}>
+                        {s.crimeType} - {s.district} - {s.registered} - {s.status}
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </Section>
             )}
 

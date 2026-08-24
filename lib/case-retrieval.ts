@@ -1,13 +1,66 @@
-import { prisma } from "./db";
-import { embedText, embeddingAvailable } from "./embeddings-gemini";
+import { scopedClient } from "./db";
+import { embedText, embeddingAvailable, toVectorLiteral } from "./embeddings";
 
 export interface RelatedCase {
   id: number;
   crimeNo: string | null;
   briefFacts: string | null;
   crimeGroup: string | null;
+  crimeType?: string | null;
   district: string | null;
+  station?: string | null;
+  status?: string | null;
+  registered?: string | null;
   score: number;
+}
+
+const CASE_COLUMNS = `cm."CaseMasterID" as id, cm."CrimeNo" as "crimeNo", cm."BriefFacts" as "briefFacts",
+            ch."CrimeGroupName" as "crimeGroup", csh."CrimeHeadName" as "crimeType", d."DistrictName" as district,
+            u."UnitName" as station, cs."CaseStatusName" as status, to_char(cm."CrimeRegisteredDate", 'YYYY-MM-DD') as registered`;
+const CASE_JOINS = `FROM "CaseMaster" cm
+     LEFT JOIN "CrimeHead" ch ON ch."CrimeHeadID" = cm."CrimeMajorHeadID"
+     LEFT JOIN "CrimeSubHead" csh ON csh."CrimeSubHeadID" = cm."CrimeMinorHeadID"
+     LEFT JOIN "Unit" u ON u."UnitID" = cm."PoliceStationID"
+     LEFT JOIN "District" d ON d."DistrictID" = u."DistrictID"
+     LEFT JOIN "CaseStatusMaster" cs ON cs."CaseStatusID" = cm."CaseStatusID"`;
+
+/**
+ * Modus-operandi linking: the cases whose narratives are closest to a given
+ * case's narrative (cosine on BriefFactsEmbedding), excluding the case itself.
+ * Narratives never name the accused, so a hit means the METHOD matches - the
+ * kind of link a single station, seeing only its own FIRs, cannot make.
+ */
+export async function similarCasesTo(
+  caseId: number,
+  opts: { topK?: number; excludeDistrict?: string | null; sameCrimeGroup?: boolean; minScore?: number; districtId?: number | null } = {}
+): Promise<RelatedCase[]> {
+  const { topK = 5, excludeDistrict = null, sameCrimeGroup = false, minScore = 0, districtId = null } = opts;
+  const rows = await scopedClient(districtId).$queryRawUnsafe<RelatedCase[]>(
+    `WITH src AS (SELECT "BriefFactsEmbedding" AS e, "CrimeMajorHeadID" AS g FROM "CaseMaster" WHERE "CaseMasterID" = $1)
+     SELECT ${CASE_COLUMNS}, 1 - (cm."BriefFactsEmbedding" <=> src.e) as score
+     ${CASE_JOINS}, src
+     WHERE cm."BriefFactsEmbedding" IS NOT NULL AND src.e IS NOT NULL AND cm."CaseMasterID" <> $1
+       ${excludeDistrict ? `AND d."DistrictName" <> $3` : ""}
+       ${sameCrimeGroup ? `AND cm."CrimeMajorHeadID" = src.g` : ""}
+     ORDER BY cm."BriefFactsEmbedding" <=> src.e
+     LIMIT $2`,
+    ...(excludeDistrict ? [caseId, topK, excludeDistrict] : [caseId, topK])
+  );
+  return rows.filter((r) => r.score >= minScore);
+}
+
+/** Same linker, but from a free-text description of a method ("two men on a black Pulsar cutting window grilles at night"). */
+export async function similarCasesToText(text: string, opts: { topK?: number; excludeDistrict?: string | null; districtId?: number | null } = {}): Promise<RelatedCase[]> {
+  const { topK = 5, excludeDistrict = null, districtId = null } = opts;
+  const v = toVectorLiteral(await embedText(text));
+  return scopedClient(districtId).$queryRawUnsafe<RelatedCase[]>(
+    `SELECT ${CASE_COLUMNS}, 1 - (cm."BriefFactsEmbedding" <=> $1::vector) as score
+     ${CASE_JOINS}
+     WHERE cm."BriefFactsEmbedding" IS NOT NULL ${excludeDistrict ? `AND d."DistrictName" <> $3` : ""}
+     ORDER BY cm."BriefFactsEmbedding" <=> $1::vector
+     LIMIT $2`,
+    ...(excludeDistrict ? [v, topK, excludeDistrict] : [v, topK])
+  );
 }
 
 function tokenize(text: string): string[] {
@@ -31,12 +84,12 @@ function toOrQuery(words: string[]): string {
 const MIN_OVERLAP = 2;
 
 /** Keyword full-text search — misses paraphrases ("theft" vs "stolen") but needs no embedding call. */
-async function findSimilarCasesFTS(query: string, topK: number): Promise<RelatedCase[]> {
+async function findSimilarCasesFTS(query: string, topK: number, districtId?: number | null): Promise<RelatedCase[]> {
   const queryWords = tokenize(query);
   const tsq = toOrQuery(queryWords);
   if (!tsq) return [];
 
-  const candidates = await prisma.$queryRawUnsafe<RelatedCase[]>(
+  const candidates = await scopedClient(districtId).$queryRawUnsafe<RelatedCase[]>(
     `SELECT cm."CaseMasterID" as id, cm."CrimeNo" as "crimeNo", cm."BriefFacts" as "briefFacts",
             ch."CrimeGroupName" as "crimeGroup", d."DistrictName" as district,
             ts_rank(to_tsvector('english', cm."BriefFacts"), to_tsquery('english', $1), 32) as score
@@ -63,11 +116,11 @@ async function findSimilarCasesFTS(query: string, topK: number): Promise<Related
 }
 
 /** Semantic similarity via pgvector cosine distance on Gemini embeddings — catches paraphrases FTS misses. */
-async function findSimilarCasesVector(query: string, topK: number): Promise<RelatedCase[]> {
+async function findSimilarCasesVector(query: string, topK: number, districtId?: number | null): Promise<RelatedCase[]> {
   const embedding = await embedText(query);
   const vectorLiteral = `[${embedding.join(",")}]`;
 
-  return prisma.$queryRawUnsafe<RelatedCase[]>(
+  return scopedClient(districtId).$queryRawUnsafe<RelatedCase[]>(
     `SELECT cm."CaseMasterID" as id, cm."CrimeNo" as "crimeNo", cm."BriefFacts" as "briefFacts",
             ch."CrimeGroupName" as "crimeGroup", d."DistrictName" as district,
             1 - (cm."BriefFactsEmbedding" <=> $1::vector) as score
@@ -83,14 +136,14 @@ async function findSimilarCasesVector(query: string, topK: number): Promise<Rela
   );
 }
 
-export async function findSimilarCases(query: string, topK = 5): Promise<RelatedCase[]> {
+export async function findSimilarCases(query: string, topK = 5, districtId?: number | null): Promise<RelatedCase[]> {
   if (embeddingAvailable()) {
     try {
-      const results = await findSimilarCasesVector(query, topK);
+      const results = await findSimilarCasesVector(query, topK, districtId);
       if (results.length > 0) return results;
     } catch (e) {
       console.error("vector case search failed, falling back to FTS:", e);
     }
   }
-  return findSimilarCasesFTS(query, topK);
+  return findSimilarCasesFTS(query, topK, districtId);
 }

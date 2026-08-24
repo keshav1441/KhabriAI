@@ -1,8 +1,10 @@
 import { readFileSync } from "fs";
 import { join } from "path";
-import { groqChat } from "./groq-client";
+import { getLlmClient } from "./mistral-client";
 
 type Example = { question: string; sql: string };
+
+const SELECT_MODEL = process.env.MISTRAL_RAG_MODEL ?? "mistral-small-latest";
 
 function loadExamples(): Example[] {
   return JSON.parse(readFileSync(join(process.cwd(), "lib/rag-examples.json"), "utf-8"));
@@ -19,7 +21,7 @@ function parseIndices(raw: string, max: number): number[] {
   }
 }
 
-/** Fallback when Groq embeddings API is unavailable — 8B picks example indices */
+/** Fallback when the embeddings API is unavailable — a small model picks example indices */
 export async function findSimilarLlm(
   question: string,
   topK = 3,
@@ -30,7 +32,9 @@ export async function findSimilarLlm(
     .map((e, i) => `${i}: ${e.question}`)
     .join("\n");
 
-  const completion = await groqChat({
+  const llm = getLlmClient();
+  const completion = await llm.chat.completions.create({
+    model: SELECT_MODEL,
     temperature: 0,
     max_tokens: 32,
     messages: [

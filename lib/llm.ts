@@ -1,4 +1,7 @@
-import { groqChat } from "./groq-client";
+import { getLlmClient } from "./mistral-client";
+
+const SQL_MODEL = process.env.MISTRAL_SQL_MODEL ?? "mistral-large-latest";
+const SUMMARY_MODEL = process.env.MISTRAL_SUMMARY_MODEL ?? "mistral-small-latest";
 
 const SQL_SYSTEM_PROMPT = `You are an expert PostgreSQL query generator for the Karnataka State Police FIR (First Information Report) database.
 Rules:
@@ -16,7 +19,15 @@ Rules:
 - For suspect queries: use "Accused" table joined to "CaseMaster" via "CaseMasterID"
 - For victim queries: use "Victim" table joined to "CaseMaster" via "CaseMasterID"
 - For arrest queries: use "ArrestSurrender" table joined to "CaseMaster" via "CaseMasterID"
-- GenderID: 1=Male, 2=Female, 3=Transgender`;
+- GenderID: 1=Male, 2=Female, 3=Transgender. When a result shows gender, return the label via CASE "GenderID" WHEN 1 THEN 'Male' WHEN 2 THEN 'Female' WHEN 3 THEN 'Transgender' END AS gender, not the raw ID.
+- "top", "most", "highest" over a plural ("which districts", "which stations"): ORDER BY the count DESC LIMIT 10, unless the question states a number. A singular ("which district", "which court", "which officer") means exactly one answer: LIMIT 1.
+- Return only the columns the question asks for: for "count by category" return the category label and the count, not also its ID.
+- Round averages and percentages to 1 decimal place: ROUND(AVG(x), 1). Do not add descriptive columns the question did not ask for, and never an *ID column next to its name.
+- Monthly trends: SELECT DATE_TRUNC('month', cm."CrimeRegisteredDate") AS month ... GROUP BY month ORDER BY month. Never TO_CHAR for the month.
+- "per district" / "by district" / "breakdown by X" means every group: GROUP BY with no LIMIT. Only "top"/"most" limit the rows.
+- "chargesheets filed" = ChargesheetDetails rows with "cstype" = 'A', filtered on "csdate".
+- "age distribution" / "age profile": bands via CASE WHEN "AgeYear" < 18 THEN 'Under 18' WHEN "AgeYear" < 26 THEN '18-25' WHEN "AgeYear" < 36 THEN '26-35' WHEN "AgeYear" < 46 THEN '36-45' ELSE '46+' END AS age_band, with COUNT(*) per band.
+- String literals use single quotes and must be closed with a single quote - never mix ' and ".`;
 
 export async function generateSQL(
   schema: string,
@@ -29,7 +40,9 @@ export async function generateSQL(
       ? `\nRecent conversation:\n${history.slice(-4).map((m) => `${m.role}: ${m.content}`).join("\n")}\n`
       : "";
 
-  const completion = await groqChat({
+  const llm = getLlmClient();
+  const completion = await llm.chat.completions.create({
+    model: SQL_MODEL,
     temperature: 0.1,
     max_tokens: 2048,
     messages: [
@@ -49,12 +62,14 @@ export async function* streamSummary(
   rows: Record<string, unknown>[],
   relatedNarratives: string[] = []
 ): AsyncGenerator<string> {
+  const llm = getLlmClient();
   const narrativeContext =
     relatedNarratives.length > 0
       ? `\n\nRelated case narratives (reference these if directly relevant): ${relatedNarratives.map((n, i) => `[${i + 1}] ${n}`).join(" ")}`
       : "";
 
-  const stream = await groqChat({
+  const stream = await llm.chat.completions.create({
+    model: SUMMARY_MODEL,
     temperature: 0.3,
     max_tokens: 120,
     stream: true,
@@ -75,4 +90,22 @@ export async function* streamSummary(
     const token = chunk.choices[0]?.delta?.content;
     if (token) yield token;
   }
+}
+
+// One-shot repair: the model sees its own SQL plus the exact Postgres error.
+export async function repairSQL(schema: string, question: string, badSQL: string, dbError: string): Promise<string> {
+  const llm = getLlmClient();
+  const completion = await llm.chat.completions.create({
+    model: SQL_MODEL,
+    temperature: 0,
+    max_tokens: 2048,
+    messages: [
+      { role: "system", content: `${SQL_SYSTEM_PROMPT}\n\n${schema}` },
+      {
+        role: "user",
+        content: `The query below for "${question}" failed in PostgreSQL.\n\nSQL:\n${badSQL}\n\nError:\n${dbError}\n\nReturn the corrected SQL only.`,
+      },
+    ],
+  });
+  return (completion.choices[0]?.message?.content ?? "").trim();
 }

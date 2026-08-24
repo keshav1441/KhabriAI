@@ -66,6 +66,16 @@ export function ChatWindow() {
 
   useEffect(() => () => recognitionRef.current?.abort(), []);
 
+  // Pick up a composer draft handed over by another view (e.g. Register FIR → "Ask the assistant").
+  const draft = useChatStore((s) => s.draft);
+  const setDraft = useChatStore((s) => s.setDraft);
+  useEffect(() => {
+    if (!draft) return;
+    setInput(draft);
+    setDraft(null);
+    textareaRef.current?.focus();
+  }, [draft, setDraft]);
+
   const generateQuery = () => {
     const pool = QUERY_POOL.filter((q) => q !== input);
     const pick = pool[Math.floor(Math.random() * pool.length)];
@@ -146,7 +156,9 @@ export function ChatWindow() {
     const history = messages
       .filter((m) => m.role === "user" || (m.role === "assistant" && !m.loading))
       .slice(-6)
-      .map((m) => ({ role: m.role, content: m.content }));
+      // The previous SQL is the most precise statement of what was asked -
+      // "now only for 2025" refines it, not the prose.
+      .map((m) => ({ role: m.role, content: m.role === "assistant" && m.sql ? `${m.content}\n[SQL used: ${m.sql}]` : m.content }));
 
     let sessionId: string | null = null;
     let finalAsst: ChatMessage | null = null;
@@ -169,11 +181,17 @@ export function ChatWindow() {
       let summary = "";
       let meta: Partial<ChatMessage> = {};
 
+      let buffer = "";
+
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        for (const line of chunk.split("\n")) {
+        // An SSE event can straddle two chunks; keep the trailing partial line
+        // for the next read instead of dropping it (lost tokens / lost "done").
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
           try {
             const parsed = JSON.parse(line.slice(6));

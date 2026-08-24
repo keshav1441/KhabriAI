@@ -50,3 +50,14 @@ export function sanitizeSQL(sql: string): string {
 
   return s.replace(/;+\s*$/, "").trim();
 }
+
+// Hard row cap, enforced after validation — the prompt's "limit to 200 rows"
+// is advisory; this is the guarantee. Only a trailing LIMIT counts as the
+// outer one, so a subquery LIMIT doesn't satisfy it.
+export function enforceLimit(sql: string, max: number): string {
+  const s = sql.trim();
+  const m = s.match(/\bLIMIT\s+(\d+)\s*$/i);
+  if (!m) return `${s} LIMIT ${max}`;
+  if (Number(m[1]) <= max) return s;
+  return s.slice(0, m.index) + `LIMIT ${max}`;
+}

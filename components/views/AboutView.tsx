@@ -17,7 +17,7 @@ const TECH_STACK = [
     color: "var(--red)",
     bg: "var(--red-dim)",
     items: [
-      { name: "Groq LPU", desc: "llama-3.3-70b-versatile default · qwen3.6-27b fallback" },
+      { name: "Mistral AI", desc: "mistral-small orchestrator · SQL generation · narrator" },
       { name: "Tool-Calling Orchestrator", desc: "Bounded agent loop (max 4 iterations), tools run in parallel" },
       { name: "5 Investigation Tools", desc: "SQL query · related-case search · insights · network/map data · risk prediction" },
       { name: "RAG Retrieval", desc: "Gemini embeddings — few-shot SQL grounding + pgvector case-narrative search, FTS/LLM fallback" },
@@ -56,7 +56,7 @@ const FEATURES = [
     color: "var(--red)",
     bg: "var(--red-dim)",
     title: "Agentic Investigation Copilot",
-    desc: "Ask a question in plain English. Groq plans which tools to call — SQL query, related-case search, insights, network/map data — then synthesizes a grounded narrative.",
+    desc: "Ask a question in plain English. Mistral plans which tools to call — SQL query, related-case search, insights, network/map data — then synthesizes a grounded narrative.",
   },
   {
     icon: "📌",
@@ -104,9 +104,9 @@ const FEATURES = [
 
 const FLOW = [
   { step: "01", title: "You ask", desc: "Type a question in plain English about Karnataka crime data" },
-  { step: "02", title: "Agent plans", desc: "Groq decides which tools to call — SQL, related cases, insights, network/map, risk prediction — and calls them in parallel" },
+  { step: "02", title: "Agent plans", desc: "Mistral decides which tools to call — SQL, related cases, insights, network/map, risk prediction — and calls them in parallel" },
   { step: "03", title: "Tools ground it", desc: "RAG retrieves similar past questions + case narratives to steer the SQL; query runs read-only via an AST-validated statement; results, cases, and insights come back live" },
-  { step: "04", title: "AI synthesizes", desc: "Groq streams a narrative citing the real numbers, while each step pins to the live Case Board" },
+  { step: "04", title: "AI synthesizes", desc: "Mistral streams a narrative citing the real numbers, while each step pins to the live Case Board" },
 ];
 
 export function AboutView() {
@@ -130,7 +130,7 @@ export function AboutView() {
           {/* Stat pills */}
           <div className="flex flex-wrap justify-center gap-3 pt-2">
             {[
-              { label: "LLM Inference", value: "Groq LPU" },
+              { label: "LLM Inference", value: "Mistral AI" },
               { label: "DB Engine", value: "Neon PostgreSQL" },
               { label: "Response time", value: "< 2s avg" },
               { label: "DB Access", value: "Read-only" },

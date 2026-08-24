@@ -1,8 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { TerminalDemo, ShieldIcon } from "@/components/marketing/TerminalDemo";
+import { NeonSignIn } from "@/components/auth/NeonSignIn";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,15 +12,14 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const signIn = async (url: string, body: Record<string, string>) => {
     setError("");
     setLoading(true);
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -34,6 +34,10 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    signIn("/api/auth/login", { email, password });
   };
 
   return (
@@ -151,6 +155,8 @@ export default function LoginPage() {
             </button>
           </form>
 
+          <NeonSignIn onError={setError} />
+
           <div style={{ borderTop: "1px solid var(--border)", marginTop: "1.5rem", paddingTop: "1.5rem" }}>
             <p className="text-sm text-center" style={{ color: "var(--text-muted)" }}>
               New officer?{" "}
@@ -164,6 +170,7 @@ export default function LoginPage() {
     </div>
   );
 }
+
 
 function Field({ label, children }: { label: string; children: React.ReactElement }) {
   const child = children as React.ReactElement<React.InputHTMLAttributes<HTMLInputElement>>;

@@ -1,23 +1,34 @@
-import type Groq from "groq-sdk";
-import { generateSQL } from "../llm";
-import { DB_SCHEMA } from "../prompt-builder";
-import { validateSQL, sanitizeSQL } from "../sql-validator";
+import type OpenAI from "openai";
 import { classifyQuery, type VizType } from "../query-classifier";
-import { findSimilar, warmupEmbeddings } from "../rag";
-import { findSimilarCases, type RelatedCase } from "../case-retrieval";
+import { answerWithSQL, type ChatTurn } from "../text-to-sql";
+import { findSimilarCases, similarCasesTo, similarCasesToText, type RelatedCase } from "../case-retrieval";
+import { prisma as db } from "../db";
+import { getScope } from "../chat-auth";
 import { getCachedInsights, setCachedInsights, type InsightItem } from "../insights-cache";
 import { computeInsights } from "../insights-compute";
 import { prisma } from "../db";
 import { getCatalystApp, withCatalystTimeout } from "../catalyst-client";
 import { predictChargesheetRisk, type RiskContribution } from "../risk-model";
 
-export type ChatTurn = { role: "user" | "assistant"; content: string };
+export type { ChatTurn };
 
 export interface QueryDatabaseResult {
   status: "ok" | "error";
   sql?: string;
   rows?: Record<string, unknown>[];
   vizType?: VizType;
+  repaired?: boolean;
+  substitutions?: { column: string; from: string; to: string }[];
+  suggestions?: string[];
+  ambiguousPerson?: { token: string; count: number; examples: string[] } | null;
+  message?: string;
+}
+
+export interface FindSimilarCasesResult {
+  status: "ok" | "error";
+  sourceCaseId?: number;
+  rows?: Record<string, unknown>[];
+  cases?: RelatedCase[];
   message?: string;
 }
 
@@ -52,15 +63,7 @@ export interface PredictRiskResult {
 // Crime groups the seed data marks as "Heinous" (matches prisma/seed.ts CRIME_HEADS).
 const HEINOUS_CRIME_GROUPS = new Set(["Crimes Against Body", "Crimes Against Women"]);
 
-// Remove CaseMasterID from SELECT when query uses GROUP BY — prevents 42803 error
-function fixGroupByConflict(sql: string): string {
-  if (!/\bGROUP\s+BY\b/i.test(sql)) return sql;
-  return sql
-    .replace(/cm\."CaseMasterID"(\s+AS\s+\w+)?\s*,\s*/gi, "")
-    .replace(/,\s*cm\."CaseMasterID"(\s+AS\s+\w+)?/gi, "");
-}
-
-export const TOOL_SCHEMAS: Groq.Chat.ChatCompletionTool[] = [
+export const TOOL_SCHEMAS: OpenAI.Chat.ChatCompletionTool[] = [
   {
     type: "function",
     function: {
@@ -149,6 +152,40 @@ export const TOOL_SCHEMAS: Groq.Chat.ChatCompletionTool[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "findSimilarCases",
+      description:
+        "Modus-operandi linking: find FIRs whose narrative describes the same METHOD as a given case (by CaseMasterID or 18-digit CrimeNo) or as a free-text description of a method. Use for 'similar cases', 'same gang/crew', 'linked cases', 'same modus operandi', 'has this happened elsewhere', or cross-district pattern questions. Returns the closest cases with a similarity score, district, crime type, date and status.",
+      parameters: {
+        type: "object",
+        properties: {
+          caseMasterId: { type: "number", description: "CaseMasterID of the source case, if known." },
+          crimeNo: { type: "string", description: "18-digit CrimeNo of the source case, if the officer quoted one." },
+          description: { type: "string", description: "Free-text description of the method, when there is no source case." },
+          excludeSourceDistrict: { type: "boolean", description: "True to return only cases from OTHER districts (cross-jurisdiction links)." },
+          topK: { type: "number", description: "How many cases to return (default 5, max 10)." },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "askClarification",
+      description:
+        "Ask the officer ONE short clarifying question instead of querying, ONLY when the request cannot be answered without guessing something that changes the answer materially: a person referred to only by a first name or nickname, a place that is not a Karnataka district or station, a time reference with no defined meaning (e.g. 'recently', 'a while ago'), or a comparison with no stated baseline. Do NOT ask when a sensible default exists (no district -> statewide; no period -> all time; 'Bengaluru' -> Bengaluru Urban).",
+      parameters: {
+        type: "object",
+        properties: {
+          question: { type: "string", description: "The clarifying question, one sentence, in the officer's language." },
+          options: { type: "array", items: { type: "string" }, description: "2-4 concrete choices the officer can pick from, if applicable." },
+        },
+        required: ["question"],
+      },
+    },
+  },
 ];
 
 export async function runQueryDatabase(
@@ -160,38 +197,62 @@ export async function runQueryDatabase(
   if (!question) return { status: "error", message: "Missing question" };
 
   try {
-    await warmupEmbeddings(req);
-    const examples = await findSimilar(question, 2, undefined, req);
-    const fewShot = examples.map((e) => `-- Q: ${e.question}\n${e.sql}`).join("\n\n");
-    const rawSQL = await generateSQL(DB_SCHEMA, fewShot, question, history);
-    let sql = sanitizeSQL(rawSQL);
-    sql = fixGroupByConflict(sql);
-
-    const validation = validateSQL(sql);
-    if (!validation.valid) {
-      return { status: "error", sql, message: validation.error ?? "Invalid SQL" };
-    }
-
-    const vizType = classifyQuery(sql);
-    const result = await prisma.$queryRawUnsafe(sql);
-    const rows = (result as Record<string, unknown>[]).map((r) => {
-      const out: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(r)) out[k] = typeof v === "bigint" ? Number(v) : v;
-      return out;
-    });
-    return { status: "ok", sql, rows, vizType };
+    const { sql, rows, repaired, substitutions, suggestions, ambiguousPerson } = await answerWithSQL(question, { history, req });
+    return { status: "ok", sql, rows, vizType: classifyQuery(sql), repaired, substitutions, suggestions, ambiguousPerson };
   } catch (e) {
     console.error("queryDatabase tool failed:", e);
-    return { status: "error", message: "Query execution failed" };
+    const err = e as Error & { sql?: string };
+    return { status: "error", sql: err.sql, message: (err.message ?? "Query execution failed").slice(0, 200) };
   }
 }
 
-export async function runSearchRelatedCases(args: { query: string }): Promise<SearchRelatedCasesResult> {
+export async function runFindSimilarCases(args: {
+  caseMasterId?: number;
+  crimeNo?: string;
+  description?: string;
+  excludeSourceDistrict?: boolean;
+  topK?: number;
+}, req?: Request): Promise<FindSimilarCasesResult> {
+  const topK = Math.min(Math.max(Number(args.topK) || 5, 1), 10);
+  try {
+    const { districtId } = await getScope(req);
+    let sourceId = args.caseMasterId ? Number(args.caseMasterId) : undefined;
+    let sourceDistrict: string | null = null;
+    if (!sourceId && args.crimeNo) {
+      const r = await db.$queryRawUnsafe<{ id: number }[]>(`SELECT "CaseMasterID" AS id FROM "CaseMaster" WHERE "CrimeNo" = $1 LIMIT 1`, String(args.crimeNo).trim());
+      sourceId = r[0]?.id;
+      if (!sourceId) return { status: "error", message: `No case with CrimeNo ${args.crimeNo}` };
+    }
+    if (sourceId && args.excludeSourceDistrict) {
+      const r = await db.$queryRawUnsafe<{ district: string }[]>(
+        `SELECT d."DistrictName" AS district FROM "CaseMaster" cm JOIN "Unit" u ON u."UnitID" = cm."PoliceStationID" JOIN "District" d ON d."DistrictID" = u."DistrictID" WHERE cm."CaseMasterID" = $1`, sourceId);
+      sourceDistrict = r[0]?.district ?? null;
+    }
+    const cases = sourceId
+      ? await similarCasesTo(sourceId, { topK, excludeDistrict: sourceDistrict, districtId })
+      : args.description
+        ? await similarCasesToText(args.description, { topK, districtId })
+        : [];
+    if (!sourceId && !args.description) return { status: "error", message: "Give a case (CaseMasterID or CrimeNo) or a description of the method." };
+    if (!cases.length) return { status: "error", message: "No embedded narratives to compare against (run scripts/backfill-embeddings.ts)." };
+    // Table-shaped rows for the chat viz; the full cases go to the Related Cases panel.
+    const rows = cases.map((c) => ({
+      CaseMasterID: c.id, CrimeNo: c.crimeNo, similarity: Math.round(c.score * 100) / 100,
+      district: c.district, station: c.station, crime: c.crimeType, registered: c.registered, status: c.status,
+    }));
+    return { status: "ok", sourceCaseId: sourceId, rows, cases };
+  } catch (e) {
+    console.error("findSimilarCases tool failed:", e);
+    return { status: "error", message: "Similar-case search failed" };
+  }
+}
+
+export async function runSearchRelatedCases(args: { query: string }, req?: Request): Promise<SearchRelatedCasesResult> {
   const query = args.query?.trim();
   if (!query) return { status: "error", message: "Missing query" };
 
   try {
-    const cases = await findSimilarCases(query, 5);
+    const cases = await findSimilarCases(query, 5, (await getScope(req)).districtId);
     return { status: "ok", cases };
   } catch (e) {
     console.error("searchRelatedCases tool failed:", e);

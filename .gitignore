@@ -42,3 +42,8 @@ next-env.d.ts
 
 /lib/rag-embeddings-cache.json
 *.log.audit/
+
+# scratch
+/.tmp/
+/.audit/
+catalyst-debug.log

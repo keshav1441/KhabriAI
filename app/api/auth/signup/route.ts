@@ -10,7 +10,11 @@ function hashPassword(password: string, salt: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const { firstName, lastName, email, password } = await req.json();
+    const { firstName, lastName, email, password, role, districtId } = await req.json();
+    const wantsDistrict = role === "SHO";
+    if (wantsDistrict && !Number(districtId)) {
+      return Response.json({ error: "Select the district for a district posting." }, { status: 400 });
+    }
 
     if (!firstName || !lastName || !email || !password) {
       return Response.json({ error: "All fields are required." }, { status: 400 });
@@ -28,7 +32,7 @@ export async function POST(req: NextRequest) {
     const passwordHash = hashPassword(password, salt);
 
     await prisma.khabriUser.create({
-      data: { firstName, lastName, email, passwordHash, salt },
+      data: { firstName, lastName, email, passwordHash, salt, role: wantsDistrict ? "SHO" : "HQ", districtId: wantsDistrict ? Number(districtId) : null },
     });
 
     return Response.json({ success: true });

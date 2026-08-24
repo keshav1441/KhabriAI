@@ -1,0 +1,319 @@
+{
+  "holdout": true,
+  "repair": false,
+  "executes": 29,
+  "matches": 12,
+  "total": 31,
+  "results": [
+    {
+      "question": "Show FIR cases registered in Bengaluru Urban district in the last 6 months",
+      "lang": "en",
+      "generated_sql": "SELECT cm.\"CaseMasterID\", cm.\"CrimeNo\", cm.\"CrimeRegisteredDate\", d.\"DistrictName\", ch.\"CrimeGroupName\", csh.\"CrimeHeadName\", cs.\"CaseStatusName\"\nFROM \"CaseMaster\" cm\nJOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\"\nJOIN \"District\" d ON d.\"DistrictID\" = u.\"DistrictID\"\nJOIN \"CaseCategory\" cc ON cc.\"CaseCategoryID\" = cm.\"CaseCategoryID\"\nJOIN \"CrimeHead\" ch ON ch.\"CrimeHeadID\" = cm.\"CrimeMajorHeadID\"\nJOIN \"CrimeSubHead\" csh ON csh.\"CrimeSubHeadID\" = cm.\"CrimeMinorHeadID\"\nJOIN \"CaseStatusMaster\" cs ON cs.\"CaseStatusID\" = cm.\"CaseStatusID\"\nWHERE cc.\"LookupValue\" = 'FIR'\n  AND d.\"DistrictName\" = 'Bengaluru Urban'\n  AND cm.\"CrimeRegisteredDate\" >= DATE_TRUNC('month', NOW()) - INTERVAL '6 months'\nORDER BY cm.\"CrimeRegisteredDate\" DESC\nLIMIT 200",
+      "executes": true,
+      "matches": false,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 15357
+    },
+    {
+      "question": "Which districts have the most Crimes Against Property this year?",
+      "lang": "en",
+      "generated_sql": "SELECT d.\"DistrictName\", COUNT(*) AS property_crimes_count\nFROM \"CaseMaster\" cm\nJOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\"\nJOIN \"District\" d ON d.\"DistrictID\" = u.\"DistrictID\"\nJOIN \"CrimeHead\" ch ON ch.\"CrimeHeadID\" = cm.\"CrimeMajorHeadID\"\nWHERE ch.\"CrimeGroupName\" = 'Crimes Against Property'\n  AND cm.\"CrimeRegisteredDate\" >= DATE_TRUNC('year', NOW())\nGROUP BY d.\"DistrictName\"\nORDER BY property_crimes_count DESC LIMIT 500",
+      "executes": true,
+      "matches": true,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 9144
+    },
+    {
+      "question": "Show monthly trend of cybercrime cases",
+      "lang": "en",
+      "generated_sql": "SELECT DATE_TRUNC('month', cm.\"CrimeRegisteredDate\") AS month, COUNT(*) AS cybercrime_cases\nFROM \"CaseMaster\" cm\nJOIN \"CrimeHead\" ch ON ch.\"CrimeHeadID\" = cm.\"CrimeMajorHeadID\"\nWHERE ch.\"CrimeGroupName\" = 'Cybercrimes'\nGROUP BY month\nORDER BY month LIMIT 500",
+      "executes": true,
+      "matches": true,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 5467
+    },
+    {
+      "question": "List repeat accused with more than 2 cases in the last 30 days",
+      "lang": "en",
+      "generated_sql": "SELECT a.\"AccusedName\", COUNT(*) AS case_count\nFROM \"Accused\" a\nJOIN \"CaseMaster\" cm ON cm.\"CaseMasterID\" = a.\"CaseMasterID\"\nWHERE cm.\"CrimeRegisteredDate\" >= NOW() - INTERVAL '30 days'\nGROUP BY a.\"AccusedName\"\nHAVING COUNT(*) > 2\nORDER BY case_count DESC\nLIMIT 200",
+      "executes": true,
+      "matches": true,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 2399
+    },
+    {
+      "question": "How many arrests were made in Mysuru district last month?",
+      "lang": "en",
+      "generated_sql": "SELECT COUNT(*) AS total_arrests\nFROM \"ArrestSurrender\" ar\nJOIN \"CaseMaster\" cm ON cm.\"CaseMasterID\" = ar.\"CaseMasterID\"\nJOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\"\nJOIN \"District\" d ON d.\"DistrictID\" = u.\"DistrictID\"\nWHERE d.\"DistrictName\" = 'Mysuru'\n  AND ar.\"ArrestSurrenderDate\" >= NOW() - INTERVAL '1 month'\n  AND ar.\"ArrestSurrenderDate\" < NOW() LIMIT 500",
+      "executes": true,
+      "matches": false,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 6034
+    },
+    {
+      "question": "Show cases with status Under Investigation in Belagavi",
+      "lang": "en",
+      "generated_sql": "SELECT cm.\"CaseMasterID\", cm.\"CrimeNo\", cm.\"CrimeRegisteredDate\", u.\"UnitName\", ch.\"CrimeGroupName\", csh.\"CrimeHeadName\", cs.\"CaseStatusName\"\nFROM \"CaseMaster\" cm\nJOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\"\nJOIN \"District\" d ON d.\"DistrictID\" = u.\"DistrictID\"\nJOIN \"CrimeHead\" ch ON ch.\"CrimeHeadID\" = cm.\"CrimeMajorHeadID\"\nJOIN \"CrimeSubHead\" csh ON csh.\"CrimeSubHeadID\" = cm.\"CrimeMinorHeadID\"\nJOIN \"CaseStatusMaster\" cs ON cs.\"CaseStatusID\" = cm.\"CaseStatusID\"\nWHERE d.\"DistrictName\" = 'Belagavi'\n  AND cs.\"CaseStatusName\" = 'Under Investigation'\nORDER BY cm.\"CrimeRegisteredDate\" DESC\nLIMIT 200",
+      "executes": true,
+      "matches": false,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 2717
+    },
+    {
+      "question": "What are the top crime categories statewide this year?",
+      "lang": "en",
+      "generated_sql": "SELECT ch.\"CrimeGroupName\" AS crime_category, COUNT(*) AS case_count\nFROM \"CaseMaster\" cm\nJOIN \"CrimeHead\" ch ON ch.\"CrimeHeadID\" = cm.\"CrimeMajorHeadID\"\nWHERE cm.\"CrimeRegisteredDate\" >= DATE_TRUNC('year', NOW())\nGROUP BY ch.\"CrimeGroupName\"\nORDER BY case_count DESC\nLIMIT 20",
+      "executes": true,
+      "matches": true,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 2290
+    },
+    {
+      "question": "Show female victims of crimes in the last year",
+      "lang": "en",
+      "generated_sql": "SELECT v.\"VictimName\", v.\"AgeYear\", cm.\"CaseMasterID\", cm.\"CrimeRegisteredDate\", ch.\"CrimeGroupName\", d.\"DistrictName\"\nFROM \"Victim\" v\nJOIN \"CaseMaster\" cm ON cm.\"CaseMasterID\" = v.\"CaseMasterID\"\nJOIN \"CrimeHead\" ch ON ch.\"CrimeHeadID\" = cm.\"CrimeMajorHeadID\"\nJOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\"\nJOIN \"District\" d ON d.\"DistrictID\" = u.\"DistrictID\"\nWHERE v.\"GenderID\" = 2\n  AND cm.\"CrimeRegisteredDate\" >= DATE_TRUNC('year', NOW()) - INTERVAL '1 year'\nORDER BY cm.\"CrimeRegisteredDate\" DESC\nLIMIT 200",
+      "executes": true,
+      "matches": true,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 4822
+    },
+    {
+      "question": "Which investigating officers have the most cases this year?",
+      "lang": "en",
+      "generated_sql": "SELECT e.\"FirstName\", e.\"EmployeeID\", COUNT(*) AS case_count\nFROM \"CaseMaster\" cm\nJOIN \"Employee\" e ON e.\"EmployeeID\" = cm.\"PolicePersonID\"\nWHERE cm.\"CrimeRegisteredDate\" >= DATE_TRUNC('year', NOW())\nGROUP BY e.\"FirstName\", e.\"EmployeeID\"\nORDER BY case_count DESC\nLIMIT 20",
+      "executes": true,
+      "matches": false,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 2201
+    },
+    {
+      "question": "Show all cases linked to accused Priya Bhat in the last 30 days",
+      "lang": "en",
+      "generated_sql": "SELECT cm.\"CaseMasterID\", cm.\"CrimeNo\", cm.\"CrimeRegisteredDate\", u.\"UnitName\", ch.\"CrimeGroupName\", csh.\"CrimeHeadName\", cs.\"CaseStatusName\"\nFROM \"CaseMaster\" cm\nJOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\"\nJOIN \"District\" d ON d.\"DistrictID\" = u.\"DistrictID\"\nJOIN \"CrimeHead\" ch ON ch.\"CrimeHeadID\" = cm.\"CrimeMajorHeadID\"\nJOIN \"CrimeSubHead\" csh ON csh.\"CrimeSubHeadID\" = cm.\"CrimeMinorHeadID\"\nJOIN \"CaseStatusMaster\" cs ON cs.\"CaseStatusID\" = cm.\"CaseStatusID\"\nJOIN \"Accused\" a ON a.\"CaseMasterID\" = cm.\"CaseMasterID\"\nWHERE a.\"AccusedName\" = 'Priya Bhat'\n  AND cm.\"CrimeRegisteredDate\" >= NOW() - INTERVAL '30 days'\nORDER BY cm.\"CrimeRegisteredDate\" DESC\nLIMIT 200",
+      "executes": true,
+      "matches": true,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 2945
+    },
+    {
+      "question": "Show theft cases with GPS coordinates in Raichur for map",
+      "lang": "en",
+      "generated_sql": "SELECT cm.\"CaseMasterID\", cm.\"CrimeNo\", cm.\"CrimeRegisteredDate\", cm.\"latitude\", cm.\"longitude\", ch.\"CrimeGroupName\", csh.\"CrimeHeadName\"\nFROM \"CaseMaster\" cm\nJOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\"\nJOIN \"District\" d ON d.\"DistrictID\" = u.\"DistrictID\"\nJOIN \"CrimeHead\" ch ON ch.\"CrimeHeadID\" = cm.\"CrimeMajorHeadID\"\nJOIN \"CrimeSubHead\" csh ON csh.\"CrimeSubHeadID\" = cm.\"CrimeMinorHeadID\"\nWHERE d.\"DistrictName\" = 'Raichur'\n  AND csh.\"CrimeHeadName\" = 'Theft'\n  AND cm.\"latitude\" IS NOT NULL\n  AND cm.\"longitude\" IS NOT NULL\nORDER BY cm.\"CrimeRegisteredDate\" DESC\nLIMIT 200",
+      "executes": true,
+      "matches": false,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 2533
+    },
+    {
+      "question": "How many murder cases were registered statewide this year?",
+      "lang": "en",
+      "generated_sql": "SELECT COUNT(*) AS total_murder_cases\nFROM \"CaseMaster\" cm\nJOIN \"CrimeHead\" ch ON ch.\"CrimeHeadID\" = cm.\"CrimeMajorHeadID\"\nJOIN \"CrimeSubHead\" csh ON csh.\"CrimeSubHeadID\" = cm.\"CrimeMinorHeadID\"\nWHERE csh.\"CrimeHeadName\" = 'Murder'\n  AND cm.\"CrimeRegisteredDate\" >= DATE_TRUNC('year', NOW()) LIMIT 500",
+      "executes": true,
+      "matches": true,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 2407
+    },
+    {
+      "question": "Show chargesheets filed this month",
+      "lang": "en",
+      "generated_sql": "SELECT cm.\"CaseMasterID\", cm.\"CrimeNo\", cm.\"CrimeRegisteredDate\", u.\"UnitName\", ch.\"CrimeGroupName\", csh.\"CrimeHeadName\", cs.\"CaseStatusName\", cd.\"csdate\" AS chargesheet_date\nFROM \"CaseMaster\" cm\nJOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\"\nJOIN \"CrimeHead\" ch ON ch.\"CrimeHeadID\" = cm.\"CrimeMajorHeadID\"\nJOIN \"CrimeSubHead\" csh ON csh.\"CrimeSubHeadID\" = cm.\"CrimeMinorHeadID\"\nJOIN \"CaseStatusMaster\" cs ON cs.\"CaseStatusID\" = cm.\"CaseStatusID\"\nJOIN \"ChargesheetDetails\" cd ON cd.\"CaseMasterID\" = cm.\"CaseMasterID\"\nWHERE cd.\"csdate\" >= DATE_TRUNC('month', NOW())\n  AND cd.\"csdate\" < DATE_TRUNC('month', NOW()) + INTERVAL '1 month'\n  AND cd.\"cstype\" = 'A'\nORDER BY cd.\"csdate\" DESC\nLIMIT 200",
+      "executes": true,
+      "matches": false,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 2969
+    },
+    {
+      "question": "How many cases have been marked as False Case per district?",
+      "lang": "en",
+      "generated_sql": "SELECT d.\"DistrictName\", COUNT(*) AS false_cases\nFROM \"CaseMaster\" cm\nJOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\"\nJOIN \"District\" d ON d.\"DistrictID\" = u.\"DistrictID\"\nJOIN \"CaseStatusMaster\" cs ON cs.\"CaseStatusID\" = cm.\"CaseStatusID\"\nWHERE cs.\"CaseStatusName\" = 'False Case'\nGROUP BY d.\"DistrictName\"\nORDER BY false_cases DESC LIMIT 500",
+      "executes": true,
+      "matches": true,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 2100
+    },
+    {
+      "question": "Show economic offences cases registered this year",
+      "lang": "en",
+      "generated_sql": "SELECT cm.\"CaseMasterID\", cm.\"CrimeNo\", cm.\"CrimeRegisteredDate\", ch.\"CrimeGroupName\", csh.\"CrimeHeadName\", cm.\"BriefFacts\"\nFROM \"CaseMaster\" cm\nJOIN \"CrimeHead\" ch ON ch.\"CrimeHeadID\" = cm.\"CrimeMajorHeadID\"\nJOIN \"CrimeSubHead\" csh ON csh.\"CrimeSubHeadID\" = cm.\"CrimeMinorHeadID\"\nWHERE ch.\"CrimeGroupName\" = 'Economic Offences'\nAND cm.\"CrimeRegisteredDate\" >= DATE_TRUNC('year', NOW())\nORDER BY cm.\"CrimeRegisteredDate\" DESC\nLIMIT 200",
+      "executes": true,
+      "matches": false,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 2768
+    },
+    {
+      "question": "Show road accident cases this year",
+      "lang": "en",
+      "generated_sql": "SELECT cm.\"CaseMasterID\", cm.\"CrimeNo\", cm.\"CrimeRegisteredDate\", u.\"UnitName\", ch.\"CrimeGroupName\", csh.\"CrimeHeadName\", cs.\"CaseStatusName\"\nFROM \"CaseMaster\" cm\nJOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\"\nJOIN \"District\" d ON d.\"DistrictID\" = u.\"DistrictID\"\nJOIN \"CrimeHead\" ch ON ch.\"CrimeHeadID\" = cm.\"CrimeMajorHeadID\"\nJOIN \"CrimeSubHead\" csh ON csh.\"CrimeSubHeadID\" = cm.\"CrimeMinorHeadID\"\nJOIN \"CaseStatusMaster\" cs ON cs.\"CaseStatusID\" = cm.\"CaseStatusID\"\nWHERE ch.\"CrimeGroupName\" = 'Road Accidents'\n  AND cm.\"CrimeRegisteredDate\" >= DATE_TRUNC('year', NOW())\nORDER BY cm.\"CrimeRegisteredDate\" DESC\nLIMIT 200",
+      "executes": true,
+      "matches": false,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 4180
+    },
+    {
+      "question": "Show narcotics cases in the last 3 months",
+      "lang": "en",
+      "generated_sql": "SELECT cm.\"CaseMasterID\", cm.\"CrimeNo\", cm.\"CrimeRegisteredDate\", u.\"UnitName\", ch.\"CrimeGroupName\", csh.\"CrimeHeadName\", cs.\"CaseStatusName\"\nFROM \"CaseMaster\" cm\nJOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\"\nJOIN \"District\" d ON d.\"DistrictID\" = u.\"DistrictID\"\nJOIN \"CrimeHead\" ch ON ch.\"CrimeHeadID\" = cm.\"CrimeMajorHeadID\"\nJOIN \"CrimeSubHead\" csh ON csh.\"CrimeSubHeadID\" = cm.\"CrimeMinorHeadID\"\nJOIN \"CaseStatusMaster\" cs ON cs.\"CaseStatusID\" = cm.\"CaseStatusID\"\nWHERE ch.\"CrimeGroupName\" = 'Narcotics'\n  AND cm.\"CrimeRegisteredDate\" >= NOW() - INTERVAL '3 months'\nORDER BY cm.\"CrimeRegisteredDate\" DESC\nLIMIT 200",
+      "executes": true,
+      "matches": false,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 2847
+    },
+    {
+      "question": "Show kidnapping cases in the last 6 months",
+      "lang": "en",
+      "generated_sql": "SELECT cm.\"CaseMasterID\", cm.\"CrimeNo\", cm.\"CrimeRegisteredDate\", u.\"UnitName\", ch.\"CrimeGroupName\", csh.\"CrimeHeadName\", cs.\"CaseStatusName\"\nFROM \"CaseMaster\" cm\nJOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\"\nJOIN \"District\" d ON d.\"DistrictID\" = u.\"DistrictID\"\nJOIN \"CrimeHead\" ch ON ch.\"CrimeHeadID\" = cm.\"CrimeMajorHeadID\"\nJOIN \"CrimeSubHead\" csh ON csh.\"CrimeSubHeadID\" = cm.\"CrimeMinorHeadID\"\nJOIN \"CaseStatusMaster\" cs ON cs.\"CaseStatusID\" = cm.\"CaseStatusID\"\nWHERE csh.\"CrimeHeadName\" = 'Kidnapping'\n  AND cm.\"CrimeRegisteredDate\" >= NOW() - INTERVAL '6 months'\nORDER BY cm.\"CrimeRegisteredDate\" DESC\nLIMIT 200",
+      "executes": true,
+      "matches": false,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 2988
+    },
+    {
+      "question": "Show cases where victims are minors under 18 years old this year",
+      "lang": "en",
+      "generated_sql": "SELECT cm.\"CaseMasterID\", cm.\"CrimeNo\", cm.\"CrimeRegisteredDate\", u.\"UnitName\", ch.\"CrimeGroupName\", csh.\"CrimeHeadName\", cs.\"CaseStatusName\", v.\"VictimName\", v.\"AgeYear\"\nFROM \"CaseMaster\" cm\nJOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\"\nJOIN \"District\" d ON d.\"DistrictID\" = u.\"DistrictID\"\nJOIN \"CrimeHead\" ch ON ch.\"CrimeHeadID\" = cm.\"CrimeMajorHeadID\"\nJOIN \"CrimeSubHead\" csh ON csh.\"CrimeSubHeadID\" = cm.\"CrimeMinorHeadID\"\nJOIN \"CaseStatusMaster\" cs ON cs.\"CaseStatusID\" = cm.\"CaseStatusID\"\nJOIN \"Victim\" v ON v.\"CaseMasterID\" = cm.\"CaseMasterID\"\nWHERE v.\"AgeYear\" < 18\n  AND cm.\"CrimeRegisteredDate\" >= DATE_TRUNC('year', NOW())\nORDER BY cm.\"CrimeRegisteredDate\" DESC\nLIMIT 200",
+      "executes": true,
+      "matches": false,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 2840
+    },
+    {
+      "question": "Total FIRs registered per district this year",
+      "lang": "en",
+      "generated_sql": "SELECT d.\"DistrictName\", COUNT(*) AS total_firs\nFROM \"CaseMaster\" cm\nJOIN \"CaseCategory\" cc ON cc.\"CaseCategoryID\" = cm.\"CaseCategoryID\"\nJOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\"\nJOIN \"District\" d ON d.\"DistrictID\" = u.\"DistrictID\"\nWHERE cc.\"LookupValue\" = 'FIR'\n  AND cm.\"CrimeRegisteredDate\" >= DATE_TRUNC('year', NOW())\nGROUP BY d.\"DistrictName\"\nORDER BY total_firs DESC LIMIT 500",
+      "executes": true,
+      "matches": true,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 2301
+    },
+    {
+      "question": "How many heinous crimes were registered in Bengaluru Urban this year?",
+      "lang": "en",
+      "generated_sql": "SELECT COUNT(*) AS heinous_crimes_count\nFROM \"CaseMaster\" cm\nJOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\"\nJOIN \"District\" d ON d.\"DistrictID\" = u.\"DistrictID\"\nJOIN \"GravityOffence\" go ON go.\"GravityOffenceID\" = cm.\"GravityOffenceID\"\nWHERE d.\"DistrictName\" = 'Bengaluru Urban'\n  AND go.\"LookupValue\" = 'Heinous'\n  AND cm.\"CrimeRegisteredDate\" >= DATE_TRUNC('year', NOW()) LIMIT 500",
+      "executes": true,
+      "matches": true,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 2275
+    },
+    {
+      "question": "Show cases registered under IPC section 498A domestic violence",
+      "lang": "en",
+      "generated_sql": "SELECT cm.\"CaseMasterID\", cm.\"CrimeNo\", cm.\"CrimeRegisteredDate\", u.\"UnitName\", ch.\"CrimeGroupName\", csh.\"CrimeHeadName\", cs.\"CaseStatusName\"\nFROM \"CaseMaster\" cm\nJOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\"\nJOIN \"District\" d ON d.\"DistrictID\" = u.\"DistrictID\"\nJOIN \"CrimeHead\" ch ON ch.\"CrimeHeadID\" = cm.\"CrimeMajorHeadID\"\nJOIN \"CrimeSubHead\" csh ON csh.\"CrimeSubHeadID\" = cm.\"CrimeMinorHeadID\"\nJOIN \"CaseStatusMaster\" cs ON cs.\"CaseStatusID\" = cm.\"CaseStatusID\"\nJOIN \"ActSectionAssociation\" asa ON asa.\"CaseMasterID\" = cm.\"CaseMasterID\"\nJOIN \"Section\" s ON s.\"ActCode\" = asa.\"ActCode\" AND s.\"SectionCode\" = asa.\"SectionCode\"\nWHERE s.\"SectionCode\" = '498A'\n  AND s.\"ActCode\" = 'IPC'\nORDER BY cm.\"CrimeRegisteredDate\" DESC\nLIMIT 200",
+      "executes": true,
+      "matches": false,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 3096
+    },
+    {
+      "question": "Which police stations have the most cybercrime cases this year?",
+      "lang": "en",
+      "generated_sql": "SELECT u.\"UnitName\", COUNT(*) AS cybercrime_cases\nFROM \"CaseMaster\" cm\nJOIN \"CrimeHead\" ch ON ch.\"CrimeHeadID\" = cm.\"CrimeMajorHeadID\"\nJOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\"\nWHERE ch.\"CrimeGroupName\" = 'Cybercrimes'\nAND cm.\"CrimeRegisteredDate\" >= DATE_TRUNC('year', NOW())\nGROUP BY u.\"UnitName\"\nORDER BY cybercrime_cases DESC\nLIMIT 200",
+      "executes": true,
+      "matches": false,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 2157
+    },
+    {
+      "question": "Show young male accused under 25 years old registered last month",
+      "lang": "en",
+      "generated_sql": "SELECT cm.\"CaseMasterID\", cm.\"CrimeNo\", cm.\"CrimeRegisteredDate\", u.\"UnitName\", ch.\"CrimeGroupName\", csh.\"CrimeHeadName\", cs.\"CaseStatusName\", a.\"AccusedName\", a.\"AgeYear\"\nFROM \"CaseMaster\" cm\nJOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\"\nJOIN \"District\" d ON d.\"DistrictID\" = u.\"DistrictID\"\nJOIN \"CrimeHead\" ch ON ch.\"CrimeHeadID\" = cm.\"CrimeMajorHeadID\"\nJOIN \"CrimeSubHead\" csh ON csh.\"CrimeSubHeadID\" = cm.\"CrimeMinorHeadID\"\nJOIN \"CaseStatusMaster\" cs ON cs.\"CaseStatusID\" = cm.\"CaseStatusID\"\nJOIN \"Accused\" a ON a.\"CaseMasterID\" = cm.\"CaseMasterID\"\nWHERE a.\"GenderID\" = 1\n  AND a.\"AgeYear\" < 25\n  AND cm.\"CrimeRegisteredDate\" >= NOW() - INTERVAL '1 month'\nORDER BY cm.\"CrimeRegisteredDate\" DESC\nLIMIT 200",
+      "executes": true,
+      "matches": false,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 2776
+    },
+    {
+      "question": "Show closed cases per district this year",
+      "lang": "en",
+      "generated_sql": "SELECT d.\"DistrictName\", COUNT(*) AS closed_cases\nFROM \"CaseMaster\" cm\nJOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\"\nJOIN \"District\" d ON d.\"DistrictID\" = u.\"DistrictID\"\nJOIN \"CaseStatusMaster\" cs ON cs.\"CaseStatusID\" = cm.\"CaseStatusID\"\nWHERE cs.\"CaseStatusName\" = 'Closed'\n  AND cm.\"CrimeRegisteredDate\" >= DATE_TRUNC('year', NOW())\nGROUP BY d.\"DistrictName\"\nORDER BY closed_cases DESC LIMIT 500",
+      "executes": true,
+      "matches": true,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 2370
+    },
+    {
+      "question": "What is the age distribution of accused in cybercrime cases?",
+      "lang": "en",
+      "generated_sql": "SELECT a.\"AgeYear\", COUNT(*) AS accused_count\nFROM \"Accused\" a\nJOIN \"CaseMaster\" cm ON cm.\"CaseMasterID\" = a.\"CaseMasterID\"\nJOIN \"CrimeHead\" ch ON ch.\"CrimeHeadID\" = cm.\"CrimeMajorHeadID\"\nWHERE ch.\"CrimeGroupName\" = 'Cybercrimes'\nGROUP BY a.\"AgeYear\"\nORDER BY a.\"AgeYear\" LIMIT 500",
+      "executes": true,
+      "matches": false,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 2389
+    },
+    {
+      "question": "Gender breakdown of theft victims",
+      "lang": "en",
+      "generated_sql": "SELECT v.\"GenderID\", COUNT(DISTINCT v.\"VictimMasterID\") AS \"VictimCount\"\nFROM \"Victim\" v\nJOIN \"CaseMaster\" cm ON cm.\"CaseMasterID\" = v.\"CaseMasterID\"\nJOIN \"CrimeSubHead\" csh ON csh.\"CrimeSubHeadID\" = cm.\"CrimeMinorHeadID\"\nJOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\"\nJOIN \"District\" d ON d.\"DistrictID\" = u.\"DistrictID\"\nWHERE csh.\"CrimeHeadName\" = 'Theft'\nGROUP BY v.\"GenderID\"\nORDER BY \"VictimCount\" DESC LIMIT 500",
+      "executes": true,
+      "matches": false,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 3051
+    },
+    {
+      "question": "Occupation profile of complainants in economic offences",
+      "lang": "en",
+      "generated_sql": "",
+      "executes": false,
+      "matches": false,
+      "repaired": false,
+      "error": "\nInvalid `prisma.$queryRawUnsafe()` invocation:\n\n\nRaw query failed. Code: `42P01`. Message: `relation \"Occupation\" does not exist`",
+      "ms": 2465
+    },
+    {
+      "question": "Average age of accused by crime group",
+      "lang": "en",
+      "generated_sql": "SELECT ch.\"CrimeGroupName\", AVG(a.\"AgeYear\") AS average_age\nFROM \"Accused\" a\nJOIN \"CaseMaster\" cm ON cm.\"CaseMasterID\" = a.\"CaseMasterID\"\nJOIN \"CrimeHead\" ch ON ch.\"CrimeHeadID\" = cm.\"CrimeMajorHeadID\"\nWHERE a.\"AgeYear\" IS NOT NULL\nGROUP BY ch.\"CrimeGroupName\"\nORDER BY average_age DESC LIMIT 500",
+      "executes": true,
+      "matches": false,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 2444
+    },
+    {
+      "question": "Religion breakdown of complainants in Bengaluru Urban",
+      "lang": "en",
+      "generated_sql": "",
+      "executes": false,
+      "matches": false,
+      "repaired": false,
+      "error": "\nInvalid `prisma.$queryRawUnsafe()` invocation:\n\n\nRaw query failed. Code: `42P01`. Message: `relation \"Religion\" does not exist`",
+      "ms": 2376
+    },
+    {
+      "question": "Which districts have rising crime this month compared to last month?",
+      "lang": "en",
+      "generated_sql": "SELECT d.\"DistrictName\", current_month.cases AS current_month_cases, previous_month.cases AS previous_month_cases, (current_month.cases - previous_month.cases) AS increase\nFROM \"District\" d\nJOIN (\n    SELECT u.\"DistrictID\", COUNT(*) AS cases\n    FROM \"CaseMaster\" cm\n    JOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\"\n    WHERE cm.\"CrimeRegisteredDate\" >= DATE_TRUNC('month', NOW())\n    GROUP BY u.\"DistrictID\"\n) current_month ON current_month.\"DistrictID\" = d.\"DistrictID\"\nJOIN (\n    SELECT u.\"DistrictID\", COUNT(*) AS cases\n    FROM \"CaseMaster\" cm\n    JOIN \"Unit\" u ON u.\"UnitID\" = cm.\"PoliceStationID\"\n    WHERE cm.\"CrimeRegisteredDate\" >= DATE_TRUNC('month', NOW() - INTERVAL '1 month')\n      AND cm.\"CrimeRegisteredDate\" < DATE_TRUNC('month', NOW())\n    GROUP BY u.\"DistrictID\"\n) previous_month ON previous_month.\"DistrictID\" = d.\"DistrictID\"\nWHERE current_month.cases > previous_month.cases\nORDER BY increase DESC LIMIT 500",
+      "executes": true,
+      "matches": true,
+      "repaired": false,
+      "topSim": 1,
+      "ms": 3419
+    }
+  ]
+}

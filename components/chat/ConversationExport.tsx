@@ -31,7 +31,8 @@ export function ConversationExport() {
         {messages.map((m) => (
           <div key={m.id} className={`print-msg print-${m.role}`}>
             <div className="print-role">{m.role === "user" ? "INVESTIGATOR" : "KHABRI AI"}</div>
-            <div className="print-content">{m.content}</div>
+            {/* PDF has no bold renderer — drop the ** markers rather than print them */}
+            <div className="print-content">{m.content.replace(/\*\*/g, "")}</div>
             {m.rows && m.rows.length > 0 ? <PrintTable rows={m.rows} /> : null}
           </div>
         ))}

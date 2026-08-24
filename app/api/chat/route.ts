@@ -30,25 +30,31 @@ export async function POST(req: NextRequest) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
+      // ponytail: a client disconnect (reload, navigation) closes the controller
+      // mid-run, so every later enqueue throws. Swallow it once and stop writing
+      // instead of crashing the route — and the error path can't re-throw either.
+      let closed = false;
+      const send = (event: unknown) => {
+        if (closed) return;
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+        } catch {
+          closed = true;
+        }
+      };
+
       try {
         for await (const event of runAgent(message, history, req, lang)) {
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+          send(event);
+          if (closed) return;
         }
       } catch (e) {
         console.error("agent run failed:", e);
-        controller.enqueue(
-          encoder.encode(
-            `data: ${JSON.stringify({ type: "meta", sql: "", rows: [], vizType: "table", sqlError: "Agent run failed", relatedCases: [] })}\n\n`
-          )
-        );
-        controller.enqueue(
-          encoder.encode(
-            `data: ${JSON.stringify({ type: "token", token: "Something went wrong processing your request." })}\n\n`
-          )
-        );
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "done" })}\n\n`));
+        send({ type: "meta", sql: "", rows: [], vizType: "table", sqlError: "Agent run failed", relatedCases: [] });
+        send({ type: "token", token: "Something went wrong processing your request." });
+        send({ type: "done" });
       }
-      controller.close();
+      if (!closed) controller.close();
     },
   });
 

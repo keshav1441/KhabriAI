@@ -1,0 +1,10 @@
+{
+  "sample": 300,
+  "k": 5,
+  "typeAt5": "67%",
+  "groupAt5": "96%",
+  "seriesCases": 217,
+  "seriesRecallAt5": "18%",
+  "seriesCrossDistrict": "87%",
+  "msPerQuery": 572
+}

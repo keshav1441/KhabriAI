@@ -161,7 +161,7 @@ model CaseMaster {
   latitude            Decimal?
   longitude           Decimal?
   BriefFacts          String?
-  BriefFactsEmbedding Unsupported("vector(768)")?
+  BriefFactsEmbedding Unsupported("vector(1024)")?
 
   officer        Employee?         @relation("CaseMasterOfficer", fields: [PolicePersonID], references: [EmployeeID])
   station        Unit?             @relation("CaseMasterStation", fields: [PoliceStationID], references: [UnitID])
@@ -330,8 +330,10 @@ model KhabriUser {
   firstName    String
   lastName     String
   email        String        @unique
-  passwordHash String
-  salt         String
+  passwordHash String?       // null for Google-only accounts
+  salt         String?
+  role         String        @default("HQ") // HQ = statewide, SHO = bound to districtId (enforced by RLS)
+  districtId   Int?
   createdAt    DateTime      @default(now())
   chatSessions ChatSession[]
 }

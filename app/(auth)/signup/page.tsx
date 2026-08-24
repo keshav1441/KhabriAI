@@ -1,11 +1,16 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { NeonSignIn } from "@/components/auth/NeonSignIn";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export default function SignupPage() {
   const router = useRouter();
-  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", password: "", confirm: "" });
+  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", password: "", confirm: "", role: "HQ", districtId: "" });
+  const [districts, setDistricts] = useState<{ id: number; name: string }[]>([]);
+  useEffect(() => {
+    fetch("/api/districts").then((r) => (r.ok ? r.json() : { districts: [] })).then((d) => setDistricts(d.districts ?? [])).catch(() => {});
+  }, []);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -23,7 +28,7 @@ export default function SignupPage() {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firstName: form.firstName, lastName: form.lastName, email: form.email, password: form.password }),
+        body: JSON.stringify({ firstName: form.firstName, lastName: form.lastName, email: form.email, password: form.password, role: form.role, districtId: form.districtId ? Number(form.districtId) : null }),
       });
       const data = await res.json();
       if (!res.ok) setError(data.error ?? "Signup failed.");
@@ -96,6 +101,29 @@ export default function SignupPage() {
           <InputField label="Password" type="password" value={form.password} onChange={set("password")} placeholder="Minimum 8 characters" required />
           <InputField label="Confirm Password" type="password" value={form.confirm} onChange={set("confirm")} placeholder="Repeat password" required />
 
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium mb-1.5 tracking-wider uppercase" style={{ color: "var(--text-muted)" }}>Posting</label>
+              <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value, districtId: e.target.value === "SHO" ? f.districtId : "" }))}
+                className="w-full rounded px-3 py-2 text-sm" style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-primary)" }}>
+                <option value="HQ">State HQ (statewide data)</option>
+                <option value="SHO">District posting (SHO)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1.5 tracking-wider uppercase" style={{ color: "var(--text-muted)" }}>District</label>
+              <select value={form.districtId} disabled={form.role !== "SHO"} required={form.role === "SHO"}
+                onChange={(e) => setForm((f) => ({ ...f, districtId: e.target.value }))}
+                className="w-full rounded px-3 py-2 text-sm disabled:opacity-50" style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", color: "var(--text-primary)" }}>
+                <option value="">{form.role === "SHO" ? "— select —" : "n/a"}</option>
+                {districts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
+          </div>
+          <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+            A district posting can only query, open and link cases of that district — enforced by the database, not the interface.
+          </p>
+
           {error && (
             <div
               className="flex items-center gap-2 text-xs px-3 py-2.5 rounded-md"
@@ -120,6 +148,12 @@ export default function SignupPage() {
             )}
           </button>
         </form>
+
+        <NeonSignIn
+          onError={setError}
+          googleLabel="Sign up with Google"
+          posting={{ role: form.role === "SHO" ? "SHO" : "HQ", districtId: form.districtId ? Number(form.districtId) : null }}
+        />
 
         <div style={{ borderTop: "1px solid var(--border)", marginTop: "1.5rem", paddingTop: "1.5rem" }}>
           <p className="text-sm text-center" style={{ color: "var(--text-muted)" }}>

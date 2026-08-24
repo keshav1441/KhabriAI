@@ -3,7 +3,7 @@
 **Karnataka Police Crime Intelligence Assistant**
 Datathon 2026 — KSP × Hack2Skill Challenge 1
 
-Conversational AI for investigators to query crime data in plain English. Sign in, ask a question → an **agent orchestrator** (Groq `llama-3.3-70b-versatile`) plans tool calls — SQL generation via RAG, full-text case search, precomputed anomaly insights, network/map data, QuickML risk prediction — and streams each step live to a **Case Board** in the chat, followed by an analyst narrative. Answers render as tables, charts, or network graphs, alongside a **Related Cases** panel citing real FIR narratives. Chat history is saved per user in Neon.
+Conversational AI for investigators to query crime data in plain English. Sign in, ask a question → an **agent orchestrator** (Mistral `mistral-small-latest`) plans tool calls — SQL generation via RAG, full-text case search, precomputed anomaly insights, network/map data, QuickML risk prediction — and streams each step live to a **Case Board** in the chat, followed by an analyst narrative. Answers render as tables, charts, or network graphs, alongside a **Related Cases** panel citing real FIR narratives. Chat history is saved per user in Neon.
 
 ---
 
@@ -14,10 +14,10 @@ Conversational AI for investigators to query crime data in plain English. Sign i
 | Framework | Next.js 16 (App Router, standalone output) |
 | Database | Neon PostgreSQL + Prisma |
 | Auth | PBKDF2-SHA512 (100k iterations) · HMAC-signed session cookie (7 days) |
-| Agent | Groq `llama-3.3-70b-versatile` orchestrator + 5 tools (see below) |
-| LLM | Groq — `qwen/qwen3.6-27b` (SQL) · `llama-3.1-8b-instant` (summary) |
+| Agent | Mistral `mistral-small-latest` orchestrator + 5 tools (see below) |
+| LLM | Mistral (OpenAI-compatible API via the `openai` SDK) — `mistral-small-latest` for SQL, summary and narrative |
 | Catalyst services | Cache (insights TTL) · Data Store (`AgentAuditLog`) · QuickML (chargesheet risk) — all optional, local fallbacks outside AppSail |
-| Embeddings | Groq API (`nomic-embed-text-v1.5`) · LLM fallback for example selection |
+| Embeddings | Gemini API (`gemini-embedding-2`) · LLM fallback for example selection |
 | Case retrieval | Postgres full-text search (`tsvector`/`ts_rank`) over `CaseMaster.BriefFacts` |
 | Maps | Leaflet + react-leaflet |
 | Network graph | Cytoscape.js + cose-bilkent |
@@ -30,7 +30,7 @@ Conversational AI for investigators to query crime data in plain English. Sign i
 
 ## How it works
 
-Every chat message runs through an agent loop (`lib/agent/orchestrator.ts`): a Groq `llama-3.3-70b-versatile` planner decides which tools to call (up to 4 iterations, first turn forced to call at least one tool so it can't answer from parametric memory), executes them in parallel, streams each step to the UI as it happens, then synthesizes a 2–4 sentence analyst narrative from the gathered results.
+Every chat message runs through an agent loop (`lib/agent/orchestrator.ts`): a Mistral `mistral-small-latest` planner decides which tools to call (up to 4 iterations, first turn forced to call at least one tool so it can't answer from parametric memory), executes them in parallel, streams each step to the UI as it happens, then synthesizes a 2–4 sentence analyst narrative from the gathered results.
 
 ```
 User question
@@ -54,11 +54,11 @@ Persist to ChatSession / ChatMessage · audit trail to Catalyst Data Store (Agen
 
 Each tool call is fire-and-forget audited to a Catalyst Data Store table (`AgentAuditLog`) when running on AppSail — locally the writes are skipped and chat works without it.
 
-Few-shot **example** retrieval (picking which Q→SQL pairs to show the SQL generator) runs entirely on **Groq** (no local ONNX/HuggingFace). On startup the app probes the Groq embeddings API; if available it uses `nomic-embed-text-v1.5` with cached example vectors in `lib/rag-embeddings-cache.json`. If embeddings are not enabled on your Groq account, it falls back to `llama-3.1-8b-instant` picking the best matching examples.
+Few-shot **example** retrieval (picking which Q→SQL pairs to show the SQL generator) runs on hosted APIs only (no local ONNX/HuggingFace). On startup the app probes the Gemini embeddings API; if available it uses `gemini-embedding-2` with cached example vectors in `lib/rag-embeddings-cache.json`. If embeddings are unavailable, it falls back to `mistral-small-latest` picking the best matching examples.
 
 Force a mode with `RAG_MODE=embed` or `RAG_MODE=llm` in `.env`.
 
-**Case** retrieval (the "Related Cases" citations panel) is a separate subsystem and does **not** use Groq embeddings — Groq does not currently serve an embeddings endpoint on standard accounts (`nomic-embed-text-v1.5` returns 404 in practice, which is why example retrieval has an LLM fallback in the first place). Instead it uses Postgres native full-text search: see [Related Cases](#related-cases-citations) below.
+**Case** retrieval (the "Related Cases" citations panel) is a separate subsystem and does **not** use the embeddings API at all. Instead it uses Postgres native full-text search: see [Related Cases](#related-cases-citations) below.
 
 SQL is generated and stored server-side but **not shown in the chat UI** — investigators see the narrative summary, table/chart/map, and CSV export only.
 
@@ -81,7 +81,7 @@ Alongside the structured SQL answer, every question also runs a second, independ
 
 - **Retrieval**: `lib/case-retrieval.ts` — Postgres `to_tsvector`/`to_tsquery`/`ts_rank`, no pgvector, no external embedding call. Query terms are OR'd (not `plainto_tsquery`'s AND) so natural-language questions still match on partial overlap.
 - **Precision gate**: raw `ts_rank` magnitude isn't reliable on its own — short documents mean generic words (e.g. "filed", "month") can coincidentally out-rank a real match. `findSimilarCases()` requires **≥2 literal content-word overlap** between the question and the narrative before a case counts as related; this is what actually filters out aggregate questions ("how many FIRs were filed last month") rather than a score threshold.
-- **Corpus**: `CaseMaster.BriefFacts` is templated boilerplate out of `prisma/seed.ts` (e.g. *"Theft reported at station 42."*) — too generic to retrieve anything meaningful. Run `scripts/enrich-briefs.ts` after seeding to LLM-expand it into real 2–4 sentence FIR-style narratives (Groq `llama-3.1-8b-instant`, batched + concurrent):
+- **Corpus**: `CaseMaster.BriefFacts` is templated boilerplate out of `prisma/seed.ts` (e.g. *"Theft reported at station 42."*) — too generic to retrieve anything meaningful. Run `scripts/enrich-briefs.ts` after seeding to LLM-expand it into real 2–4 sentence FIR-style narratives (Mistral `mistral-small-latest`, batched + concurrent):
   ```bash
   npx tsx scripts/enrich-briefs.ts --limit=2000   # fast subset for a demo
   npx tsx scripts/enrich-briefs.ts                # full corpus (~20,000 cases)
@@ -103,7 +103,7 @@ npm install
 Create `.env` (or `.env.local`):
 ```env
 DATABASE_URL=your_neon_connection_string
-GROQ_API_KEY=your_groq_key
+MISTRAL_API_KEY=your_mistral_key
 ```
 
 ### 3. Push schema + seed data
@@ -137,20 +137,83 @@ Open **http://localhost:3000** → sign up or log in → dashboard.
 - **New chat** starts a fresh thread; the first message auto-titles the session.
 - API routes resolve the user from the session cookie (`lib/chat-auth.ts`).
 
+### Neon Auth: Google and email one-time codes
+
+Identity is handled by **Neon Auth** (managed Better Auth, enabled on the project's Neon branch): **Continue with Google** uses
+Neon's shared OAuth credentials (no Google Cloud project needed), and **Email me a code** signs in with a 6-digit one-time
+code sent by Neon's shared email provider. The app keeps its own `KhabriUser` row (role, district → RLS scope) and its own
+`khabri_session` cookie: after a Neon sign-in, `POST /api/auth/bridge` finds-or-creates the user by email and issues the
+session exactly like the password login. Both options are also on `/signup`: the Posting / District chosen there is carried through the Google
+redirect (sessionStorage) and applied when the account is first created; a later sign-in never changes an existing
+officer's posting. Accounts created from `/login` start as HQ (statewide); give them a district with `npm run set-scope`. The password login/signup routes remain for scripted and legacy accounts.
+
+```
+NEON_AUTH_URL=https://<endpoint-id>.neonauth.<region>.aws.neon.tech/neondb/auth   # Neon Console → Branch → Auth ("Auth URL"; NEON_AUTH_BASE_URL also accepted)
+NEON_AUTH_COOKIE_SECRET=<32+ random chars>
+```
+
+Files: `lib/neon-auth-server.ts` (edge-safe instance), `lib/neon-auth.ts` (bridge), `app/api/auth/[...path]/route.ts` (API proxy),
+`proxy.ts` (Next middleware: exchanges the `?neon_auth_session_verifier` Google returns with for the Neon session cookie, then
+sends the user to `/auth/callback`), `lib/auth-client.ts`, `app/auth/callback/page.tsx` (Google return URL — add `http://localhost:3000` and the AppSail URL as trusted origins in the
+Neon Console). Without `NEON_AUTH_BASE_URL` the Neon buttons return a clear error and the password form still works.
+
 ---
 
 ## Accuracy eval
 
-Runs all 25 RAG examples through the full pipeline (embed → retrieve → generate SQL → execute) and reports execution accuracy:
+`lib/rag-examples.json` holds 94 question → gold-SQL pairs (84 English, 10 Kannada) covering counts, trends, joins across accused/victims/arrests/chargesheets/sections, and abbreviation traps (BLR, dowry death → 304B). The eval runs each question through the **same pipeline the agent uses** (`lib/text-to-sql.ts`: retrieve few-shot → generate → validate → execute under guards → repair once on DB error) and reports two numbers separately:
+
+| metric | meaning |
+|---|---|
+| **executes** | generated SQL ran without error — this is what the old eval called "accuracy" |
+| **matches** | result set equals the gold SQL's result set (Spider-style execution match: value-only, order-insensitive, numbers at 2-dp, row lists compared on the set of `CaseMasterID`s) — **this is accuracy** |
 
 ```bash
-npx tsx eval/run.ts --holdout          # Groq RAG (default)
-npx tsx eval/run.ts --holdout --keywords  # keyword Jaccard baseline
+npm run eval -- --holdout              # honest number: each question's own example is excluded from retrieval
+npm run eval -- --holdout --no-repair  # ablation: same, without the error-feedback retry
+npm run eval -- --limit=10             # quick smoke
 ```
 
-Use `--holdout` to exclude each question's own example from retrieval (honest generalization test). Without the flag, the exact Q→SQL pair can be retrieved and scores are inflated.
+Every run writes `eval/results/<timestamp>.json` with per-question SQL, verdict, repair flag and latency. Output: `.` match · `x` ran but wrong result · `E` error.
 
-Output: `.` pass · `F` validation fail · `E` execution error · summary with retrieval similarity and SQL token overlap.
+Unit tests for the guards, the repair loop, the comparator and entity resolution: `npm test`.
+
+### Role-based scope
+
+Users are `HQ` (statewide) or `SHO` (one district), chosen at signup or set with
+`npm run set-scope -- --email=<email> --district=Mysuru` (`--hq` to reset). Enforcement is Postgres
+row-level security (`prisma/migrations/*_role_scope_rls`, `*_scope_role`): `lib/db.ts withScope()` runs a
+scoped officer's queries as the non-owner role `khabri_scoped` with `app.district_id` set, and the
+policies on `CaseMaster` + child tables filter every row. All data routes use `scopedDb(req)` from
+`lib/chat-auth.ts`; the chat pipeline passes the district into `runGuardedQuery`. Unset scope = no
+restriction, so scripts and migrations are unaffected. `test/scope.test.ts` asserts the policies bite. The precomputed
+Intelligence Briefing (`/api/insights`) is a statewide command view by design and is not scoped.
+
+### Demo readiness
+
+```bash
+npm run shift-dates -- --apply   # move the synthetic corpus so the newest FIR is yesterday (dates, CrimeNo year, narrative text, insights)
+npm run demo:check               # assert the anchors in docs/DEMO.md still hold
+npm run loadtest -- --concurrency=5 --rounds=2   # p50/p95 time-to-first-token against a running instance (--base=URL for AppSail)
+```
+
+The 3-minute script with exact questions and expected outcomes is in [docs/DEMO.md](docs/DEMO.md).
+
+### Modus-operandi linking
+
+```bash
+npm run enrich            # LLM-expand templated BriefFacts into narratives (MO series for repeat offenders)
+npm run embed             # embed narratives into CaseMaster.BriefFactsEmbedding (pgvector, mistral-embed 1024-d)
+npm run eval:similarity   # type@5 / group@5 / series recall@5 / cross-district share
+```
+
+After changing `lib/mo-signature.ts`, regenerate with `npm run enrich -- --all` (resumable; chunk it with `--limit=2400` on rate-limited tiers) and then `npm run embed -- --force`.
+
+`lib/case-retrieval.ts` exposes `similarCasesTo(caseId)` and `similarCasesToText(description)`; the agent tool `findSimilarCases` and `GET /api/case/similar?id=` (Case Drawer panel) sit on top. Mistral free/low tiers rate-limit at ~3 concurrent chat calls: set `ENRICH_CONCURRENCY=3` if `npm run enrich` logs 429s, and re-run it — failed batches stay templated and are retried.
+
+### Entity resolution & clarification
+
+`lib/entity-resolve.ts` checks district / station / crime-type literals in generated SQL against the real vocabulary (in-memory trigram similarity + an alias table for legacy names such as Bangalore, Mysore, Belgaum, Gulbarga, Tumkur) and rewrites near-misses; the Case Board shows the correction. Person names are never rewritten: a zero-row person query returns `suggestions` (closest real names), and a bare first name matching many people returns `ambiguousPerson` with no rows. The orchestrator has an `askClarification` tool that ends the turn with a question instead of a query. The previous turn's SQL is appended to assistant history (`[SQL used: …]`) so follow-ups refine it.
 
 ---
 
@@ -163,6 +226,7 @@ app/
   dashboard/        Main app shell (sidebar, chat, map, reports, about)
   api/
     auth/login/       Credential check → sets session cookie
+    auth/google/      Google ID-token check → find-or-create user, sets session cookie
     auth/logout/      Clears session cookie
     auth/signup/      User registration
     chats/            List / create chat sessions
@@ -179,16 +243,17 @@ components/
   viz/              NetworkGraph, ResultsTable, CrimeChart, CaseDrawer
 lib/
   agent/
-    orchestrator.ts   Agent loop — Groq 70B planner, tool execution, SSE event stream
+    orchestrator.ts   Agent loop — Mistral planner, tool execution, SSE event stream
     tools.ts          5 tool implementations + JSON schemas
     audit-log.ts      Fire-and-forget audit trail to Catalyst Data Store
-  rag.ts                Groq RAG router (embeddings → LLM fallback) — few-shot SQL examples only
-  embeddings-groq.ts    Groq embedding API + on-disk cache
-  rag-llm.ts            Groq 8B example selection fallback
+  rag.ts                RAG router (embeddings → LLM fallback) — few-shot SQL examples only
+  embeddings.ts         Mistral embeddings (mistral-embed, 1024-dim) + on-disk cache
+  rag-llm.ts            LLM example-selection fallback
+  mistral-client.ts     Shared Mistral client (openai SDK, Mistral base URL)
   rag-keywords.ts       Keyword Jaccard (eval baseline only)
   rag-examples.json 25 Q→SQL pairs (the RAG knowledge base)
   case-retrieval.ts Related Cases retrieval — Postgres full-text search over BriefFacts
-  llm.ts            generateSQL() + streamSummary() via Groq
+  llm.ts            generateSQL() + streamSummary() via Mistral
   prompt-builder.ts KSP database schema (injected into every prompt)
   sql-validator.ts  SELECT-only guard, multi-statement block
   query-classifier.ts  SQL → vizType (table / chart / graph)
@@ -220,13 +285,13 @@ scripts/
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `DATABASE_URL` | Yes | Neon PostgreSQL connection string |
-| `GROQ_API_KEY` | Yes | Groq API key |
-| `GROQ_SQL_MODEL` | No | SQL model (default `qwen/qwen3.6-27b`) |
-| `GROQ_EMBED_MODEL` | No | Embedding model (default `nomic-embed-text-v1.5`) |
-| `GROQ_RAG_MODEL` | No | LLM example-picker fallback (default `llama-3.1-8b-instant`) |
+| `MISTRAL_API_KEY` | Yes | Mistral API key |
+| `MISTRAL_SQL_MODEL` | No | SQL model (default `mistral-large-latest`) |
+| `MISTRAL_EMBED_MODEL` | No | Embedding model (default `mistral-embed`); embeddings use `MISTRAL_API_KEY` |
+| `MISTRAL_RAG_MODEL` | No | LLM example-picker fallback (default `mistral-small-latest`) |
 | `RAG_MODE` | No | `embed` or `llm` to force retrieval mode |
-| `GROQ_SUMMARY_MODEL` | No | Summary model (default `llama-3.1-8b-instant`) |
-| `GROQ_ORCH_MODEL` | No | Agent orchestrator model (default `llama-3.3-70b-versatile`) |
+| `MISTRAL_SUMMARY_MODEL` | No | Summary model (default `mistral-small-latest`) |
+| `MISTRAL_ORCH_MODEL` | No | Agent orchestrator model (default `mistral-large-latest`) |
 | `SESSION_SECRET` | Prod | HMAC key for session cookies — required in production |
 | `CATALYST_AUTOML_MODEL_ID` | No | QuickML model ID for the `predictRisk` tool (AppSail only) |
 | `CRON_SECRET` | No | Bearer token guarding `/api/cron/insights` precompute |
@@ -242,7 +307,7 @@ catalyst deploy
 The `predeploy` hook runs `next build`, prepares the standalone bundle, and uploads it. The standalone output in `.next/standalone` is what AppSail serves (~170 MB). Catalyst rejects uploads over **250 MB** (HTTP 413).
 
 **AppSail env vars to set:**
-- `DATABASE_URL`, `GROQ_API_KEY`, `SESSION_SECRET`
+- `DATABASE_URL`, `MISTRAL_API_KEY`, `SESSION_SECRET`
 - Optional: `CATALYST_AUTOML_MODEL_ID` (QuickML risk tool), `CRON_SECRET` (insights precompute)
 
 **Optional Catalyst console setup** (features degrade gracefully without them):
@@ -283,7 +348,7 @@ Memory: `app-config.json` requests 1024 MB. Lower to 512 if your plan rejects it
 
 **Related Cases panel is always empty** — `BriefFacts` is still the templated seed boilerplate. Run `npx tsx scripts/enrich-briefs.ts` (see [Related Cases](#related-cases-citations)) — the full-text index only has something to retrieve once narratives are real text.
 
-**Groq 401** — `GROQ_API_KEY` is missing or invalid.
+**Mistral 401** — `MISTRAL_API_KEY` is missing or invalid.
 
 **POST /api/chats returns 500** — Stale Prisma client in a long-running dev server. Run `npx prisma generate` and restart `npm run dev`.
 
