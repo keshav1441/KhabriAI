@@ -1,4 +1,4 @@
-import { findSimilarEmbeddings, warmupEmbeddings as warmupGemini, embeddingAvailable } from "./embeddings";
+import { findSimilarEmbeddings, warmupEmbeddings as warmupExampleVectors, embeddingAvailable } from "./embeddings";
 import { findSimilarLlm } from "./rag-llm";
 import { scoreLearned } from "./learned-examples";
 
@@ -70,5 +70,5 @@ export function mergeExamples(
 }
 
 export function warmupEmbeddings(req?: Request): Promise<void> {
-  return embeddingAvailable() ? warmupGemini(req) : Promise.resolve();
+  return embeddingAvailable() ? warmupExampleVectors(req) : Promise.resolve();
 }

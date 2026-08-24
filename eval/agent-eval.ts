@@ -93,6 +93,11 @@ const DEGRADED = [
   "No further information could be synthesized.",
 ];
 
+const EVAL_ORIGIN = process.env.EVAL_ORIGIN ?? "http://localhost:3000";
+
+/** One fresh Request per question: getScope caches per Request object. */
+const evalRequest = () => new Request(`${EVAL_ORIGIN}/eval`);
+
 const arg = (name: string) => process.argv.find((a) => a.startsWith(`--${name}=`))?.split("=")[1];
 const limit = Number(arg("limit")) || Infinity;
 const only = arg("only");
@@ -114,8 +119,11 @@ async function run() {
     let errored = false;
 
     try {
-      // No Request: the eval runs statewide (HQ scope), like a headquarters user.
-      for await (const event of runAgent(item.q, [], undefined, lang)) {
+      // A cookieless Request, not `undefined`. getScope still resolves to
+      // statewide (HQ scope), like a headquarters user - but the tools that
+      // read `req` get a real one, instead of the two network/map questions
+      // failing for a reason that has nothing to do with the planner.
+      for await (const event of runAgent(item.q, [], evalRequest(), lang)) {
         if (event.type === "step" && event.status !== "pending" && !tools.includes(event.tool)) tools.push(event.tool);
         if (event.type === "token") answer += event.token;
         if (event.type === "meta" && event.groundedness) verdict = event.groundedness;
@@ -166,6 +174,15 @@ async function run() {
   console.log(`ungrounded:         ${ungrounded.length}/${withFigures.length || 1} (${pct(ungrounded.length, withFigures.length)})  ← figures no tool returned`);
   console.log(`median latency:     ${median(rows.map((r) => r.ms))} ms`);
   console.log(`p90 latency:        ${percentile(rows.map((r) => r.ms), 0.9)} ms`);
+
+  // Stated, not silently ignored: answerWithSQL takes an excludeIndex that
+  // drops the question's own few-shot neighbour from retrieval, and the SQL
+  // eval uses it. Nothing here can: runAgent decides its own sub-questions, so
+  // there is no index to exclude. Treat the queryDatabase rows as measuring the
+  // pipeline WITH the seeded bank available, not as leakage-free.
+  console.log(`\nnote: few-shot retrieval is not held out (runAgent writes its own sub-questions,`);
+  console.log(`      so answerWithSQL's excludeIndex has nothing to key on). SQL-layer leakage is`);
+  console.log(`      measured by eval/run.ts instead.`);
 
   if (ungrounded.length) {
     console.log("\nUnverified figures:");

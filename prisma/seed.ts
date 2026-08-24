@@ -450,7 +450,7 @@ async function main() {
     console.log(`\nSeed complete — ${TOTAL_CASES} FIR cases in Neon.`);
     console.log(
       "Note: BriefFactsEmbedding is empty for all new rows (reseeding invalidates old vectors). " +
-      "Run `npx tsx backfill-embeddings.ts` to repopulate — Gemini's free tier caps this at ~90/min, so it takes a few hours. " +
+      "Run `npx tsx scripts/backfill-embeddings.ts` to repopulate with mistral-embed (batches of 100, 4 at a time); it only embeds narratives that scripts/enrich-briefs.ts has already expanded. " +
       "Not run automatically here since that would make every reseed take hours; related-case search falls back to full-text search until it's done."
     );
   } finally {

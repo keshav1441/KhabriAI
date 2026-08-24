@@ -30,8 +30,8 @@ export interface ChatMessage {
   /** Whether every figure in this answer was found in the returned data.
    *  Arrives on the trailing `meta` event, after the narrative is complete. */
   groundedness?: GroundednessVerdict;
-  /** The working behind this answer, shown on demand. Client-only — the
-   *  persisted history payload lists its fields explicitly and omits this. */
+  /** The working behind this answer, shown on demand. Persisted with the
+   *  message, so reopening a session shows the same working it did live. */
   trace?: AnswerTrace;
   /** This officer's vote on this answer. Client-only — never sent to /api/chats. */
   feedback?: "up" | "down";

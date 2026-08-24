@@ -50,8 +50,6 @@ export const STAGE_LABEL_KEY: Record<StageId, string> = {
   court: "pipeline.court",
 };
 
-export const STAGE_ORDER: StageId[] = ["registered", "arrested", "chargesheet", "court"];
-
 /** One case's milestone dates. Anything the schema cannot date arrives as null. */
 export interface CaseTimeline {
   caseId: number;

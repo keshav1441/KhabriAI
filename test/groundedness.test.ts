@@ -148,3 +148,80 @@ test("an invented figure is still caught when a window is present", () => {
   assert.equal(v.grounded, false);
   assert.ok(v.claims.some((c) => c.value === 500 && !c.supported));
 });
+
+// --- The gaps a real answer walked through -----------------------------------
+
+test("a case narrative returned as BriefFacts does not vouch for the numbers in it", () => {
+  // The key a queryDatabase row actually carries is cm."BriefFacts" - the
+  // camelCase entry in PROSE_KEYS never matched it, so the whole narrative
+  // became supporting data and any figure quoted out of it read as grounded.
+  const v = checkGroundedness("Officers recovered **47** gold chains worth **1,284** rupees.", [
+    qr([{ CrimeNo: "100030015202619999", BriefFacts: "47 gold chains worth 1,284 rupees were taken" }]),
+  ]);
+  assert.equal(v.checked, 2);
+  assert.equal(v.grounded, false);
+  assert.equal(claimFor(v, 47).supported, false);
+  assert.equal(claimFor(v, 1284).supported, false);
+});
+
+test("a hyphenated compound is a figure, not a time window", () => {
+  const v = checkGroundedness("The victim was **17**-year-old.", [qr([{ age: 17 }])]);
+  assert.equal(v.checked, 1);
+  assert.equal(claimFor(v, 17).supported, true);
+});
+
+test("an invented age in a hyphenated compound is caught", () => {
+  const v = checkGroundedness("A **9**-year-old victim was named.", [qr([{ age: 17 }])]);
+  assert.equal(v.grounded, false);
+});
+
+test("Indian digit grouping reads as one figure", () => {
+  const v = checkGroundedness("Property worth Rs 5,00,000 was recovered.", [qr([{ recovered: 500000 }])]);
+  assert.equal(v.checked, 1);
+  assert.equal(claimFor(v, 500000).supported, true);
+});
+
+test("a lakh-grouped figure nobody returned is not grounded", () => {
+  const v = checkGroundedness("Property worth Rs 1,23,456 was recovered.", [qr([{ recovered: 500000 }])]);
+  assert.equal(v.grounded, false);
+  assert.equal(claimFor(v, 123456).supported, false);
+});
+
+test("Kannada numerals in a Kannada answer are checked, not ignored", () => {
+  const grounded = checkGroundedness("ಒಟ್ಟು ೧೪೨ ಪ್ರಕರಣಗಳು ದಾಖಲಾಗಿವೆ.", [qr([{ cases: 142 }])]);
+  assert.equal(grounded.checked, 1);
+  assert.equal(grounded.grounded, true);
+
+  const invented = checkGroundedness("ಒಟ್ಟು ೫೦೦ ಪ್ರಕರಣಗಳು ದಾಖಲಾಗಿವೆ.", [qr([{ cases: 142 }])]);
+  assert.equal(invented.checked, 1);
+  assert.equal(invented.grounded, false);
+});
+
+test("a Kannada year is still a reference, not a claim", () => {
+  const v = checkGroundedness("೨೦೨೪ ರಲ್ಲಿ ದಾಖಲಾಗಿದೆ.", [qr([])]);
+  assert.equal(v.checked, 0);
+});
+
+test("a percentage is only a share of a column total or of two figures on one row", () => {
+  // Every number below is returned, and the old rule tried all of them against
+  // each other: one district's arrests over another district's caseload is
+  // 36%, a figure this result set does not mean anywhere.
+  const v = checkGroundedness("**36%** of cases ended in a chargesheet.", [
+    qr([
+      { district: "Mysuru", cases: 9, arrests: 4 },
+      { district: "Hassan", cases: 11, arrests: 6 },
+    ]),
+  ]);
+  assert.equal(v.grounded, false, JSON.stringify(v.claims));
+});
+
+test("a share of a returned column total is still accepted", () => {
+  const v = checkGroundedness("Mysuru carries **45%** of the caseload.", [
+    qr([
+      { district: "Mysuru", cases: 9 },
+      { district: "Hassan", cases: 11 },
+    ]),
+  ]);
+  assert.equal(v.grounded, true, JSON.stringify(v.claims));
+  assert.match(claimFor(v, 45).reason, /percentage/);
+});

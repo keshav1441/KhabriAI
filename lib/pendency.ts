@@ -180,9 +180,21 @@ type DeskSqlRow = {
 // cap ("2,000 open") instead of the truth is worse than no headline at all.
 const FETCH_CAP = 2000;
 
-// Repeated by both queries, so the count can never describe a different set of
-// cases than the list does.
-const OPEN_PREDICATE = `
+/**
+ * The canonical definition of "open" in this codebase. Repeated by both queries
+ * here so the count can never describe a different set of cases than the list
+ * does, and exported so nothing else has to re-invent it: crew.ts imports this
+ * rather than keeping a fourth definition of its own. Measured against the
+ * corpus, "no chargesheet row" alone is NOT open — 5,135 Closed and 1,909 False
+ * Case files also lack one, so testing the chargesheet by itself calls 15,839
+ * cases open where this predicate calls 8,795.
+ *
+ * The one deliberate divergence is custody.ts's LIVE_PREDICATE, which is wider
+ * on purpose and documented there.
+ *
+ * Written against the aliases `cm` (CaseMaster) and `cs` (CaseStatusMaster).
+ */
+export const OPEN_PREDICATE = `
       cm."CrimeRegisteredDate" IS NOT NULL
       AND NOT EXISTS (SELECT 1 FROM "ChargesheetDetails" csd WHERE csd."CaseMasterID" = cm."CaseMasterID")
       AND COALESCE(cs."CaseStatusName", 'Unknown') NOT IN ('Charge Sheeted', 'Closed', 'False Case')`;

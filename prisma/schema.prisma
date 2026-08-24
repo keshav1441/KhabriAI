@@ -464,6 +464,11 @@ model ChatMessage {
   vizType      String?
   sqlError     String?
   relatedCases Json?
+  /// The working behind the answer, and whether every figure in it was found in
+  /// the returned data. Both are produced during the run and were thrown away
+  /// on reload until they were persisted here.
+  trace        Json?
+  groundedness Json?
   createdAt    DateTime    @default(now())
   session      ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 

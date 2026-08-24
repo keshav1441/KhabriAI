@@ -381,6 +381,13 @@ export default function DashboardPage() {
               >
                 Data quality →
               </Link>
+              <Link
+                href="/admin/misuse"
+                className="text-xs font-data"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Oversight →
+              </Link>
             </div>
           </div>
           <div className="px-5 py-3 flex justify-end" style={{ borderTop: "1px solid var(--border)" }}>

@@ -61,6 +61,16 @@ export const MAX_POINT_CAP = 10000;
 
 // ---- Pure geometry (no DB, no Leaflet) -------------------------------------
 
+/**
+ * A "open in Google Maps" link for a point the officer clicked.
+ *
+ * Coordinates, never a place name: a text search on "{district} Karnataka"
+ * lands on the district headquarters, which is rarely where the pin was.
+ */
+export function gmapsUrl(lat: number, lng: number): string {
+  return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+}
+
 /** Inclusive on every edge: a case sitting exactly on the viewport border belongs to the viewport. */
 export function withinBounds(lat: number, lng: number, b: Bounds): boolean {
   return lat >= b.south && lat <= b.north && lng >= b.west && lng <= b.east;

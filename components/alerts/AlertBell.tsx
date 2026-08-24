@@ -1,7 +1,8 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useChatStore } from "@/store/chat";
-import { t, type StringKey } from "@/lib/i18n";
+import { t } from "@/lib/i18n";
+import { KIND_LABEL } from "@/lib/alertKinds";
 
 interface Alert {
   id: string;
@@ -15,14 +16,6 @@ interface Alert {
   createdAt: string;
   readAt: string | null;
 }
-
-const KIND_LABEL: Record<string, StringKey> = {
-  spike: "alerts.kind.spike",
-  repeat_suspect: "alerts.kind.repeat_suspect",
-  weekly_surge: "alerts.kind.weekly_surge",
-  forecast: "alerts.kind.forecast",
-  mo_link: "alerts.kind.mo_link",
-};
 
 const SEVERITY_COLOR: Record<string, string> = {
   critical: "var(--red)",

@@ -46,6 +46,9 @@ const focus = (e: React.FocusEvent<HTMLElement>) => { e.currentTarget.style.bord
 const blur = (e: React.FocusEvent<HTMLElement>) => { e.currentTarget.style.borderColor = "var(--border)"; };
 const inputClass = "w-full px-2.5 py-1.5 text-xs rounded-md outline-none transition-all";
 
+/** How many section checkboxes may ever reach the DOM at once. */
+const SECTION_LIST_LIMIT = 200;
+
 export function RegisterFirView({ onAskAssistant }: { onAskAssistant: () => void }) {
   const lang = useChatStore((s) => s.lang);
   const setDraft = useChatStore((s) => s.setDraft);
@@ -58,6 +61,7 @@ export function RegisterFirView({ onAskAssistant }: { onAskAssistant: () => void
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ caseMasterId: number; crimeNo: string } | null>(null);
   const [openCaseId, setOpenCaseId] = useState<number | null>(null);
+  const [sectionSearch, setSectionSearch] = useState("");
 
   const loadLookups = () => {
     setLoadError(false);
@@ -160,9 +164,24 @@ export function RegisterFirView({ onAskAssistant }: { onAskAssistant: () => void
   const district = lookups?.districts.find((d) => String(d.DistrictID) === form.districtId);
   const head = lookups?.crimeHeads.find((h) => String(h.CrimeHeadID) === form.crimeMajorHeadId);
   const courts = lookups?.courts.filter((c) => !form.districtId || String(c.DistrictID) === form.districtId) ?? [];
-  // ponytail: filter the section list to the acts linked to the chosen crime group; full list until one is picked.
+  // ponytail: filter the section list to the acts linked to the chosen crime group.
   const relevantActs = new Set(head?.actSections.map((a) => a.ActCode) ?? []);
-  const sections = lookups?.sections.filter((s) => relevantActs.size === 0 || relevantActs.has(s.ActCode)) ?? [];
+  // The Section table is a real KSP reference list, not the handful the demo
+  // corpus seeds. Rendering a checkbox per row before the officer has narrowed
+  // it to an act or typed a search puts hundreds of controls on the page, so
+  // nothing is listed until one of those two has happened.
+  const sectionQ = sectionSearch.trim().toLowerCase();
+  const sections =
+    !lookups || (relevantActs.size === 0 && !sectionQ)
+      ? []
+      : lookups.sections
+          .filter(
+            (s) =>
+              (relevantActs.size === 0 || relevantActs.has(s.ActCode)) &&
+              (!sectionQ ||
+                `${s.ActCode} ${s.SectionCode} ${s.SectionDescription ?? ""}`.toLowerCase().includes(sectionQ))
+          )
+          .slice(0, SECTION_LIST_LIMIT);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -433,7 +452,25 @@ export function RegisterFirView({ onAskAssistant }: { onAskAssistant: () => void
             )}
           </div>
 
-          <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
+          <input
+            value={sectionSearch}
+            onChange={(e) => setSectionSearch(e.target.value)}
+            placeholder="Search sections by act, number or description"
+            className={`${inputClass} mt-2`}
+            style={inputStyle}
+            onFocus={focus}
+            onBlur={blur}
+          />
+
+          {sections.length === 0 && (
+            <p className="text-xs mt-2" style={{ color: "var(--text-muted)" }}>
+              {relevantActs.size === 0 && !sectionQ
+                ? "Pick a crime group above, or search, to list sections."
+                : "No section matches that search."}
+            </p>
+          )}
+
+          <div className="grid gap-1 mt-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
             {sections.map((s) => {
               const key = `${s.ActCode}|${s.SectionCode}`;
               const checked = form.sections.includes(key);

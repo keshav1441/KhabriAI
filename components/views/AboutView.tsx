@@ -17,10 +17,10 @@ const TECH_STACK = [
     color: "var(--red)",
     bg: "var(--red-dim)",
     items: [
-      { name: "Mistral AI", desc: "mistral-small orchestrator · SQL generation · narrator" },
+      { name: "Mistral AI", desc: "mistral-large orchestrator + SQL · mistral-small narrator" },
       { name: "Tool-Calling Orchestrator", desc: "Bounded agent loop (max 4 iterations), tools run in parallel" },
-      { name: "5 Investigation Tools", desc: "SQL query · related-case search · insights · network/map data · risk prediction" },
-      { name: "RAG Retrieval", desc: "Gemini embeddings — few-shot SQL grounding + pgvector case-narrative search, FTS/LLM fallback" },
+      { name: "9 Investigation Tools", desc: "SQL query · related-case search · insights · hotspot forecast · network/map data · risk prediction · similar cases · crew dossier · clarification" },
+      { name: "RAG Retrieval", desc: "Mistral embeddings (mistral-embed, 1024-dim) — few-shot SQL grounding + pgvector case-narrative search, FTS/LLM fallback" },
       { name: "Catalyst QuickML", desc: "AutoML classifier — charge-sheet likelihood, trained on arrest + gravity + elapsed time" },
       { name: "SSE Streaming", desc: "Live reasoning steps + token-by-token narrative over one connection" },
     ],

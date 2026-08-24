@@ -40,11 +40,15 @@ const MAX_PAIR_POOL = 120;
 // narrative could be quoting. Pulling numbers out of a SQL string or a case
 // narrative would let a hallucinated count "match" the digits of a section
 // number that happened to appear in the generated SQL.
+// Compared lower-cased: a queryDatabase row selecting cm."BriefFacts" is keyed
+// `BriefFacts`, not `briefFacts`, and a case-sensitive Set let the whole
+// narrative of a case back into the pool - where "47 gold chains worth 1,284
+// rupees" made a fabricated 47 and a fabricated 1,284 both read as grounded.
 const PROSE_KEYS = new Set([
   "sql",
   "message",
   "question",
-  "briefFacts",
+  "brieffacts",
   "brief_facts",
   "narrative",
   "description",
@@ -52,7 +56,13 @@ const PROSE_KEYS = new Set([
   "signature",
   "explanation",
   "reason",
+  // Identifiers, not figures. Long ones are already caught by digit length, but
+  // a short CaseMasterID is not.
+  "crimeno",
+  "personid",
 ]);
+
+const isProseKey = (key: string) => PROSE_KEYS.has(key.toLowerCase());
 
 /** An 18-digit CrimeNo or a long ID is a label, never a computed figure. */
 const MAX_FIGURE_DIGITS = 7;
@@ -61,15 +71,48 @@ const MAX_FIGURE_DIGITS = 7;
 // Claim extraction
 // ---------------------------------------------------------------------------
 
+// Any Unicode decimal digit, not just 0-9: "ಒಟ್ಟು ೧೪೨ ಪ್ರಕರಣಗಳು" is a shipped
+// answer (lang: "kn"), and an ASCII-only \d found nothing in it - so every
+// Kannada narrative came back "checked: 0, grounded: true", a guard that was
+// silently switched off for half the product.
+const D = String.raw`\p{Nd}`;
+
 // Thousands separators only count inside a well-formed group ("1,284"); a
 // trailing comma belongs to the sentence, not to the figure, and swallowing it
 // would make "In 2024," look like a separated number rather than a year.
-const NUMBER_BODY = String.raw`-?\d{1,3}(?:,\d{3})+(?:\.\d+)?|-?\d+(?:\.\d+)?`;
-const NUMBER_RE = new RegExp(`(${NUMBER_BODY})(\\s*(?:%|percent\\b))?`, "gi");
+// Indian grouping comes first so it wins the alternation: "5,00,000" must read
+// as 500000, not as a 5 followed by a mangled "00,000".
+const NUMBER_BODY =
+  `-?${D}{1,3}(?:,${D}{2})+,${D}{3}(?:\\.${D}+)?` +
+  `|-?${D}{1,3}(?:,${D}{3})+(?:\\.${D}+)?` +
+  `|-?${D}+(?:\\.${D}+)?`;
+const NUMBER_RE = new RegExp(`(${NUMBER_BODY})(\\s*(?:%|percent\\b))?`, "giu");
 
-/** Words that turn a bare four-digit number into a count rather than a year. */
-const UNIT_AFTER =
-  /^[\s*_,.:;)-]*(cases?|firs?|f\.i\.r|records?|arrests?|victims?|accused|persons?|people|incidents?|chargesheets?|complaints?|reports?|entries)\b/i;
+// The zero of each decimal-digit block an answer can be written in: ASCII,
+// Kannada, Devanagari, Tamil, Telugu. Number() cannot read "೧೪೨"; this is what
+// turns it into 142 before anything is compared.
+const DIGIT_ZEROS = [0x30, 0x0ce6, 0x0966, 0x0be6, 0x0c66];
+
+/** @internal exposed for tests */
+export function asciiDigits(raw: string): string {
+  return raw.replace(/\p{Nd}/gu, (ch) => {
+    const cp = ch.codePointAt(0) ?? 0;
+    for (const zero of DIGIT_ZEROS) {
+      if (cp >= zero && cp <= zero + 9) return String(cp - zero);
+    }
+    return ch;
+  });
+}
+
+/** Words that turn a bare four-digit number into a count rather than a year.
+ *  The Kannada alternatives carry no \b - a Kannada letter is not a \w, so a
+ *  word boundary after one never matches. */
+const KN_UNITS = "ಪ್ರಕರಣ|ಎಫ್‌?ಐಆರ್|ಆರೋಪಪಟ್ಟಿ|ಆರೋಪಿ|ಸಂತ್ರಸ್ತ|ಬಂಧನ|ದೂರು|ವ್ಯಕ್ತಿ|ದಾಖಲೆ|ವರದಿ|ಘಟನೆ";
+const UNIT_AFTER = new RegExp(
+  "^[\\s*_,.:;)-]*(?:(?:cases?|firs?|f\\.i\\.r|records?|arrests?|victims?|accused|persons?|people|incidents?|chargesheets?|complaints?|reports?|entries)\\b" +
+    `|${KN_UNITS})`,
+  "iu"
+);
 
 /** A number that follows one of these is a reference to a record, not a figure. */
 const REFERENCE_BEFORE =
@@ -90,8 +133,11 @@ const MONTH_AFTER = /^\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*
  * would bury the one case that matters - a count nobody computed - under noise
  * the officer learns to ignore.
  */
-/** "the last 30 days", "over 6 months" - the window the question asked about. */
-const WINDOW_AFTER = /^\s*(?:-|\s)?(?:day|week|month|year|hour|quarter)s?\b/i;
+/** "the last 30 days", "over 6 months" - the window the question asked about.
+ *  The unit has to be a separate word. Accepting a leading hyphen swallowed
+ *  every hyphenated compound with it: "a 17-year-old victim" extracted no claim
+ *  at all, so the one figure in the sentence went unchecked. */
+const WINDOW_AFTER = /^\s+(?:day|week|month|year|hour|quarter)s?\b/i;
 /** "top 5", "first 3" - the size of the list the officer asked for. */
 const REQUEST_BEFORE = /\b(?:top|first|last|latest|nearest|closest|leading|bottom)\s*$/i;
 
@@ -106,7 +152,8 @@ function isReference(raw: string, before: string, after: string, isPercent: bool
   if (WINDOW_AFTER.test(after)) return true;
   if (REQUEST_BEFORE.test(before)) return true;
 
-  const digits = raw.replace(/[^0-9]/g, "");
+  const ascii = asciiDigits(raw);
+  const digits = ascii.replace(/[^0-9]/g, "");
 
   // Long digit runs are identifiers (CrimeNo is 18 digits, PersonID similar).
   if (digits.length > MAX_FIGURE_DIGITS) return true;
@@ -127,7 +174,7 @@ function isReference(raw: string, before: string, after: string, isPercent: bool
   // ("1,984 cases") it is a count that happens to look like a year, and the
   // guard still checks it.
   const isBare = !raw.includes(",") && !raw.includes(".");
-  const n = Number(raw);
+  const n = Number(ascii);
   if (isBare && digits.length === 4 && n >= 1900 && n <= 2099 && !UNIT_AFTER.test(after)) return true;
 
   return false;
@@ -147,9 +194,11 @@ export function extractClaims(narrative: string, question?: string): RawClaim[] 
   // Numbers the question already contains, matched on digits so "30" and
   // "30 days" and "1,984" all compare the same way.
   const asked = new Set(
-    (typeof question === "string" ? question : "").match(/\d[\d,]*(?:\.\d+)?/g)?.map((n) => n.replace(/,/g, "")) ?? []
+    (typeof question === "string" ? question : "")
+      .match(/\p{Nd}[\p{Nd},]*(?:\.\p{Nd}+)?/gu)
+      ?.map((n) => asciiDigits(n).replace(/,/g, "")) ?? []
   );
-  const echoed = (v: string) => asked.has(v.replace(/,/g, ""));
+  const echoed = (v: string) => asked.has(asciiDigits(v).replace(/,/g, ""));
   const claims: RawClaim[] = [];
   const seen = new Set<string>();
 
@@ -166,11 +215,12 @@ export function extractClaims(narrative: string, question?: string): RawClaim[] 
 
     if (isReference(raw, before, after, isPercent, echoed)) continue;
 
-    const value = Number(raw.replace(/,/g, ""));
+    const ascii = asciiDigits(raw);
+    const value = Number(ascii.replace(/,/g, ""));
     if (!Number.isFinite(value)) continue;
 
-    const dot = raw.indexOf(".");
-    const precision = dot === -1 ? 0 : raw.length - dot - 1;
+    const dot = ascii.indexOf(".");
+    const precision = dot === -1 ? 0 : ascii.length - dot - 1;
 
     // The same figure repeated in one narrative is one claim, not two.
     const key = `${value}|${isPercent}|${precision}`;
@@ -193,6 +243,15 @@ interface DataPool {
   counts: number[];
   /** Sums of numeric columns / numeric arrays. */
   sums: number[];
+  /**
+   * The only operand pairs a percentage may be built from. A percentage used to
+   * be tried against every ordered pair in the whole pool - roughly 14,400 of
+   * them - and at that many candidates one invented percentage in five landed
+   * on a pair by accident, which is not a guard. A share has to be a share of
+   * something the officer can see: a value over the total of its own column, or
+   * two figures sitting on the same returned row.
+   */
+  ratios: { numerators: number[]; denominators: number[] }[];
 }
 
 function pushCapped(target: number[], v: number) {
@@ -204,10 +263,11 @@ function pushCapped(target: number[], v: number) {
 /** Numeric tokens inside a returned string cell ("Whitefield (34%)") are still
  *  returned data - the officer can point at them in the table. */
 function numbersInString(s: string, out: number[]) {
-  const re = new RegExp(NUMBER_BODY, "g");
+  const re = new RegExp(NUMBER_BODY, "gu");
   for (let m = re.exec(s); m; m = re.exec(s)) {
-    if (m[0].replace(/[^0-9]/g, "").length > MAX_FIGURE_DIGITS) continue;
-    pushCapped(out, Number(m[0].replace(/,/g, "")));
+    const ascii = asciiDigits(m[0]);
+    if (ascii.replace(/[^0-9]/g, "").length > MAX_FIGURE_DIGITS) continue;
+    pushCapped(out, Number(ascii.replace(/,/g, "")));
   }
 }
 
@@ -242,17 +302,34 @@ function walk(node: unknown, pool: DataPool, depth = 0): void {
     // aggregate an officer expects the assistant to do for them, and it uses
     // only values the tool returned.
     const rows = node.filter((v): v is Record<string, unknown> => Boolean(v) && typeof v === "object" && !Array.isArray(v));
-    if (rows.length > 1) {
-      const totals = new Map<string, number>();
-      for (const row of rows) {
+    if (rows.length) {
+      const columns = new Map<string, number[]>();
+      for (const row of rows.slice(0, MAX_PAIR_POOL)) {
+        // Two figures on one returned line are a share the officer can read off
+        // the table ("50 chargesheeted of 200"), so the row is a ratio group of
+        // its own - the single-aggregate-row case the column totals cannot see.
+        const cells: number[] = [];
         for (const [k, v] of Object.entries(row)) {
-          if (PROSE_KEYS.has(k)) continue;
+          if (isProseKey(k)) continue;
           const n = typeof v === "number" ? v : typeof v === "bigint" ? Number(v) : null;
           if (n === null || !Number.isFinite(n)) continue;
-          totals.set(k, (totals.get(k) ?? 0) + n);
+          cells.push(n);
+          columns.set(k, [...(columns.get(k) ?? []), n]);
+        }
+        if (cells.length > 1 && pool.ratios.length < MAX_POOL) {
+          pool.ratios.push({ numerators: cells, denominators: cells });
         }
       }
-      for (const total of totals.values()) pushCapped(pool.sums, round(total, 6));
+
+      // Column sums across an array of rows: "how many altogether" is the one
+      // aggregate an officer expects the assistant to do for them, and it uses
+      // only values the tool returned.
+      for (const values of columns.values()) {
+        if (values.length < 2) continue;
+        const total = round(values.reduce((a, b) => a + b, 0), 6);
+        pushCapped(pool.sums, total);
+        if (pool.ratios.length < MAX_POOL) pool.ratios.push({ numerators: values, denominators: [total] });
+      }
     }
 
     for (const item of node) walk(item, pool, depth + 1);
@@ -261,7 +338,9 @@ function walk(node: unknown, pool: DataPool, depth = 0): void {
 
   if (typeof node === "object") {
     for (const [k, v] of Object.entries(node as Record<string, unknown>)) {
-      if (PROSE_KEYS.has(k) && typeof v === "string") continue;
+      // Excluded whatever the type: a CrimeNo that comes back as a number is
+      // still a label, not a figure the narrative could be quoting.
+      if (isProseKey(k)) continue;
       walk(v, pool, depth + 1);
     }
   }
@@ -269,7 +348,7 @@ function walk(node: unknown, pool: DataPool, depth = 0): void {
 
 /** @internal exposed for tests */
 export function buildPool(toolResults: unknown[]): DataPool {
-  const pool: DataPool = { values: [], counts: [], sums: [] };
+  const pool: DataPool = { values: [], counts: [], sums: [], ratios: [] };
   for (const result of toolResults ?? []) walk(result, pool);
   return pool;
 }
@@ -327,19 +406,21 @@ function judge(claim: RawClaim, pool: DataPool): GroundednessClaim {
   }
 
   if (isPercent) {
-    const operands = [...pool.values, ...pool.counts, ...pool.sums].slice(0, MAX_PAIR_POOL);
     // A probability or similarity score comes back as a fraction; the narrative
     // states it as a percentage. That is a unit change, not a new fact.
-    for (const v of operands) {
+    const fractions = [...pool.values, ...pool.counts, ...pool.sums].slice(0, MAX_PAIR_POOL);
+    for (const v of fractions) {
       if (v >= 0 && v <= 1 && round(v * 100, precision) === value) {
         return { value, text, supported: true, reason: "returned fraction stated as a percentage" };
       }
     }
-    for (const b of operands) {
-      if (!b) continue;
-      for (const a of operands) {
-        if (round((a / b) * 100, precision) === value) {
-          return { value, text, supported: true, reason: "percentage of two returned values" };
+    for (const { numerators, denominators } of pool.ratios) {
+      for (const b of denominators) {
+        if (!b) continue;
+        for (const a of numerators) {
+          if (round((a / b) * 100, precision) === value) {
+            return { value, text, supported: true, reason: "percentage of two returned values" };
+          }
         }
       }
     }

@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { getUserFromRequest } from "@/lib/chat-auth";
+import type { AnswerTrace } from "@/lib/agent/trace";
+import type { GroundednessVerdict } from "@/lib/groundedness";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +43,11 @@ export async function GET(req: NextRequest, { params }: Params) {
         vizType: m.vizType as "table" | "chart" | "graph" | undefined,
         sqlError: m.sqlError,
         relatedCases: m.relatedCases as Record<string, unknown>[] | undefined,
+        // The working and the verdict on it. An answer flagged for an
+        // unverified figure has to come back flagged, or reopening the session
+        // quietly launders it.
+        trace: (m.trace ?? undefined) as AnswerTrace | undefined,
+        groundedness: (m.groundedness ?? undefined) as GroundednessVerdict | undefined,
       })),
     },
   });
@@ -65,6 +72,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       vizType?: string;
       sqlError?: string | null;
       relatedCases?: Record<string, unknown>[];
+      trace?: unknown;
+      groundedness?: unknown;
     }>;
   };
 
@@ -79,6 +88,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         vizType: m.vizType ?? null,
         sqlError: m.sqlError ?? null,
         relatedCases: m.relatedCases != null ? (m.relatedCases as Prisma.InputJsonValue) : undefined,
+        trace: m.trace != null ? (m.trace as Prisma.InputJsonValue) : undefined,
+        groundedness: m.groundedness != null ? (m.groundedness as Prisma.InputJsonValue) : undefined,
       })),
     });
   }

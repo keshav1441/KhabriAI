@@ -116,7 +116,7 @@ export function CrewDossier({ caseId, personId, onClose, onOpenCase, inline }: P
         )}
       </div>
 
-      {data && data.cases.length > 0 && <PrintDossier d={data} />}
+      {data && data.cases.length > 0 && <PrintDossier d={data} floating={!inline} />}
     </>
   );
 
@@ -326,10 +326,14 @@ function LinkBadge({ c, isCross, lang }: { c: CrewCase; isCross: boolean; lang: 
   if (c.link === "co-accused") {
     return <Badge color="var(--text-muted)">{t("crew.link.coAccused", lang)}</Badge>;
   }
-  const pct = c.linkScore != null ? ` ${Math.round(c.linkScore * 100)}%` : "";
+  // Rank, not a percentage. The cosine behind an MO hop has no calibrated
+  // meaning on this corpus (series pairs median .872, unrelated same-group pairs
+  // median .835 — see SIMILAR_CASE_MIN_SCORE), and this dossier gets printed.
+  // "#2" says what is true: the second-closest narrative to a case on the chain.
+  const pos = c.linkRank != null ? ` #${c.linkRank}` : "";
   return (
     <Badge color={isCross ? "var(--red)" : "var(--text-muted)"}>
-      {t("crew.link.mo", lang)}{pct}{isCross ? ` · ${t("crew.linkCrossDistrict", lang)}` : ""}
+      {t("crew.link.mo", lang)}{pos}{isCross ? ` · ${t("crew.linkCrossDistrict", lang)}` : ""}
     </Badge>
   );
 }
@@ -361,13 +365,17 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 /**
  * Print-only rendering — same browser-print route as the chat transcript, so a
- * dossier reaches a case file as paper without a PDF dependency. Only one
- * .print-root is ever mounted at a time, so the two exports cannot collide.
+ * dossier reaches a case file as paper without a PDF dependency. Several
+ * .print-root elements can be mounted at once: the chat transcript's stays
+ * mounted behind the drawer, and the crew view embeds a dossier while the case
+ * drawer floats a second one over it. They all sit at the page origin, so the
+ * marker classes below let globals.css pick exactly one to print — and a
+ * floated dossier is the one the officer is looking at, so it beats an inline.
  */
-function PrintDossier({ d }: { d: Dossier }) {
+function PrintDossier({ d, floating }: { d: Dossier; floating?: boolean }) {
   const s = d.summary;
   return (
-    <div className="print-root">
+    <div className={`print-root print-dossier${floating ? " print-dossier-float" : ""}`}>
       <div className="print-header">
         <strong>KHABRI AI</strong> · KSP Intelligence — Crew Dossier · {d.seed.label}
       </div>
@@ -434,7 +442,7 @@ function PrintDossier({ d }: { d: Dossier }) {
                 <td>
                   {c.link === "seed" ? "Seed"
                     : c.link === "co-accused" ? "Co-accused"
-                    : `MO ${c.linkScore != null ? `${Math.round(c.linkScore * 100)}%` : ""}`}
+                    : `Closest narrative${c.linkRank != null ? ` #${c.linkRank}` : ""}`}
                 </td>
               </tr>
             ))}

@@ -72,14 +72,59 @@ export type AgentEvent = StepEvent | MetaEvent | TokenEvent | DoneEvent;
 // A query can return thousands of rows (e.g. "list all accused"); feeding them
 // all to the synthesis LLM overflows its context and it fails to summarise.
 // Cap the rows shown to the model (the full set still flows to the viz).
-function capForLLM(value: unknown): unknown {
-  if (value && typeof value === "object" && "rows" in value) {
-    const v = value as { rows?: unknown[] };
-    if (Array.isArray(v.rows) && v.rows.length > 40) {
-      return { ...v, rows: v.rows.slice(0, 40), rowsTruncated: v.rows.length };
+const LLM_LIST_CAP = 40;
+// Every tool result stays in `messages` for the rest of the run, so an
+// uncapped one is paid for again on every later turn. A crew dossier is ~22 KB
+// of nested cases and edges the planner never reads past the summary.
+const LLM_RESULT_BYTES = 8000;
+
+// The lists a tool result can carry. `priorities` duplicates `rows` in
+// predictHotspots, so capping `rows` alone left the second copy uncapped.
+const CAPPED_LISTS = ["rows", "priorities", "cases", "insights", "members", "edges", "moLinks"] as const;
+
+function capLists(value: unknown): unknown {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
+  const v = { ...(value as Record<string, unknown>) };
+  for (const key of CAPPED_LISTS) {
+    const list = v[key];
+    if (Array.isArray(list) && list.length > LLM_LIST_CAP) {
+      v[key] = list.slice(0, LLM_LIST_CAP);
+      v[`${key}Truncated`] = list.length;
     }
   }
-  return value;
+  return v;
+}
+
+/** @internal exposed for tests */
+export function capForLLM(value: unknown): unknown {
+  if (!value || typeof value !== "object") return value;
+  const v = capLists(value) as Record<string, unknown>;
+  // A dossier's own lists are one level down; cap them the same way.
+  if (v.dossier && typeof v.dossier === "object") v.dossier = capLists(v.dossier);
+
+  const size = () => (JSON.stringify(v) ?? "").length;
+  if (size() <= LLM_RESULT_BYTES) return v;
+
+  // Still oversized. Drop the nested link lists the narrative prompt never
+  // cites, heaviest first, and stop as soon as it fits - the summary, the
+  // signature phrases and the capped rows are what the answer is written from,
+  // so they are the last things to go. The step board and the table still
+  // receive the untouched result.
+  const dossier = v.dossier && typeof v.dossier === "object" ? (v.dossier as Record<string, unknown>) : null;
+  const drops: (() => void)[] = [
+    () => dossier && delete dossier.edges,
+    () => dossier && delete dossier.moLinks,
+    () => dossier && delete dossier.cases,
+    () => delete v.contributions,
+    // predictHotspots hands back the same ranked cells twice.
+    () => "rows" in v && delete v.priorities,
+  ];
+  for (const drop of drops) {
+    drop();
+    if (size() <= LLM_RESULT_BYTES) break;
+  }
+  v.payloadTruncated = true;
+  return v;
 }
 
 function safeParseArgs(raw: string | undefined): Record<string, unknown> {
@@ -90,7 +135,33 @@ function safeParseArgs(raw: string | undefined): Record<string, unknown> {
   }
 }
 
-async function executeTool(
+/**
+ * Run one tool, and never let it end the run.
+ *
+ * Tool arguments are model-written JSON, so an executor can be handed a shape
+ * its signature says is impossible. A rejection here escapes `Promise.all`,
+ * escapes `runAgent`, and the officer gets "Something went wrong" with an empty
+ * table - after the step board already showed the step as pending. A failed
+ * tool is evidence like any other: it becomes an error result the planner can
+ * read and the trace can show.
+ */
+/** @internal exposed for tests */
+export async function executeTool(
+  name: string,
+  args: Record<string, unknown>,
+  history: ChatTurn[],
+  req?: Request
+): Promise<{ status: "ok" | "error"; value: unknown }> {
+  try {
+    return await dispatchTool(name, args, history, req);
+  } catch (e) {
+    console.error(`tool ${name} threw:`, e);
+    const message = (e as Error)?.message ?? "Tool execution failed";
+    return { status: "error", value: { status: "error", message: `${name} failed: ${message}`.slice(0, 200) } };
+  }
+}
+
+async function dispatchTool(
   name: string,
   args: Record<string, unknown>,
   history: ChatTurn[],

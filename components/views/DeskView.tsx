@@ -1,16 +1,12 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useChatStore } from "@/store/chat";
 import { t, type StringKey } from "@/lib/i18n";
-import { STATUS_STYLE } from "@/lib/caseStatus";
+import { STATUS_STYLE, STALE_ACTION_DAYS } from "@/lib/caseStatus";
 import { CaseDrawer } from "../viz/CaseDrawer";
 // Type-only: lib/pendency imports Prisma types, which must never reach the bundle.
 import type { PendencyFilter, PendencyRow, PendencySummary } from "@/lib/pendency";
 import type { CustodyFilter, CustodyPosition, CustodyRow, CustodySummary } from "@/lib/custody";
-
-/** Kept in step with STALE_ACTION_DAYS in lib/custody.ts — the value is only
- *  ever shown here, so it is not worth importing a module for. */
-const STALE_ACTION_DAYS = 30;
 
 const FILTERS: { id: PendencyFilter; key: StringKey }[] = [
   { id: "all", key: "desk.filter.all" },
@@ -92,12 +88,16 @@ export function DeskView() {
   const [filter, setFilter] = useState<DeskFilter>("all");
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  // Chips can be clicked faster than the desk answers, and a stale pair landing
+  // late would repaint the previous filter's rows and drop the skeleton early.
+  const loadSeq = useRef(0);
 
   // Both endpoints on every load: the strip keeps counting the whole desk and
   // the whole custody set whichever chip is on, and the custody column is there
   // for pendency rows too. The custody call asks for more rows than the desk
   // shows so the by-case lookup covers the page being rendered.
   const load = useCallback((f: DeskFilter) => {
+    const seq = ++loadSeq.current;
     setLoading(true);
     const custodyFilter: CustodyFilter = isCustodyFilter(f) ? f : "all";
     const pendencyFilter: PendencyFilter = isCustodyFilter(f) ? "all" : f;
@@ -106,6 +106,7 @@ export function DeskView() {
       fetch(`/api/custody?filter=${custodyFilter}&limit=500`).then((r) => r.json()).catch(() => null),
     ])
       .then(([desk, custody]) => {
+        if (seq !== loadSeq.current) return; // a later chip already superseded this
         const custodyRows: CustodyRow[] = custody?.rows ?? [];
         setSummary(desk?.summary ?? null);
         setCustodySummary(custody?.summary ?? null);
@@ -120,7 +121,7 @@ export function DeskView() {
         }
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => { if (seq === loadSeq.current) setLoading(false); });
   }, []);
 
   useEffect(() => { load(filter); }, [filter, load]);

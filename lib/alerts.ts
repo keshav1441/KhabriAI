@@ -44,9 +44,41 @@ export type AlertInsert = {
   dedupeKey: string;
 };
 
-const MO_MIN_SCORE = Number(process.env.ALERT_MO_MIN_SCORE ?? 0.72);
-const MO_RECENT_DAYS = Number(process.env.ALERT_MO_RECENT_DAYS ?? 30);
-const MO_SCAN_CASES = 60; // how many recent narratives to link-check per run
+/**
+ * The outlier bar for an MO alert, and why it is this high.
+ *
+ * The old value was 0.72, which filtered nothing at all: measured 2026-08-25
+ * over the live corpus, the closest CROSS-DISTRICT narrative to a random case
+ * scores min .862, p05 .890, median .918, p95 .942, p99 .953. Every case in the
+ * state has a cross-district "match" above .72, above .78, and above .86. The
+ * detector therefore fired its full quota of five critical alerts every run,
+ * each announcing a "92% narrative match" that was merely the median.
+ *
+ * There is no cut that separates a real link from a coincidence — series pairs
+ * and unrelated same-group pairs overlap almost entirely (see
+ * SIMILAR_CASE_MIN_SCORE in lib/case-retrieval.ts). So this is not a confidence
+ * gate; it is an OUTLIER test against the distribution above. At .95 — just
+ * under p99 — 1.4% of cases have a cross-district neighbour that close, which
+ * is what "unusual enough to interrupt an officer" has to mean if the word is
+ * to keep any meaning. Corroboration is required on top (see MO_SAME_SUBHEAD).
+ *
+ * Effect on the live alert path, same 60-case scan window: at 0.72, 60 of 60
+ * recent cases produced a finding and the job emitted its cap of five critical
+ * alerts every run. At 0.95 with the sub-head requirement, 2 of 60 do.
+ */
+export const MO_MIN_SCORE = Number(process.env.ALERT_MO_MIN_SCORE ?? 0.95);
+/**
+ * The second signal. A narrative closeness alone — however extreme — is one
+ * measurement of one axis, and an alert that rests on it is an alert that fires
+ * on prose style. Requiring the two files to share a crime sub-head means the
+ * finding is "the same offence, described almost identically, in two districts"
+ * rather than "two texts that read alike". Neighbours agree on crime GROUP 96%
+ * of the time in this corpus and on sub-head 67%, so the sub-head is the one
+ * that adds information.
+ */
+export const MO_SAME_SUBHEAD = process.env.ALERT_MO_SAME_SUBHEAD !== "false";
+export const MO_RECENT_DAYS = Number(process.env.ALERT_MO_RECENT_DAYS ?? 30);
+export const MO_SCAN_CASES = 60; // how many recent narratives to link-check per run
 const MO_MAX_ALERTS = 5;
 
 /**
@@ -55,6 +87,12 @@ const MO_MAX_ALERTS = 5;
  * LATERAL nearest-neighbour lookup per recent case, served by the pgvector
  * HNSW index. Narratives never name the accused, so a hit means the method
  * matches, not the people.
+ *
+ * Two gates, both necessary, neither sufficient on its own: the match has to be
+ * an outlier against the corpus's own cross-district nearest-neighbour
+ * distribution (MO_MIN_SCORE) AND the two files have to be the same offence
+ * sub-head (MO_SAME_SUBHEAD). An alert that fires on every recent case — which
+ * is exactly what this did — is worse than no alert.
  */
 async function computeMoLinkAlerts(): Promise<Candidate[]> {
   const rows = await prisma.$queryRawUnsafe<
@@ -67,7 +105,7 @@ async function computeMoLinkAlerts(): Promise<Candidate[]> {
   >(
     `WITH recent AS (
        SELECT cm."CaseMasterID" AS case_id, cm."CrimeNo" AS crime_no,
-              cm."BriefFactsEmbedding" AS e,
+              cm."BriefFactsEmbedding" AS e, cm."CrimeMinorHeadID" AS sub_head,
               d."DistrictID" AS district_id, d."DistrictName" AS district_name,
               ch."CrimeGroupName" AS crime_group,
               to_char(cm."CrimeRegisteredDate", 'YYYY-MM-DD') AS registered
@@ -93,6 +131,7 @@ async function computeMoLinkAlerts(): Promise<Candidate[]> {
        WHERE cm2."BriefFactsEmbedding" IS NOT NULL
          AND cm2."CaseMasterID" <> r.case_id
          AND d2."DistrictID" <> r.district_id
+         AND ($5::boolean IS NOT TRUE OR cm2."CrimeMinorHeadID" IS NOT DISTINCT FROM r.sub_head)
        ORDER BY cm2."BriefFactsEmbedding" <=> r.e
        LIMIT 1
      ) m
@@ -102,21 +141,27 @@ async function computeMoLinkAlerts(): Promise<Candidate[]> {
     String(Math.floor(MO_RECENT_DAYS)),
     MO_SCAN_CASES,
     MO_MIN_SCORE,
-    MO_MAX_ALERTS
+    MO_MAX_ALERTS,
+    MO_SAME_SUBHEAD
   );
 
   const out: Candidate[] = [];
   for (const r of rows) {
-    const pct = Math.round(r.score * 100);
     const label = r.crime_no ?? `case ${r.case_id}`;
     const matchLabel = r.match_crime_no ?? `case ${r.match_id}`;
     const base = {
       type: "mo_link",
-      title: `Cross-district MO match: ${label}`,
-      detail: `${r.crime_group ?? "Case"} in ${r.district_name} (${r.registered ?? "recent"}) reads like ${matchLabel} in ${r.match_district_name} — ${pct}% narrative match. Neither station can see the other's file.`,
+      title: `Cross-district MO lead: ${label}`,
+      // No percentage. The cosine is not calibrated (lib/case-retrieval.ts), so
+      // what is claimed is what was measured: this pair is an outlier against
+      // the corpus's own distribution, and the two files are the same offence.
+      detail: `${r.crime_group ?? "Case"} in ${r.district_name} (${r.registered ?? "recent"}) is the closest narrative match to ${matchLabel} in ${r.match_district_name}, and closer than 99% of cross-district nearest matches in the corpus. Same offence sub-head. Narratives never name the accused, so this is a method lead to check, not a link between people — neither station can see the other's file.`,
       query: `Find cases with the same modus operandi as FIR ${r.crime_no ?? r.case_id}`,
       caseId: r.case_id,
-      severity: "critical" as const,
+      // Downgraded from "critical". A narrative lead worth an hour is not an
+      // emergency, and reserving the top severity for findings that earn it is
+      // the only thing that keeps it readable.
+      severity: "warning" as const,
     };
     // One finding, two districts that each need to know about it.
     out.push({ ...base, districtId: r.district_id, districtName: r.district_name, dedupe: `mo:${r.case_id}:${r.match_id}` });

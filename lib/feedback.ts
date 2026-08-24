@@ -1,6 +1,6 @@
 import { prisma, runGuardedQuery } from "./db";
 import { validateSQL, enforceLimit } from "./sql-validator";
-import { addLearnedExample, countLearnedExamples } from "./learned-examples";
+import { addLearnedExample, checkLearnedQuestion, countLearnedExamples } from "./learned-examples";
 import { MAX_ROWS, QUERY_TIMEOUT_MS } from "./text-to-sql";
 
 /**
@@ -95,6 +95,13 @@ export async function reviewFeedback(input: {
   if (!row) return { ok: false, error: "Feedback not found" };
   if (row.status !== "new") return { ok: false, error: `Already ${row.status}` };
 
+  // Approving turns this row into model input for every officer. Signing off
+  // your own submission is the whole review gone: whoever wrote it would decide
+  // it was correct. Dismissing your own is harmless, so only approval is barred.
+  if (input.action === "approve" && row.userId === input.reviewerId) {
+    return { ok: false, error: "A reviewer cannot approve their own feedback" };
+  }
+
   if (input.action === "reject") {
     await prisma.answerFeedback.update({
       where: { id: row.id },
@@ -109,6 +116,12 @@ export async function reviewFeedback(input: {
   const check = validateSQL(sql);
   if (!check.valid) return { ok: false, error: `Rejected by the SQL validator: ${check.error}` };
 
+  // The question is prompt text too - it is written into the SQL prompt as
+  // `-- Q: <question>`, ahead of the officer's own - and until now it was the
+  // one half of the pair nothing checked.
+  const question = checkLearnedQuestion(row.question);
+  if (!question.ok) return { ok: false, error: `Rejected by the question checker: ${question.error}` };
+
   let rowsReturned = 0;
   try {
     const rows = await runGuardedQuery(enforceLimit(sql, MAX_ROWS), { timeoutMs: QUERY_TIMEOUT_MS });
@@ -118,7 +131,7 @@ export async function reviewFeedback(input: {
   }
 
   const learned = await addLearnedExample({
-    question: row.question,
+    question: question.question,
     sql,
     feedbackId: row.id,
     source: "feedback",

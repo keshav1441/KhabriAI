@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { STATUS_STYLE } from "@/lib/caseStatus";
+import { STATUS_STYLE, CSTYPE } from "@/lib/caseStatus";
 import { CrewDossier } from "../crew/CrewDossier";
 // Type-only — lib/handover.ts reaches for the server Prisma client, so this
 // import must never survive into the browser bundle.
@@ -17,8 +17,6 @@ interface CaseData {
   actSections: Record<string, unknown>[];
 }
 
-const CSTYPE: Record<string, string> = { A: "Chargesheet Filed", B: "False Case", C: "Undetected" };
-
 type SimilarCase = { id: number; crimeNo: string | null; crimeType: string | null; district: string | null; station: string | null; status: string | null; registered: string | null; score: number; briefFacts: string | null };
 
 type DuplicateReason = { signal: string; weight: number; label: string };
@@ -30,20 +28,29 @@ export function CaseDrawer({ caseId: requestedId, onClose }: { caseId: number | 
   const [similar, setSimilar] = useState<SimilarCase[] | null>(null);
   const [dupes, setDupes] = useState<DuplicateCase[] | null>(null);
   useEffect(() => { setCaseId(requestedId); }, [requestedId]);
+  // Every one of the three fetches below is cancelled on the way out. Walking a
+  // chain of linked cases starts a new set before the previous one has landed,
+  // and the header already shows the new id — a late answer for the old case
+  // would fill the body with a file the officer has navigated away from.
   useEffect(() => {
     if (!caseId) { setSimilar(null); return; }
+    let cancelled = false;
     setSimilar(null);
-    fetch(`/api/case/similar?id=${caseId}`).then((r) => (r.ok ? r.json() : { cases: [] })).then((d) => setSimilar(d.cases ?? [])).catch(() => setSimilar([]));
+    fetch(`/api/case/similar?id=${caseId}`).then((r) => (r.ok ? r.json() : { cases: [] })).then((d) => { if (!cancelled) setSimilar(d.cases ?? []); }).catch(() => { if (!cancelled) setSimilar([]); });
+    return () => { cancelled = true; };
   }, [caseId]);
   // Separate fetch from the MO one: a duplicate check is the opposite question
   // and must not be held up by, or hold up, the method search.
   useEffect(() => {
     if (!caseId) { setDupes(null); return; }
+    let cancelled = false;
     setDupes(null);
-    fetch(`/api/case/duplicates?id=${caseId}`).then((r) => (r.ok ? r.json() : { duplicates: [] })).then((d) => setDupes(d.duplicates ?? [])).catch(() => setDupes([]));
+    fetch(`/api/case/duplicates?id=${caseId}`).then((r) => (r.ok ? r.json() : { duplicates: [] })).then((d) => { if (!cancelled) setDupes(d.duplicates ?? []); }).catch(() => { if (!cancelled) setDupes([]); });
+    return () => { cancelled = true; };
   }, [caseId]);
   const [data, setData] = useState<CaseData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   // One panel at a time, by construction. Both the crew dossier and the
   // handover brief mount a `.print-root`, and two of those printing at once
   // would interleave a dossier and a legal handover on the same page — so the
@@ -54,13 +61,23 @@ export function CaseDrawer({ caseId: requestedId, onClose }: { caseId: number | 
   // Navigating to a linked case leaves a panel describing the previous one.
   useEffect(() => { setPanel(null); }, [caseId]);
 
+  // /api/case answers a 404 for a case outside the officer's scope with a body
+  // that carries no `case` key, so without the r.ok check the drawer rendered a
+  // dialog with nothing in it and no reason given.
   useEffect(() => {
-    if (!caseId) { setData(null); return; }
+    if (!caseId) { setData(null); setError(""); return; }
+    let cancelled = false;
     setLoading(true);
+    setError("");
     fetch(`/api/case?id=${caseId}`)
-      .then((r) => r.json())
-      .then((d) => { setData(d); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then(async (r) => {
+        const body = await r.json().catch(() => ({}));
+        if (!r.ok || !body?.case) throw new Error(body?.error || "Case not found");
+        return body as CaseData;
+      })
+      .then((d) => { if (!cancelled) { setData(d); setLoading(false); } })
+      .catch((e: Error) => { if (!cancelled) { setData(null); setError(e.message); setLoading(false); } });
+    return () => { cancelled = true; };
   }, [caseId]);
 
   if (!caseId) return null;
@@ -132,6 +149,12 @@ export function CaseDrawer({ caseId: requestedId, onClose }: { caseId: number | 
               </svg>
               <span className="text-sm font-data">Retrieving case file…</span>
             </div>
+          </div>
+        )}
+
+        {!loading && error && (
+          <div className="px-5 py-16 text-center">
+            <p className="text-sm font-data" style={{ color: "var(--red)" }}>{error}</p>
           </div>
         )}
 

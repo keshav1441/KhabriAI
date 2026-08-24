@@ -2,6 +2,7 @@ import { scopedClient, type Db } from "./db";
 import { chargesheetClock, daysSince, type ChargesheetClock } from "./pendency";
 import { buildCrew } from "./crew";
 import { similarCasesTo } from "./case-retrieval";
+import { CSTYPE } from "./caseStatus";
 import { findDuplicatesOf, type DuplicateReason } from "./duplicate-detect";
 
 /**
@@ -232,7 +233,6 @@ export interface HandoverBrief {
   generatedAt: string;
 }
 
-const CSTYPE: Record<string, string> = { A: "Chargesheet Filed", B: "False Case", C: "Undetected" };
 const iso = (d: unknown) => (d ? new Date(d as string).toISOString().slice(0, 10) : null);
 const genderOf = (id: unknown) => (id === 1 ? "Male" : id === 2 ? "Female" : id ? "Transgender" : null);
 
@@ -357,7 +357,10 @@ export async function buildHandover(
   });
 
   const [moMatches, crew, duplicates] = await Promise.all([
-    similarCasesTo(caseId, { topK: 5, minScore: 0.72, districtId }).catch(() => []),
+    // The floor is SIMILAR_CASE_MIN_SCORE in lib/case-retrieval.ts, inherited
+    // rather than restated: this sheet gets printed and signed next to the case
+    // drawer's own similar-case list, and the two must be the same list.
+    similarCasesTo(caseId, { topK: 5, districtId }).catch(() => []),
     buildCrew({ caseId }, { districtId }).catch(() => null),
     findDuplicatesOf(caseId, { districtId }).catch(() => []),
   ]);
@@ -408,7 +411,10 @@ export async function buildHandover(
         station: m.station ?? null,
         crimeType: m.crimeType ?? null,
         status: m.status ?? null,
-        why: `Narrative ${Math.round(m.score * 100)}% alike${m.district && m.district !== c.district ? " — other district" : ""}`,
+        // Never "88% alike": the cosine has no calibrated meaning here (see
+        // SIMILAR_CASE_MIN_SCORE). What is true, and all that is claimed on a
+        // signed sheet, is the ordering.
+        why: `Closest narrative #${m.rank} of ${moMatches.length}${m.district && m.district !== c.district ? " — other district" : ""}`,
       })),
       crew: crew
         ? {
@@ -430,7 +436,9 @@ export async function buildHandover(
                 why:
                   k.link === "co-accused"
                     ? "Same accused named in both files"
-                    : `Same method — ${Math.round((k.linkScore ?? 0) * 100)}% narrative match`,
+                    // Not "78% narrative match": the score is a rank position,
+                    // and this line is printed on a signed handover sheet.
+                    : `Narrative close to another case on the chain${k.linkRank != null ? ` (closest #${k.linkRank})` : ""} — method lead, not identification`,
               })),
           }
         : null,

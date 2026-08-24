@@ -56,6 +56,8 @@ export type ChatMessageCountAggregateOutputType = {
   vizType: number
   sqlError: number
   relatedCases: number
+  trace: number
+  groundedness: number
   createdAt: number
   _all: number
 }
@@ -93,6 +95,8 @@ export type ChatMessageCountAggregateInputType = {
   vizType?: true
   sqlError?: true
   relatedCases?: true
+  trace?: true
+  groundedness?: true
   createdAt?: true
   _all?: true
 }
@@ -179,6 +183,8 @@ export type ChatMessageGroupByOutputType = {
   vizType: string | null
   sqlError: string | null
   relatedCases: runtime.JsonValue | null
+  trace: runtime.JsonValue | null
+  groundedness: runtime.JsonValue | null
   createdAt: Date
   _count: ChatMessageCountAggregateOutputType | null
   _min: ChatMessageMinAggregateOutputType | null
@@ -213,6 +219,8 @@ export type ChatMessageWhereInput = {
   vizType?: Prisma.StringNullableFilter<"ChatMessage"> | string | null
   sqlError?: Prisma.StringNullableFilter<"ChatMessage"> | string | null
   relatedCases?: Prisma.JsonNullableFilter<"ChatMessage">
+  trace?: Prisma.JsonNullableFilter<"ChatMessage">
+  groundedness?: Prisma.JsonNullableFilter<"ChatMessage">
   createdAt?: Prisma.DateTimeFilter<"ChatMessage"> | Date | string
   session?: Prisma.XOR<Prisma.ChatSessionScalarRelationFilter, Prisma.ChatSessionWhereInput>
 }
@@ -227,6 +235,8 @@ export type ChatMessageOrderByWithRelationInput = {
   vizType?: Prisma.SortOrderInput | Prisma.SortOrder
   sqlError?: Prisma.SortOrderInput | Prisma.SortOrder
   relatedCases?: Prisma.SortOrderInput | Prisma.SortOrder
+  trace?: Prisma.SortOrderInput | Prisma.SortOrder
+  groundedness?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   session?: Prisma.ChatSessionOrderByWithRelationInput
 }
@@ -244,6 +254,8 @@ export type ChatMessageWhereUniqueInput = Prisma.AtLeast<{
   vizType?: Prisma.StringNullableFilter<"ChatMessage"> | string | null
   sqlError?: Prisma.StringNullableFilter<"ChatMessage"> | string | null
   relatedCases?: Prisma.JsonNullableFilter<"ChatMessage">
+  trace?: Prisma.JsonNullableFilter<"ChatMessage">
+  groundedness?: Prisma.JsonNullableFilter<"ChatMessage">
   createdAt?: Prisma.DateTimeFilter<"ChatMessage"> | Date | string
   session?: Prisma.XOR<Prisma.ChatSessionScalarRelationFilter, Prisma.ChatSessionWhereInput>
 }, "id">
@@ -258,6 +270,8 @@ export type ChatMessageOrderByWithAggregationInput = {
   vizType?: Prisma.SortOrderInput | Prisma.SortOrder
   sqlError?: Prisma.SortOrderInput | Prisma.SortOrder
   relatedCases?: Prisma.SortOrderInput | Prisma.SortOrder
+  trace?: Prisma.SortOrderInput | Prisma.SortOrder
+  groundedness?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.ChatMessageCountOrderByAggregateInput
   _max?: Prisma.ChatMessageMaxOrderByAggregateInput
@@ -277,6 +291,8 @@ export type ChatMessageScalarWhereWithAggregatesInput = {
   vizType?: Prisma.StringNullableWithAggregatesFilter<"ChatMessage"> | string | null
   sqlError?: Prisma.StringNullableWithAggregatesFilter<"ChatMessage"> | string | null
   relatedCases?: Prisma.JsonNullableWithAggregatesFilter<"ChatMessage">
+  trace?: Prisma.JsonNullableWithAggregatesFilter<"ChatMessage">
+  groundedness?: Prisma.JsonNullableWithAggregatesFilter<"ChatMessage">
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"ChatMessage"> | Date | string
 }
 
@@ -289,6 +305,8 @@ export type ChatMessageCreateInput = {
   vizType?: string | null
   sqlError?: string | null
   relatedCases?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  trace?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  groundedness?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   session: Prisma.ChatSessionCreateNestedOneWithoutMessagesInput
 }
@@ -303,6 +321,8 @@ export type ChatMessageUncheckedCreateInput = {
   vizType?: string | null
   sqlError?: string | null
   relatedCases?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  trace?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  groundedness?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
 }
 
@@ -315,6 +335,8 @@ export type ChatMessageUpdateInput = {
   vizType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sqlError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   relatedCases?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  trace?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  groundedness?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   session?: Prisma.ChatSessionUpdateOneRequiredWithoutMessagesNestedInput
 }
@@ -329,6 +351,8 @@ export type ChatMessageUncheckedUpdateInput = {
   vizType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sqlError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   relatedCases?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  trace?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  groundedness?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -342,6 +366,8 @@ export type ChatMessageCreateManyInput = {
   vizType?: string | null
   sqlError?: string | null
   relatedCases?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  trace?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  groundedness?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
 }
 
@@ -354,6 +380,8 @@ export type ChatMessageUpdateManyMutationInput = {
   vizType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sqlError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   relatedCases?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  trace?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  groundedness?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -367,6 +395,8 @@ export type ChatMessageUncheckedUpdateManyInput = {
   vizType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sqlError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   relatedCases?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  trace?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  groundedness?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -390,6 +420,8 @@ export type ChatMessageCountOrderByAggregateInput = {
   vizType?: Prisma.SortOrder
   sqlError?: Prisma.SortOrder
   relatedCases?: Prisma.SortOrder
+  trace?: Prisma.SortOrder
+  groundedness?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -466,6 +498,8 @@ export type ChatMessageCreateWithoutSessionInput = {
   vizType?: string | null
   sqlError?: string | null
   relatedCases?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  trace?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  groundedness?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
 }
 
@@ -478,6 +512,8 @@ export type ChatMessageUncheckedCreateWithoutSessionInput = {
   vizType?: string | null
   sqlError?: string | null
   relatedCases?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  trace?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  groundedness?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
 }
 
@@ -520,6 +556,8 @@ export type ChatMessageScalarWhereInput = {
   vizType?: Prisma.StringNullableFilter<"ChatMessage"> | string | null
   sqlError?: Prisma.StringNullableFilter<"ChatMessage"> | string | null
   relatedCases?: Prisma.JsonNullableFilter<"ChatMessage">
+  trace?: Prisma.JsonNullableFilter<"ChatMessage">
+  groundedness?: Prisma.JsonNullableFilter<"ChatMessage">
   createdAt?: Prisma.DateTimeFilter<"ChatMessage"> | Date | string
 }
 
@@ -532,6 +570,8 @@ export type ChatMessageCreateManySessionInput = {
   vizType?: string | null
   sqlError?: string | null
   relatedCases?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  trace?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  groundedness?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
 }
 
@@ -544,6 +584,8 @@ export type ChatMessageUpdateWithoutSessionInput = {
   vizType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sqlError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   relatedCases?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  trace?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  groundedness?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -556,6 +598,8 @@ export type ChatMessageUncheckedUpdateWithoutSessionInput = {
   vizType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sqlError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   relatedCases?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  trace?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  groundedness?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -568,6 +612,8 @@ export type ChatMessageUncheckedUpdateManyWithoutSessionInput = {
   vizType?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sqlError?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   relatedCases?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  trace?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  groundedness?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -583,6 +629,8 @@ export type ChatMessageSelect<ExtArgs extends runtime.Types.Extensions.InternalA
   vizType?: boolean
   sqlError?: boolean
   relatedCases?: boolean
+  trace?: boolean
+  groundedness?: boolean
   createdAt?: boolean
   session?: boolean | Prisma.ChatSessionDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["chatMessage"]>
@@ -597,6 +645,8 @@ export type ChatMessageSelectCreateManyAndReturn<ExtArgs extends runtime.Types.E
   vizType?: boolean
   sqlError?: boolean
   relatedCases?: boolean
+  trace?: boolean
+  groundedness?: boolean
   createdAt?: boolean
   session?: boolean | Prisma.ChatSessionDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["chatMessage"]>
@@ -611,6 +661,8 @@ export type ChatMessageSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.E
   vizType?: boolean
   sqlError?: boolean
   relatedCases?: boolean
+  trace?: boolean
+  groundedness?: boolean
   createdAt?: boolean
   session?: boolean | Prisma.ChatSessionDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["chatMessage"]>
@@ -625,10 +677,12 @@ export type ChatMessageSelectScalar = {
   vizType?: boolean
   sqlError?: boolean
   relatedCases?: boolean
+  trace?: boolean
+  groundedness?: boolean
   createdAt?: boolean
 }
 
-export type ChatMessageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "sessionId" | "role" | "content" | "sql" | "rows" | "vizType" | "sqlError" | "relatedCases" | "createdAt", ExtArgs["result"]["chatMessage"]>
+export type ChatMessageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "sessionId" | "role" | "content" | "sql" | "rows" | "vizType" | "sqlError" | "relatedCases" | "trace" | "groundedness" | "createdAt", ExtArgs["result"]["chatMessage"]>
 export type ChatMessageInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   session?: boolean | Prisma.ChatSessionDefaultArgs<ExtArgs>
 }
@@ -654,6 +708,13 @@ export type $ChatMessagePayload<ExtArgs extends runtime.Types.Extensions.Interna
     vizType: string | null
     sqlError: string | null
     relatedCases: runtime.JsonValue | null
+    /**
+     * The working behind the answer, and whether every figure in it was found in
+     * the returned data. Both are produced during the run and were thrown away
+     * on reload until they were persisted here.
+     */
+    trace: runtime.JsonValue | null
+    groundedness: runtime.JsonValue | null
     createdAt: Date
   }, ExtArgs["result"]["chatMessage"]>
   composites: {}
@@ -1088,6 +1149,8 @@ export interface ChatMessageFieldRefs {
   readonly vizType: Prisma.FieldRef<"ChatMessage", 'String'>
   readonly sqlError: Prisma.FieldRef<"ChatMessage", 'String'>
   readonly relatedCases: Prisma.FieldRef<"ChatMessage", 'Json'>
+  readonly trace: Prisma.FieldRef<"ChatMessage", 'Json'>
+  readonly groundedness: Prisma.FieldRef<"ChatMessage", 'Json'>
   readonly createdAt: Prisma.FieldRef<"ChatMessage", 'DateTime'>
 }
     

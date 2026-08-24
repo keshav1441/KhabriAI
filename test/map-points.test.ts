@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { thinPoints, withinBounds, cellDegForZoom, type IncidentPoint } from "../lib/map-points";
+import { thinPoints, withinBounds, cellDegForZoom, gmapsUrl, type IncidentPoint } from "../lib/map-points";
 
 // The map's honesty lives here. Every number the officer reads — how many
 // incidents are drawn, how many cases had no location at all — comes out of
@@ -127,4 +127,12 @@ test("the same cases thinned at street zoom stop being one marker", () => {
   assert.equal(coarse.clusters.length, 1);
   assert.equal(fine.clusters.length, 3);
   assert.equal(coarse.shown, fine.shown); // thinning changes markers, never the count reported
+});
+
+test("the Google Maps link points at the pin, not at the district town", () => {
+  const url = gmapsUrl(13.3392, 77.1008);
+  assert.equal(url, "https://www.google.com/maps/search/?api=1&query=13.3392,77.1008");
+  assert.ok(!/Karnataka/.test(url)); // the old text search ignored the coordinates entirely
+  // Negative and fractional coordinates survive the round trip unmangled.
+  assert.match(gmapsUrl(-1.5, -0.25), /query=-1\.5,-0\.25$/);
 });

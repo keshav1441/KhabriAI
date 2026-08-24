@@ -117,6 +117,8 @@ export function ChatWindow() {
         vizType?: string;
         sqlError?: string | null;
         relatedCases?: ChatMessage["relatedCases"];
+        trace?: ChatMessage["trace"];
+        groundedness?: ChatMessage["groundedness"];
       }>;
     } = {
       messages: [
@@ -129,6 +131,11 @@ export function ChatWindow() {
           vizType: asstMsg.vizType,
           sqlError: asstMsg.sqlError,
           relatedCases: asstMsg.relatedCases,
+          // The working and the groundedness verdict are part of the answer,
+          // not decoration on it: an answer that warned about an unverified
+          // figure has to still warn about it when the session is reopened.
+          trace: asstMsg.trace,
+          groundedness: asstMsg.groundedness,
         },
       ],
     };

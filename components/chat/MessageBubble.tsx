@@ -27,8 +27,13 @@ function exportCSV(rows: Record<string, unknown>[], filename = "khabri-export.cs
   const blob = new Blob([lines.join("\n")], { type: "text/csv" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url; a.download = filename; a.click();
-  URL.revokeObjectURL(url);
+  a.href = url; a.download = filename;
+  // Firefox ignores a click on an anchor that was never in the document, and
+  // revoking the object URL in the same tick races the download in Safari.
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 /**

@@ -106,7 +106,11 @@ export async function answerWithSQL(
     ? `${DB_SCHEMA}\n-- ACCESS SCOPE: this officer only sees ${scope.districtName} district. Rows are already limited to it by the database; do NOT add a district filter unless the question names a different district (which will return nothing).`
     : DB_SCHEMA;
   const resolved = resolveLiterals(prepare(await generateSQL(schema, fewShot, question, history)), vocab);
-  const sql = resolved.sql;
+  // resolveLiterals rewrites the statement AFTER prepare() validated it, so the
+  // thing that actually runs is not the thing that was checked. Re-validate the
+  // rewrite: a substituted literal is still model-influenced text going into a
+  // statement, and the validator is the only place that says SELECT-only.
+  const sql = prepare(resolved.sql);
   const substitutions: Substitution[] = resolved.substitutions;
 
   const run = (s: string) => runGuardedQuery(s, { timeoutMs: QUERY_TIMEOUT_MS, districtId: scope.districtId });

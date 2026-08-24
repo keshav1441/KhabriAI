@@ -12,7 +12,11 @@ export async function GET(req: NextRequest) {
   if (denied) return denied;
   try {
     const { districtId } = await getScope(req);
-    const cases = await similarCasesTo(id, { topK: 5, minScore: 0.5, districtId });
+    // No minScore: the floor lives in lib/case-retrieval.ts (SIMILAR_CASE_MIN_SCORE)
+    // and is inherited, so this list and the handover sheet's "MO matches" for the
+    // same case cannot disagree about what counts as a link. They used to: 0.5 here
+    // against 0.72 there, both inert, both printed side by side in the case drawer.
+    const cases = await similarCasesTo(id, { topK: 5, districtId });
     return Response.json({ cases: cases.map(({ briefFacts, ...c }) => ({ ...c, briefFacts: briefFacts?.slice(0, 220) ?? null })) });
   } catch (e) {
     console.error("similar cases failed:", e);

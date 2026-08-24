@@ -2,6 +2,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { useChatStore } from "@/store/chat";
 import { t, type StringKey } from "@/lib/i18n";
+// Shared with the bell: this map was duplicated, and the copy here silently
+// lacked the duplicate-FIR kind, so those alerts rendered as a generic "ALERT".
+import { KIND_LABEL } from "@/lib/alertKinds";
 import { ConfidenceChip } from "./PatrolPriorities";
 import {
   buildFigures,
@@ -49,14 +52,6 @@ interface VictimsPayload {
     maxCases?: number | null;
   } | null;
 }
-
-const KIND_LABEL: Record<string, StringKey> = {
-  spike: "alerts.kind.spike",
-  repeat_suspect: "alerts.kind.repeat_suspect",
-  weekly_surge: "alerts.kind.weekly_surge",
-  forecast: "alerts.kind.forecast",
-  mo_link: "alerts.kind.mo_link",
-};
 
 /** Same funnel colours as the pipeline screen — the miniature must read as the same object. */
 const STAGE_COLOR: Record<string, string> = {

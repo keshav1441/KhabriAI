@@ -17,6 +17,24 @@ export type InsightItem = {
   dedupe?: string;
 };
 
+/**
+ * The cache holds the statewide set; the cut happens per officer on the way
+ * out. A district-posted officer must not be handed another district's spike -
+ * or, worse, the name of an accused they have no business reading. Pure, so the
+ * chat tool and /api/insights can be shown to agree without a database.
+ */
+export function scopeInsights(insights: InsightItem[], districtId: number | null): InsightItem[] {
+  if (!districtId) return insights;
+  return insights.filter((i) => {
+    if (i.districtId === districtId) return true;
+    if (i.districtId != null) return false;
+    // A statewide finding is fair game unless it names a person: the
+    // repeat-accused detector deliberately nulls the district when someone is
+    // active in several, and that name is still out of scope here.
+    return i.type !== "repeat_suspect";
+  });
+}
+
 const INSIGHTS_CACHE_KEY = "insights:latest";
 const INSIGHTS_CACHE_TTL_MINUTES = 180; // matches the Phase 3 cron interval
 

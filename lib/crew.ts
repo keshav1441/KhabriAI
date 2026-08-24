@@ -1,4 +1,6 @@
 import { scopedClient, type Db } from "./db";
+import { OPEN_PREDICATE } from "./pendency";
+import { SIMILAR_CASE_MIN_SCORE } from "./case-retrieval";
 
 /**
  * Crew dossier — the multi-hop version of MO linking.
@@ -13,7 +15,12 @@ import { scopedClient, type Db } from "./db";
  *
  * Every case carries how it was reached (`link`), so nothing in the dossier is
  * an unexplained assertion: a co-accused link is a fact from the FIR, an MO
- * link is a similarity score the officer can judge.
+ * link is a RANKING — the Nth-closest narrative to a case already on the chain.
+ * It is deliberately not shown as a percentage: measured over this corpus the
+ * cosine between two files in a known offender series (median .872) and between
+ * two unrelated files of the same crime group (median .835) overlap almost
+ * entirely, so the number cannot support a confidence claim. See
+ * SIMILAR_CASE_MIN_SCORE in lib/case-retrieval.ts for the distributions.
  *
  * Runs entirely inside the caller's scope — an SHO's dossier is built from the
  * cases row-level security lets them see, so the walk cannot leak another
@@ -47,10 +54,21 @@ export interface CrewCase {
   briefFacts: string | null;
   arrested: boolean;
   chargesheeted: boolean;
+  /**
+   * Still on someone's desk, by pendency.ts's OPEN_PREDICATE — the same test
+   * the SHO's desk uses, not "has no chargesheet row".
+   */
+  open: boolean;
   /** How this case entered the dossier. */
   link: CrewLink;
-  /** For an MO link: the case it was matched against, and the cosine score. */
+  /**
+   * For an MO link: the case it was matched against, its position among that
+   * case's closest narratives (1 = closest), and the raw cosine. Show the RANK.
+   * The cosine is carried for ordering and for anyone who wants to inspect it,
+   * not as a confidence — see SIMILAR_CASE_MIN_SCORE.
+   */
   linkedFrom?: number;
+  linkRank?: number;
   linkScore?: number;
 }
 
@@ -64,6 +82,8 @@ export interface CrewEdge {
 export interface CrewMoLink {
   from: number;
   to: number;
+  /** Position among `from`'s closest narratives, 1 = closest. The honest number. */
+  rank: number;
   score: number;
   crossDistrict: boolean;
 }
@@ -96,7 +116,10 @@ export interface CrewOptions {
   hops?: number;
   maxCases?: number;
   maxMembers?: number;
-  /** Minimum cosine similarity for a narrative to count as the same method. */
+  /**
+   * Floor on the raw cosine. Defaults to the corpus-wide SIMILAR_CASE_MIN_SCORE,
+   * which is 0 — the score ranks candidates, it does not qualify them.
+   */
   moMinScore?: number;
   moTopK?: number;
   districtId?: number | null;
@@ -106,7 +129,12 @@ const DEFAULTS = {
   hops: 2,
   maxCases: 40,
   maxMembers: 25,
-  moMinScore: Number(process.env.CREW_MO_MIN_SCORE ?? 0.78),
+  // Was a hardcoded 0.78, which measurement showed admitted 100% of nearest
+  // neighbours — every MO hop passed it. The shared floor now decides (it is 0,
+  // and lib/case-retrieval.ts explains why no cosine cut separates), so what
+  // bounds the walk is moTopK and maxCases: the K closest narratives, ranked,
+  // not everything above an imaginary bar.
+  moMinScore: Number(process.env.CREW_MO_MIN_SCORE ?? SIMILAR_CASE_MIN_SCORE),
   moTopK: 4,
 };
 
@@ -154,13 +182,14 @@ async function groupsOfCases(db: Db, caseIds: number[]): Promise<number[]> {
 /** Nearest narratives for each case in the frontier, in one indexed pass. */
 async function moNeighbours(db: Db, caseIds: number[], topK: number, minScore: number) {
   if (!caseIds.length) return [];
-  return db.$queryRawUnsafe<{ from_id: number; to_id: number; score: number }[]>(
+  return db.$queryRawUnsafe<{ from_id: number; to_id: number; score: number; rank: number }[]>(
     `WITH src AS (
        SELECT "CaseMasterID" AS id, "BriefFactsEmbedding" AS e
        FROM "CaseMaster"
        WHERE "CaseMasterID" = ANY($1::int[]) AND "BriefFactsEmbedding" IS NOT NULL
      )
-     SELECT s.id AS from_id, m.id AS to_id, m.score
+     SELECT s.id AS from_id, m.id AS to_id, m.score,
+            (row_number() OVER (PARTITION BY s.id ORDER BY m.score DESC))::int AS rank
      FROM src s
      CROSS JOIN LATERAL (
        SELECT cm."CaseMasterID" AS id, 1 - (cm."BriefFactsEmbedding" <=> s.e) AS score
@@ -181,7 +210,7 @@ async function moNeighbours(db: Db, caseIds: number[], topK: number, minScore: n
 type CaseRow = {
   id: number; crime_no: string | null; date: Date | null; district: string | null; station: string | null;
   crime_type: string | null; crime_group: string | null; status: string | null; brief_facts: string | null;
-  arrested: boolean; chargesheeted: boolean;
+  arrested: boolean; chargesheeted: boolean; open: boolean;
 };
 
 async function caseDetails(db: Db, caseIds: number[]): Promise<CaseRow[]> {
@@ -192,7 +221,8 @@ async function caseDetails(db: Db, caseIds: number[]): Promise<CaseRow[]> {
             csh."CrimeHeadName" AS crime_type, ch."CrimeGroupName" AS crime_group,
             cs."CaseStatusName" AS status, cm."BriefFacts" AS brief_facts,
             EXISTS (SELECT 1 FROM "ArrestSurrender" ar WHERE ar."CaseMasterID" = cm."CaseMasterID") AS arrested,
-            EXISTS (SELECT 1 FROM "ChargesheetDetails" cd WHERE cd."CaseMasterID" = cm."CaseMasterID") AS chargesheeted
+            EXISTS (SELECT 1 FROM "ChargesheetDetails" cd WHERE cd."CaseMasterID" = cm."CaseMasterID") AS chargesheeted,
+            (${OPEN_PREDICATE}) AS open
      FROM "CaseMaster" cm
      LEFT JOIN "Unit" u ON u."UnitID" = cm."PoliceStationID"
      LEFT JOIN "District" d ON d."DistrictID" = u."DistrictID"
@@ -316,7 +346,7 @@ export async function buildCrew(
     return emptyDossier(seed);
   }
 
-  const caseLink = new Map<number, { link: CrewLink; from?: number; score?: number }>();
+  const caseLink = new Map<number, { link: CrewLink; from?: number; rank?: number; score?: number }>();
   for (const id of seedCaseIds) caseLink.set(id, { link: "seed" });
   const members = new Set<string>();
   const moLinks: CrewMoLink[] = [];
@@ -354,7 +384,7 @@ export async function buildCrew(
     membership.push(...theirCases.map((r) => ({ person: r.person_id, case: r.case_id })));
 
     const next: number[] = [];
-    const addCase = (id: number, entry: { link: CrewLink; from?: number; score?: number }) => {
+    const addCase = (id: number, entry: { link: CrewLink; from?: number; rank?: number; score?: number }) => {
       if (caseLink.has(id)) return false;
       if (caseLink.size >= cfg.maxCases) { truncated = true; return false; }
       caseLink.set(id, entry);
@@ -365,11 +395,12 @@ export async function buildCrew(
     // The cap is a budget, so spend it on the strongest evidence first: a
     // narrative match with a score, then co-offence, newest first.
     for (const m of [...mo].sort((a, b) => b.score - a.score)) {
-      if (addCase(m.to_id, { link: "mo", from: m.from_id, score: m.score })) {
-        moLinks.push({ from: m.from_id, to: m.to_id, score: m.score, crossDistrict: false });
+      const rank = Number(m.rank);
+      if (addCase(m.to_id, { link: "mo", from: m.from_id, rank, score: m.score })) {
+        moLinks.push({ from: m.from_id, to: m.to_id, rank, score: m.score, crossDistrict: false });
       } else if (caseLink.get(m.to_id)) {
         // Already in by another route — still worth drawing the edge.
-        moLinks.push({ from: m.from_id, to: m.to_id, score: m.score, crossDistrict: false });
+        moLinks.push({ from: m.from_id, to: m.to_id, rank, score: m.score, crossDistrict: false });
       }
     }
     const byRecency = [...theirCases].sort(
@@ -414,8 +445,10 @@ export async function buildCrew(
       briefFacts: c.brief_facts,
       arrested: c.arrested,
       chargesheeted: c.chargesheeted,
+      open: c.open,
       link: meta.link,
       ...(meta.from ? { linkedFrom: meta.from } : {}),
+      ...(meta.rank ? { linkRank: meta.rank } : {}),
       ...(meta.score ? { linkScore: Number(meta.score.toFixed(3)) } : {}),
     };
   });
@@ -489,7 +522,11 @@ export async function buildCrew(
       districts: districts.length,
       arrested: cases.filter((c) => c.arrested).length,
       chargesheeted: cases.filter((c) => c.chargesheeted).length,
-      open: cases.filter((c) => !c.chargesheeted).length,
+      // Not `!chargesheeted`: 5,135 Closed and 1,909 False Case files in this
+      // corpus carry no chargesheet row either, and counting those as open
+      // overstated the number by 44% statewide. OPEN_PREDICATE is the desk's
+      // definition, applied in SQL, so the dossier and the desk agree.
+      open: cases.filter((c) => c.open).length,
       first: dated[0] ?? null,
       last: dated[dated.length - 1] ?? null,
     },

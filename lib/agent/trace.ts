@@ -66,8 +66,13 @@ export function buildTrace(input: {
   const query = asRecord([...calls].reverse().find((c) => c.tool === "queryDatabase")?.result);
 
   // Not every answer comes from SQL: a crew dossier or a similar-case search
-  // returns the rows instead, and the row count should still be honest.
-  const rows = rowsOf(query) ?? [...calls].reverse().map((c) => rowsOf(c.result)).find(Boolean) ?? [];
+  // returns the rows instead, and the row count should still be honest. But
+  // once a queryDatabase call exists, its own row count is the only one that
+  // belongs beside its SQL - falling through on a FAILED query paired the SQL
+  // that returned nothing with some other tool's row count.
+  const rows = query
+    ? rowsOf(query) ?? []
+    : [...calls].reverse().map((c) => rowsOf(c.result)).find(Boolean) ?? [];
 
   return {
     tools: calls.map((c) => {

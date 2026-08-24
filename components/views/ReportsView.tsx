@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
 import { CaseDrawer } from "../viz/CaseDrawer";
+import { STATUS_STYLE } from "@/lib/caseStatus";
 
 type CaseRow = {
   case_id: number;
@@ -10,13 +11,6 @@ type CaseRow = {
   crime_group: string;
   district: string;
   status: string;
-};
-
-const STATUS_COLOR: Record<string, string> = {
-  "Under Investigation": "var(--amber)",
-  "Charge Sheeted": "var(--blue)",
-  "Closed": "var(--green)",
-  "False Case": "var(--red)",
 };
 
 export function ReportsView() {
@@ -153,10 +147,8 @@ export function ReportsView() {
                     <span
                       className="font-data px-2 py-0.5 rounded text-xs font-bold"
                       style={{
-                        color: STATUS_COLOR[c.status] ?? "var(--text-muted)",
-                        background: STATUS_COLOR[c.status]
-                          ? `${STATUS_COLOR[c.status].replace(")", ",0.1)").replace("var(", "var(")}`
-                          : "var(--bg-raised)",
+                        color: STATUS_STYLE[c.status]?.color ?? "var(--text-muted)",
+                        background: STATUS_STYLE[c.status]?.bg ?? "var(--bg-raised)",
                         fontSize: "0.65rem",
                       }}
                     >

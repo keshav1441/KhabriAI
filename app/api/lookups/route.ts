@@ -4,6 +4,8 @@ import { requireUser } from "@/lib/chat-auth";
 
 export const dynamic = "force-dynamic";
 
+const SECTION_LIMIT = 1000;
+
 // Every reference list the Register-FIR form needs, in one round trip.
 export async function GET(req: NextRequest) {
   const denied = await requireUser(req);
@@ -22,7 +24,9 @@ export async function GET(req: NextRequest) {
       prisma.caseCategory.findMany({ select: { CaseCategoryID: true, LookupValue: true } }),
       prisma.gravityOffence.findMany({ select: { GravityOffenceID: true, LookupValue: true } }),
       prisma.court.findMany({ where: { Active: true }, orderBy: { CourtName: "asc" }, select: { CourtID: true, CourtName: true, DistrictID: true } }),
-      prisma.section.findMany({ where: { Active: true }, orderBy: [{ ActCode: "asc" }, { SectionCode: "asc" }], select: { ActCode: true, SectionCode: true, SectionDescription: true } }),
+      // Capped: against a real KSP Section table this list is unbounded, and the
+      // Register-FIR form turns every row it receives into a checkbox.
+      prisma.section.findMany({ where: { Active: true }, orderBy: [{ ActCode: "asc" }, { SectionCode: "asc" }], select: { ActCode: true, SectionCode: true, SectionDescription: true }, take: SECTION_LIMIT }),
     ]);
     return Response.json(
       { districts, crimeHeads, statuses, categories, gravity, courts, sections },

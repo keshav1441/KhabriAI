@@ -223,11 +223,17 @@ body::before {
   .print-kv { font-size: 11px; line-height: 1.55; }
   .print-note { font-size: 10px; color: #555; margin: 2px 0 4px; }
 
-  /* The handover brief is a legal document, and the chat transcript's
-     .print-root is mounted for as long as the chat view is on screen. When a
-     brief is open it is the only thing that may reach the page — otherwise a
-     transcript would print interleaved with a handover and neither would be
-     safe to sign. The drawer already refuses to open the crew dossier and the
-     brief at once; this is the belt to that pair of braces. */
+  /* Several .print-root elements are mounted at once in normal use: the chat
+     transcript's lives for as long as the chat view is on screen, the crew view
+     embeds a dossier, and the case drawer floats a dossier or a handover brief
+     over either. They all sit at the page origin, so without a rule exactly one
+     of them printing they overlay each other and nothing is legible.
+
+     Priority runs outward from the document the officer is actually looking at:
+     a handover brief is a legal document and beats everything; a dossier beats
+     the transcript underneath it; and a dossier floated over the page beats one
+     embedded in it. */
   body:has(.print-handover) .print-root:not(.print-handover) { display: none; visibility: hidden; }
+  body:has(.print-dossier) .print-root:not(.print-dossier):not(.print-handover) { display: none; visibility: hidden; }
+  body:has(.print-dossier-float) .print-dossier:not(.print-dossier-float) { display: none; visibility: hidden; }
 }

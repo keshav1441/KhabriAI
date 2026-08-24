@@ -1,4 +1,5 @@
 import type { Db } from "./db";
+import { STALE_ACTION_DAYS } from "./caseStatus";
 import { chargesheetClock, daysSince, CS_DUE_SOON_DAYS, CS_LIMIT_GRAVE_DAYS, CS_LIMIT_STANDARD_DAYS, type ChargesheetClock } from "./pendency";
 
 /**
@@ -26,8 +27,7 @@ import { chargesheetClock, daysSince, CS_DUE_SOON_DAYS, CS_LIMIT_GRAVE_DAYS, CS_
  * instead of implying a distinction the data cannot support.
  */
 
-/** No custody action in this many days reads as a stalled case, not a quiet one. */
-export const STALE_ACTION_DAYS = 30;
+export { STALE_ACTION_DAYS } from "./caseStatus";
 
 export type CustodyFlag = "csNoCustody" | "stale";
 

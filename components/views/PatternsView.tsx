@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
@@ -168,24 +168,33 @@ export function PatternsView() {
   const [windowId, setWindowId] = useState("365");
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
+  // Group and window chips are two clicks apart; a slow first response landing
+  // after a fast second one would draw the wrong selection's shape.
+  const loadSeq = useRef(0);
+  // The chip row is built from the last response that carried a group list.
+  // Dropping it on failure took every chip but "all" off the screen while
+  // `group` still pointed at one of the vanished ones.
+  const [groupNames, setGroupNames] = useState<string[]>([]);
 
   const load = useCallback((g: string, w: string) => {
+    const seq = ++loadSeq.current;
     const days = WINDOWS.find((x) => x.id === w)?.days ?? null;
     setLoading(true);
     setFailed(false);
     fetch(`/api/patterns?group=${encodeURIComponent(g)}${days ? `&days=${days}` : ""}`)
       .then((r) => r.json())
       .then((d: PatternsResponse & { error?: string }) => {
+        if (seq !== loadSeq.current) return; // a later selection already superseded this
         if (d.error) { setFailed(true); setData(null); }
-        else setData(d);
+        else { setData(d); if (d.crimeGroups?.length) setGroupNames(d.crimeGroups); }
         setLoading(false);
       })
-      .catch(() => { setFailed(true); setLoading(false); });
+      .catch(() => { if (seq === loadSeq.current) { setFailed(true); setLoading(false); } });
   }, []);
 
   useEffect(() => { load(group, windowId); }, [group, windowId, load]);
 
-  const groups = ["all", ...(data?.crimeGroups ?? [])];
+  const groups = ["all", ...(data?.crimeGroups ?? groupNames)];
 
   return (
     <div className="flex flex-col h-full">

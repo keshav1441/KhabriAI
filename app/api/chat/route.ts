@@ -20,8 +20,16 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { message, history = [], lang = "en" }: { message: string; history: ChatTurn[]; lang?: "en" | "kn" } =
-    await req.json();
+  // Parsed inside the try: a malformed body is a bad request, and letting
+  // req.json() throw here turned it into an opaque 500 rather than the 400
+  // sitting three lines below.
+  let body: { message?: string; history?: ChatTurn[]; lang?: "en" | "kn" };
+  try {
+    body = await req.json();
+  } catch {
+    return Response.json({ error: "Malformed request body" }, { status: 400 });
+  }
+  const { message, history = [], lang = "en" } = body;
 
   if (!message?.trim()) {
     return Response.json({ error: "Empty message" }, { status: 400 });
@@ -50,11 +58,19 @@ export async function POST(req: NextRequest) {
         }
       } catch (e) {
         console.error("agent run failed:", e);
-        send({ type: "meta", sql: "", rows: [], vizType: "table", sqlError: "Agent run failed", relatedCases: [] });
+        // Only the error. The client merges whichever meta keys arrive, so
+        // sending the full set here blanked a table the first `meta` had
+        // already delivered — the officer lost evidence the run did produce.
+        send({ type: "meta", sqlError: "Agent run failed" });
         send({ type: "token", token: "Something went wrong processing your request." });
         send({ type: "done" });
+      } finally {
+        // A failed enqueue used to skip the close entirely, so the response
+        // never terminated and the composer stayed dead until a reload.
+        try {
+          controller.close();
+        } catch {}
       }
-      if (!closed) controller.close();
     },
   });
 

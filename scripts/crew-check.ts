@@ -31,7 +31,7 @@ async function main() {
   }
   console.log("\ncases:");
   for (const c of d.cases) {
-    const how = c.link === "mo" ? `mo ${(c.linkScore ?? 0).toFixed(2)} ← ${c.linkedFrom}` : c.link;
+    const how = c.link === "mo" ? `mo #${c.linkRank ?? "?"} (cos ${(c.linkScore ?? 0).toFixed(2)}) ← ${c.linkedFrom}` : c.link;
     console.log(`  ${c.date ?? "??????????"}  ${c.crimeNo}  ${(c.district ?? "-").padEnd(18)} ${(c.crimeType ?? "-").padEnd(26)} [${how}]${c.chargesheeted ? " CS" : ""}`);
   }
   const cross = d.moLinks.filter((l) => l.crossDistrict).length;

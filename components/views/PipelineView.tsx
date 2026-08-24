@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
@@ -54,8 +54,12 @@ export function PipelineView() {
   // them from a filtered response would leave one option in each list and trap
   // the user inside their own filter.
   const [options, setOptions] = useState<{ districts: string[]; crimeGroups: string[] }>({ districts: [], crimeGroups: [] });
+  // Three filters feed the same endpoint, so a slower earlier request can land
+  // after a faster later one and paint a pipeline nobody asked for.
+  const loadSeq = useRef(0);
 
   const load = useCallback(() => {
+    const seq = ++loadSeq.current;
     setLoading(true);
     const qs = new URLSearchParams({ months: String(months) });
     if (district) qs.set("district", district);
@@ -63,6 +67,7 @@ export function PipelineView() {
     fetch(`/api/pipeline?${qs}`)
       .then((r) => r.json())
       .then((d: Pipeline) => {
+        if (seq !== loadSeq.current) return; // a later filter already superseded this
         setData(d);
         setOptions((prev) =>
           prev.districts.length || district || crimeGroup
@@ -74,7 +79,7 @@ export function PipelineView() {
         );
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => { if (seq === loadSeq.current) setLoading(false); });
   }, [months, district, crimeGroup]);
 
   useEffect(() => { load(); }, [load]);

@@ -3,7 +3,7 @@
 **Karnataka Police Crime Intelligence Assistant**
 Datathon 2026 — KSP × Hack2Skill Challenge 1
 
-Conversational AI for investigators to query crime data in plain English. Sign in, ask a question → an **agent orchestrator** (Mistral `mistral-small-latest`) plans tool calls — SQL generation via RAG, full-text case search, precomputed anomaly insights, network/map data, QuickML risk prediction — and streams each step live to a **Case Board** in the chat, followed by an analyst narrative. Answers render as tables, charts, or network graphs, alongside a **Related Cases** panel citing real FIR narratives. Chat history is saved per user in Neon.
+Conversational AI for investigators to query crime data in plain English. Sign in, ask a question → an **agent orchestrator** (Mistral `mistral-large-latest`) plans tool calls — SQL generation via RAG, case-narrative retrieval, precomputed anomaly insights, network/map data, QuickML risk prediction — and streams each step live to a **Case Board** in the chat, followed by an analyst narrative. Answers render as tables, charts, or network graphs, alongside a **Related Cases** panel citing real FIR narratives. Chat history is saved per user in Neon.
 
 ---
 
@@ -14,11 +14,11 @@ Conversational AI for investigators to query crime data in plain English. Sign i
 | Framework | Next.js 16 (App Router, standalone output) |
 | Database | Neon PostgreSQL + Prisma |
 | Auth | PBKDF2-SHA512 (100k iterations) · HMAC-signed session cookie (7 days) |
-| Agent | Mistral `mistral-small-latest` orchestrator + 5 tools (see below) |
-| LLM | Mistral (OpenAI-compatible API via the `openai` SDK) — `mistral-small-latest` for SQL, summary and narrative |
+| Agent | Mistral `mistral-large-latest` orchestrator + 9 tools (see below) |
+| LLM | Mistral (OpenAI-compatible API via the `openai` SDK) — `mistral-large-latest` for SQL and the orchestrator, `mistral-small-latest` for summary and narrative |
 | Catalyst services | Cache (insights TTL) · Data Store (`AgentAuditLog`) · QuickML (chargesheet risk) — all optional, local fallbacks outside AppSail |
 | Embeddings | Mistral (`mistral-embed`, 1024-dim) · LLM fallback for example selection |
-| Case retrieval | Postgres full-text search (`tsvector`/`ts_rank`) over `CaseMaster.BriefFacts` |
+| Case retrieval | pgvector cosine over `CaseMaster.BriefFactsEmbedding` (`mistral-embed`), Postgres full-text search (`tsvector`/`ts_rank`) as the fallback |
 | Proactive alerts | Scheduled detectors → per-officer `Alert` rows (Postgres unique dedupe) · header bell, 60s poll |
 | Crew dossier | Two-hop walk over co-accused + pgvector MO edges (`lib/crew.ts`) · browser-print PDF briefing |
 | Predictive hotspots | Least-squares trend per district × crime group over 6 complete months (`lib/hotspot-forecast.ts`) · patrol priorities · Catalyst Cache 180 min |
@@ -41,20 +41,24 @@ Conversational AI for investigators to query crime data in plain English. Sign i
 
 ## How it works
 
-Every chat message runs through an agent loop (`lib/agent/orchestrator.ts`): a Mistral `mistral-small-latest` planner decides which tools to call (up to 4 iterations, first turn forced to call at least one tool so it can't answer from parametric memory), executes them in parallel, streams each step to the UI as it happens, then synthesizes a 2–4 sentence analyst narrative from the gathered results.
+Every chat message runs through an agent loop (`lib/agent/orchestrator.ts`): a Mistral `mistral-large-latest` planner decides which tools to call (up to 4 iterations, first turn forced to call at least one tool so it can't answer from parametric memory), executes them in parallel, streams each step to the UI as it happens, then synthesizes a 2–4 sentence analyst narrative from the gathered results.
 
 ```
 User question
      │
      ▼
-Planner (llama-3.3-70b-versatile) ──► tool calls, streamed live to the Case Board
+Planner (mistral-large-latest) ──► tool calls, streamed live to the Case Board
      │
-     ├─ queryDatabase        RAG few-shot examples → qwen/qwen3.6-27b generates SQL
+     ├─ queryDatabase        RAG few-shot examples → mistral-large-latest generates SQL
      │                       → validate (SELECT-only) → execute on Neon → classify viz
-     ├─ searchRelatedCases   Postgres full-text search over FIR narratives → citations
+     ├─ searchRelatedCases   Case-narrative retrieval → citations (pgvector, FTS fallback)
      ├─ checkInsights        Precomputed anomalies (spikes, repeat accused, surges)
+     ├─ predictHotspots      Least-squares district × crime-group trend → patrol priorities
      ├─ getNetworkOrMapData  Accused-linkage graph / per-district case counts
-     └─ predictRisk          Catalyst QuickML — chargesheet likelihood (AppSail only)
+     ├─ predictRisk          Chargesheet likelihood — Catalyst QuickML, local explainable fallback
+     ├─ findSimilarCases     Nearest narratives to one named case
+     ├─ buildCrewDossier     Two-hop co-accused + MO walk around a case or a person
+     └─ askClarification     Asks back instead of guessing when the question is ambiguous
      │
      ▼
 Stream: step events + metadata (rows, vizType, relatedCases) + narrative tokens (SSE)
@@ -67,9 +71,8 @@ Each tool call is fire-and-forget audited to a Catalyst Data Store table (`Agent
 
 Few-shot **example** retrieval (picking which Q→SQL pairs to show the SQL generator) runs on hosted APIs only (no local ONNX/HuggingFace). If `MISTRAL_API_KEY` is set it uses `mistral-embed` (1024-dim) with cached example vectors in `lib/rag-embeddings-cache.json`; otherwise it falls back to `mistral-small-latest` picking the best matching examples.
 
-Force a mode with `RAG_MODE=embed` or `RAG_MODE=llm` in `.env`.
 
-**Case** retrieval (the "Related Cases" citations panel) is a separate subsystem and does **not** use the embeddings API at all. Instead it uses Postgres native full-text search: see [Related Cases](#related-cases-citations) below.
+**Case** retrieval (the "Related Cases" citations panel) is a separate subsystem with its own precedence: pgvector cosine over stored narrative embeddings first, Postgres native full-text search as the fallback. See [Related Cases](#related-cases-citations) below.
 
 SQL is generated and stored server-side but **not shown in the chat UI** — investigators see the narrative summary, table/chart/map, and CSV export only.
 
@@ -90,15 +93,17 @@ Hotspot maps (Leaflet) live in the dedicated **Map** view, not in chat. They plo
 
 Alongside the structured SQL answer, every question also runs a second, independent retrieval over real case narratives (`CaseMaster.BriefFacts`) and surfaces matching FIRs as clickable citations — a collapsed **Related Cases** dropdown under the assistant's reply (`▸ Related Cases · N`, expands to case cards, click a card to open the full case file in the same drawer used elsewhere in the app).
 
-- **Retrieval**: `lib/case-retrieval.ts` — Postgres `to_tsvector`/`to_tsquery`/`ts_rank`, no pgvector, no external embedding call. Query terms are OR'd (not `plainto_tsquery`'s AND) so natural-language questions still match on partial overlap.
-- **Precision gate**: raw `ts_rank` magnitude isn't reliable on its own — short documents mean generic words (e.g. "filed", "month") can coincidentally out-rank a real match. `findSimilarCases()` requires **≥2 literal content-word overlap** between the question and the narrative before a case counts as related; this is what actually filters out aggregate questions ("how many FIRs were filed last month") rather than a score threshold.
+- **Retrieval, in precedence order** (`lib/case-retrieval.ts`, `findSimilarCases()`):
+  1. **pgvector — and this is the normal path.** Whenever `embeddingAvailable()` is true (which is just "`MISTRAL_API_KEY` is set", a **required** variable) the question is embedded with `mistral-embed` and ranked by cosine distance (`<=>`) against `CaseMaster.BriefFactsEmbedding`. It catches paraphrases full-text search misses.
+  2. **Postgres full-text search — the fallback.** Reached only when there is no key, when the vector query throws, or when it comes back with zero rows (e.g. the corpus has not been embedded yet). It is `to_tsvector`/`to_tsquery`/`ts_rank` with the query terms OR'd (not `plainto_tsquery`'s AND), so natural-language questions still match on partial overlap.
+- **Precision gate — on the full-text path only.** Raw `ts_rank` magnitude isn't reliable on its own: short documents mean generic words (e.g. "filed", "month") can coincidentally out-rank a real match, so `findSimilarCasesFTS()` requires **≥2 literal content-word overlap** between the question and the narrative before a case counts as related. That is what filters out aggregate questions ("how many FIRs were filed last month") when the fallback runs. The vector path applies no such gate — it takes the top-k by cosine distance — so on a normally-configured deployment this gate does not run at all.
 - **Corpus**: `CaseMaster.BriefFacts` is templated boilerplate out of `prisma/seed.ts` (e.g. *"Theft reported at station 42."*) — too generic to retrieve anything meaningful. Run `scripts/enrich-briefs.ts` after seeding to LLM-expand it into real 2–4 sentence FIR-style narratives (Mistral `mistral-small-latest`, batched + concurrent):
   ```bash
   npx tsx scripts/enrich-briefs.ts --limit=2000   # fast subset for a demo
   npx tsx scripts/enrich-briefs.ts                # full corpus (~20,000 cases)
   ```
   It's idempotent (only touches rows still matching the seed template) and safe to interrupt/rerun. Until it's run, the Related Cases panel will rarely show anything.
-- **Why still full-text**: the same file already does pgvector `<=>` search for modus-operandi linking (`similarCasesTo`, `similarCasesToText`). Citations stay on full-text on purpose — the ≥2 content-word overlap gate is what stops an aggregate question ("how many FIRs last month") from surfacing spurious "related" cases, and a nearest-neighbour search always returns its five nearest, relevant or not. Swapping the citation path to embeddings is a change in `lib/case-retrieval.ts` alone; the chat route, SSE payload, frontend panel and chat-history persistence are already provider-agnostic.
+- **The trade the vector-first order makes.** A nearest-neighbour search always returns its five nearest, relevant or not, so an aggregate question ("how many FIRs last month") can still surface cases the full-text path would have filtered out — the ≥2-overlap gate lives on the fallback and does not protect the vector path. That is the known cost of catching paraphrases, and the honest limit of this panel. The same file already does pgvector `<=>` search for modus-operandi linking (`similarCasesTo`, `similarCasesToText`), so both paths share one embedding column; changing the citation precedence is a change in `lib/case-retrieval.ts` alone, because the chat route, SSE payload, frontend panel and chat-history persistence are all provider-agnostic.
 
 ---
 
@@ -121,7 +126,7 @@ The insights panel is pull — it only exists while someone is looking at it. `l
 
 **Scope routing.** An SHO gets their own district's findings plus statewide ones (`districtId = null`); an HQ user gets everything — the same boundary the row-level-security policies draw around cases.
 
-**Dedupe.** Every finding carries a stable key built from the district and the numbers behind it (`spike:<district>:<this>:<last>`, `mo:<caseId>:<matchId>`, …), stored as `dedupeKey` under a unique `(userId, dedupeKey)` index and inserted with `skipDuplicates`. Re-running the job is idempotent: an officer is re-notified only when the underlying numbers move.
+**Dedupe.** Every finding carries a stable key built from the district and the numbers behind it (`spike:<district>:<this>:<last>`, `mo:<caseId>:<matchId>`, …), then suffixed with the recipient's scope on the way into the row — what is actually stored is `` `<dedupe>|<districtId>` ``, or `` `<dedupe>|all` `` for a statewide finding (`lib/alerts.ts`), so one finding routed to two districts is two distinct keys. Stored as `dedupeKey` under a unique `(userId, dedupeKey)` index and inserted with `skipDuplicates`. Re-running the job is idempotent: an officer is re-notified only when the underlying numbers move.
 
 **API routes:**
 
@@ -235,7 +240,7 @@ One run on the synthetic corpus: 30 districts and 12 patrol priorities in ~1.3 s
 
 ## Answer feedback and self-improving retrieval
 
-The weakest joint in the pipeline is the few-shot bank behind SQL generation — 25 seeded question → SQL pairs in `lib/rag-examples.json`. When it got a question wrong, fixing it meant editing that file and redeploying. Now it means a review.
+The weakest joint in the pipeline is the few-shot bank behind SQL generation — 99 seeded question → SQL pairs in `lib/rag-examples.json`. When it got a question wrong, fixing it meant editing that file and redeploying. Now it means a review.
 
 **Capturing the verdict.** A thumbs-up / thumbs-down pair sits under every assistant answer (`components/chat/MessageBubble.tsx`), and a thumbs-down opens a short *what was wrong* box. The client posts the whole exchange — the question read back out of the transcript, the answer, the SQL that was generated, and the tool names snapshotted off the Case Board when the run finished (`components/chat/ChatWindow.tsx`) — because a vote on its own is a number nobody can act on. The client sends it rather than the server joining it back: chat messages are re-keyed when they are persisted (`createMany` in `app/api/chats/[id]/route.ts`), so the id the browser holds is not a database id. It survives only as a dedupe key — `AnswerFeedback` is unique on `(userId, messageId)` and a repeat vote upserts, so changing your mind replaces the verdict instead of adding a second one. The vote and the tool list are deliberately client-only state (`store/chat.ts`); neither is written to chat history.
 
@@ -498,9 +503,35 @@ Weighting by severity rather than by row count is the point: 20 FIRs with no act
 
 Thirteen full-table scans over 20k cases only move when the case data does — a nightly load, not a page view — hence the cache; `?refresh=1` is the way past it when a reviewer has just had a correction applied and wants to see it land.
 
-**Console.** `/admin/data-quality`, linked from the dashboard profile popover and from both sibling consoles. `components/admin/QualityCheckList.tsx` ranks the checks worst-first — severity decides the tier, the failure rate orders inside it, and a clean check sinks regardless of how severe it would have been — with expandable examples; `components/admin/DistrictQualityTable.tsx` ranks districts by defect rate.
+**Console.** `/admin/data-quality`, linked from the dashboard profile popover and from its sibling consoles. `components/admin/QualityCheckList.tsx` ranks the checks worst-first — severity decides the tier, the failure rate orders inside it, and a clean check sinks regardless of how severe it would have been — with expandable examples; `components/admin/DistrictQualityTable.tsx` ranks districts by defect rate.
 
 One run on the synthetic corpus: score **99.9%**, **3 of 13 checks failing** — 25 FIRs still carrying the seed boilerplate narrative (0.125%), 1 missing a victim, 1 missing coordinates — across **20 of 30 districts**. That is one run on seeded data, not an evaluation.
+
+
+---
+
+## Oversight console — misuse detection over the trail
+
+The audit trail answers *what was asked*. This console answers the question the trail exists for: **is anyone using this tool on people it was not given to them for.** A trail nobody reads is a filing cabinet, not a control (`lib/misuse.ts`, `/admin/misuse`, `GET /api/admin/misuse?days=7|30|90`).
+
+**Six signals**, all read off `AgentAuditLog` runs, all about the *shape* of a querying pattern rather than its volume of honest work:
+
+| signal | what fires it |
+|---|---|
+| `repeat-person` | The same person's name looked up over and over across runs |
+| `name-sweep` | A run of unrelated names in one sitting, with no case reference attached |
+| `bulk-rows` | A pull far larger than the question needed |
+| `volume-burst` | A spike measured against **that officer's own** baseline, never against colleagues' |
+| `district-narrowing` | An HQ account's questions collapsing onto one district |
+| `off-hours` | Activity outside the officer's own usual hours |
+
+A name counts only when the SQL *filtered* on it (`"AccusedName" = 'X'`) — selecting the name column, as a list of repeat accused does, is analysis, not a lookup, and that distinction is most of what keeps ordinary work off the list.
+
+**What it deliberately is not.** Not a performance measure — an officer who asks a great many perfectly ordinary questions scores zero by construction. Not an accusation, and it never blocks anyone: every signal has an innocent explanation more likely than the guilty one, and each finding carries that explanation beside the concern. Thresholds are conservative on purpose — a missed pattern costs a review, a false flag costs an officer their standing.
+
+**Its blind spots are shipped with it.** The report carries a `notCovered` list that the console renders: whether the officer had a reason (no case is assigned to a user anywhere in the schema), what left the building (rows returned are recorded, rows copied or photographed are not), who was at the keyboard (no device, address or session id, so a shared login and one officer look identical), and anything asked outside this tool (direct database access is not in this trail at all). A control whose blind spots are undocumented is worse than no control.
+
+Reviewer-gated by `requireReviewer` like its three siblings, and **not cached** — a reviewer opening this has usually just been told about something, and a stale answer to "is this happening now" is worse than a slow one.
 
 ---
 
@@ -562,19 +593,19 @@ officer's posting. Accounts created from `/login` start as HQ (statewide); give 
 
 ```
 NEON_AUTH_URL=https://<endpoint-id>.neonauth.<region>.aws.neon.tech/neondb/auth   # Neon Console → Branch → Auth ("Auth URL"; NEON_AUTH_BASE_URL also accepted)
-NEON_AUTH_COOKIE_SECRET=<32+ random chars>
+NEON_AUTH_COOKIE_SECRET=<32+ random chars>   # REQUIRED in production — unset falls back to a hard-coded dev value
 ```
 
 Files: `lib/neon-auth-server.ts` (edge-safe instance), `lib/neon-auth.ts` (bridge), `app/api/auth/[...path]/route.ts` (API proxy),
 `proxy.ts` (Next middleware: exchanges the `?neon_auth_session_verifier` Google returns with for the Neon session cookie, then
 sends the user to `/auth/callback`), `lib/auth-client.ts`, `app/auth/callback/page.tsx` (Google return URL — add `http://localhost:3000` and the AppSail URL as trusted origins in the
-Neon Console). Without `NEON_AUTH_BASE_URL` the Neon buttons return a clear error and the password form still works.
+Neon Console). With neither `NEON_AUTH_URL` nor `NEON_AUTH_BASE_URL` set the Neon buttons return a clear error and the password form still works — `lib/neon-auth-server.ts` reads `NEON_AUTH_BASE_URL` first and falls back to `NEON_AUTH_URL`, so either name works and `neonAuthConfigured()` is false only when both are missing.
 
 ---
 
 ## Accuracy eval
 
-`lib/rag-examples.json` holds 94 question → gold-SQL pairs (84 English, 10 Kannada) covering counts, trends, joins across accused/victims/arrests/chargesheets/sections, and abbreviation traps (BLR, dowry death → 304B). The eval runs each question through the **same pipeline the agent uses** (`lib/text-to-sql.ts`: retrieve few-shot → generate → validate → execute under guards → repair once on DB error) and reports two numbers separately:
+`lib/rag-examples.json` holds 99 question → gold-SQL pairs (89 English, 10 Kannada) covering counts, trends, joins across accused/victims/arrests/chargesheets/sections, and abbreviation traps (BLR, dowry death → 304B). The eval runs each question through the **same pipeline the agent uses** (`lib/text-to-sql.ts`: retrieve few-shot → generate → validate → execute under guards → repair once on DB error) and reports two numbers separately:
 
 | metric | meaning |
 |---|---|
@@ -640,9 +671,9 @@ app/
   admin/feedback/   Reviewer console — accuracy chart + review queue
   admin/audit/      Audit viewer — runs, tool calls, scope badges, tool latency
   admin/data-quality/  Data quality console — completeness score, ranked checks, per-district defects
+  admin/misuse/     Oversight console — misuse signals read back off the audit trail
   api/
     auth/login/       Credential check → sets session cookie
-    auth/google/      Google ID-token check → find-or-create user, sets session cookie
     auth/logout/      Clears session cookie
     auth/signup/      User registration
     chats/            List / create chat sessions
@@ -684,19 +715,18 @@ components/
 lib/
   agent/
     orchestrator.ts   Agent loop — Mistral planner, tool execution, SSE event stream
-    tools.ts          5 tool implementations + JSON schemas
+    tools.ts          9 tool implementations + JSON schemas
     audit-log.ts      Fire-and-forget audit trail — Postgres + Catalyst Data Store + local JSONL, with actor, scope and the groundedness verdict
   rag.ts                RAG router (embeddings → LLM fallback) — few-shot SQL examples only, seeded + learned merged
   feedback.ts           Vote capture, review queue, the approval gate (validate + execute), stats
   learned-examples.ts   Approved corrections as few-shot examples — embedded, cached 60s
   audit.ts              Reading the audit trail — runs with their steps, and the summary
-  admin-auth.ts         Reviewer gate for both consoles (HQ role + ADMIN_EMAILS)
+  admin-auth.ts         Reviewer gate for all four admin consoles — fails closed when ADMIN_EMAILS is unset
   embeddings.ts         Mistral embeddings (mistral-embed, 1024-dim) + on-disk cache
   rag-llm.ts            LLM example-selection fallback
   mistral-client.ts     Shared Mistral client (openai SDK, Mistral base URL)
-  rag-keywords.ts       Keyword Jaccard (eval baseline only)
-  rag-examples.json 25 Q→SQL pairs (the RAG knowledge base)
-  case-retrieval.ts Related Cases retrieval — Postgres full-text search over BriefFacts
+  rag-examples.json 99 Q→SQL pairs (the RAG knowledge base)
+  case-retrieval.ts Related Cases retrieval — pgvector cosine over BriefFactsEmbedding, full-text over BriefFacts as fallback
   llm.ts            generateSQL() + streamSummary() via Mistral
   prompt-builder.ts KSP database schema (injected into every prompt)
   sql-validator.ts  SELECT-only guard, multi-statement block
@@ -754,15 +784,17 @@ scripts/
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `DATABASE_URL` | Yes | Neon PostgreSQL connection string |
-| `MISTRAL_API_KEY` | Yes | Mistral API key |
+| `MISTRAL_API_KEY` | Yes | Mistral API key. Also what `embeddingAvailable()` checks, so it is what puts Related Cases on the pgvector path rather than the full-text fallback |
+| `MISTRAL_BASE_URL` | No | OpenAI-compatible endpoint for every Mistral call (default `https://api.mistral.ai/v1`, `lib/mistral-client.ts`) |
 | `MISTRAL_SQL_MODEL` | No | SQL model (default `mistral-large-latest`) |
 | `MISTRAL_EMBED_MODEL` | No | Embedding model (default `mistral-embed`); embeddings use `MISTRAL_API_KEY` |
 | `MISTRAL_RAG_MODEL` | No | LLM example-picker fallback (default `mistral-small-latest`) |
-| `RAG_MODE` | No | `embed` or `llm` to force retrieval mode |
 | `MISTRAL_SUMMARY_MODEL` | No | Summary model (default `mistral-small-latest`) |
 | `MISTRAL_ORCH_MODEL` | No | Agent orchestrator model (default `mistral-large-latest`) |
 | `MISTRAL_EXTRACT_MODEL` | No | Model that reads an FIR document into a form draft (default `mistral-large-latest`) |
 | `SESSION_SECRET` | Prod | HMAC key for session cookies — required in production |
+| `NEON_AUTH_URL` | No | Neon Auth endpoint ("Auth URL" in the Neon Console). `NEON_AUTH_BASE_URL` is accepted for the same value; with neither set, Google and email-code sign-in are disabled and the password form still works |
+| `NEON_AUTH_COOKIE_SECRET` | **Prod** | Signs the Neon Auth cookie. **`lib/neon-auth-server.ts` silently falls back to a hard-coded `dev-insecure-…` string when unset** — fine on a laptop, an unauthenticated-session forgery risk anywhere else. Set 32+ random characters in production |
 | `CATALYST_AUTOML_MODEL_ID` | No | QuickML model ID for the `predictRisk` tool (AppSail only) |
 | `CRON_SECRET` | No | Bearer token guarding `/api/cron/insights` precompute and `/api/cron/alerts` |
 | `ALERT_MO_MIN_SCORE` | No | Minimum cosine similarity for a cross-district MO alert (default `0.72`) |
@@ -777,7 +809,9 @@ scripts/
 | `CATALYST_CRON_TARGET` | No | `webhook` (default) or `appsail` — how the job pool reaches the app |
 | `CATALYST_APPSAIL_NAME` | No | AppSail service name when `CATALYST_CRON_TARGET=appsail` (default `khabriai`) |
 | `CATALYST_APP_URL` | No | Public origin the job pool calls; derived from the request when unset |
-| `ADMIN_EMAILS` | No | Comma-separated allow-list for the two reviewer consoles (`/admin/feedback`, `/admin/audit`). Unset means any HQ account gets in — and every account created from `/login` defaults to HQ, so on a real deployment this list is the gate |
+| `KANNADA_CONCURRENCY` | No | Parallel batches for `scripts/enrich-kannada.ts` (default `1`) |
+| `LOADTEST_EMAIL` / `LOADTEST_PASSWORD` | No | Account `scripts/loadtest.ts` signs in as, creating it if needed (defaults `loadtest@ksp.test` / `LoadTest#2026`) |
+| `ADMIN_EMAILS` | **Yes** | Comma-separated allow-list for the four admin consoles (`/admin/feedback`, `/admin/audit`, `/admin/data-quality`, `/admin/misuse`). **`lib/admin-auth.ts` fails closed: while this is unset the consoles return 403 to everybody, including HQ.** That is deliberate — signup takes the posting from the request body and anything that is not `SHO` becomes HQ, so "HQ only" was never a gate on a deployment that accepts self-registration. Set it, or the governance surfaces stay shut |
 
 ---
 
@@ -790,7 +824,9 @@ catalyst deploy
 The `predeploy` hook runs `next build`, prepares the standalone bundle, and uploads it. The standalone output in `.next/standalone` is what AppSail serves (~170 MB). Catalyst rejects uploads over **250 MB** (HTTP 413).
 
 **AppSail env vars to set:**
-- `DATABASE_URL`, `MISTRAL_API_KEY`, `SESSION_SECRET`
+- `DATABASE_URL`, `MISTRAL_API_KEY`, `SESSION_SECRET`, `ADMIN_EMAILS`
+- `ADMIN_EMAILS` is not optional on a deploy: the four admin consoles (`/admin/feedback`, `/admin/audit`, `/admin/data-quality`, `/admin/misuse`) fail closed and answer 403 to everyone until it lists at least one reviewer's email. Anyone signing in with Neon Auth or `/signup` reaches the app as normal; only the governance surfaces are shut.
+- `NEON_AUTH_URL` + `NEON_AUTH_COOKIE_SECRET` if Google / email-code sign-in is wanted — without the cookie secret the Neon session cookie is signed with a public dev default
 - Optional: `CATALYST_AUTOML_MODEL_ID` (QuickML risk tool), `CRON_SECRET` (insights precompute + alerts), `ALERT_MO_MIN_SCORE` / `ALERT_MO_RECENT_DAYS` (MO-link alert tuning)
 
 **Optional Catalyst console setup** (features degrade gracefully without them):
@@ -854,7 +890,7 @@ Memory: `app-config.json` requests 1024 MB. Lower to 512 if your plan rejects it
 
 **"Could not generate a valid query"** — Try rephrasing more specifically, e.g. include a district name or crime type.
 
-**Related Cases panel is always empty** — `BriefFacts` is still the templated seed boilerplate. Run `npx tsx scripts/enrich-briefs.ts` (see [Related Cases](#related-cases-citations)) — the full-text index only has something to retrieve once narratives are real text.
+**Related Cases panel is always empty** — `BriefFacts` is still the templated seed boilerplate. Run `npx tsx scripts/enrich-briefs.ts` (see [Related Cases](#related-cases-citations)), then `npx tsx scripts/backfill-embeddings.ts` — neither the vector path nor the full-text fallback has anything to retrieve until the narratives are real text, and the vector path additionally needs `BriefFactsEmbedding` populated (with it empty, retrieval silently drops to full-text).
 
 **Mistral 401** — `MISTRAL_API_KEY` is missing or invalid.
 

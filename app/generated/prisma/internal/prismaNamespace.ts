@@ -3322,6 +3322,8 @@ export const ChatMessageScalarFieldEnum = {
   vizType: 'vizType',
   sqlError: 'sqlError',
   relatedCases: 'relatedCases',
+  trace: 'trace',
+  groundedness: 'groundedness',
   createdAt: 'createdAt'
 } as const
 

@@ -1,6 +1,6 @@
 "use client";
 import "leaflet/dist/leaflet.css";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChatStore } from "@/store/chat";
 import { t, type StringKey } from "@/lib/i18n";
 import { PatrolPriorities } from "./PatrolPriorities";
@@ -8,7 +8,7 @@ import { CaseDrawer } from "../viz/CaseDrawer";
 // Type-only: hotspot-forecast imports Prisma, which must never reach the bundle.
 import type { HotspotForecast, HotspotDistrict } from "@/lib/hotspot-forecast";
 // map-points takes its db client as an argument, so only the pure half compiles in.
-import { thinPoints, cellDegForZoom, type IncidentPoint, type Bounds } from "@/lib/map-points";
+import { thinPoints, cellDegForZoom, gmapsUrl, type IncidentPoint, type Bounds } from "@/lib/map-points";
 
 const DISTRICT_COORDS: Record<string, [number, number]> = {
   "Bagalkot": [16.1826, 75.6966], "Ballari": [15.1394, 76.9214],
@@ -58,10 +58,6 @@ function fuzzyCoords(name: string): [number, number] | null {
   return key ? DISTRICT_COORDS[key] : null;
 }
 
-function gmapsUrl(lat: number, lng: number, name: string) {
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name + " Karnataka")}`;
-}
-
 // Popups are raw HTML strings; crime group names come from the database, so
 // escape before interpolating rather than trusting the corpus.
 function esc(s: string) {
@@ -74,6 +70,7 @@ export function MapView() {
   const mapInstance = useRef<import("leaflet").Map | null>(null);
   const [districts, setDistricts] = useState<District[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dataError, setDataError] = useState(false);
 
   const [layer, setLayer] = useState<Layer>("observed");
   const [forecast, setForecast] = useState<HotspotForecast | null>(null);
@@ -92,10 +89,15 @@ export function MapView() {
   const [openCaseId, setOpenCaseId] = useState<number | null>(null);
   const pointSeq = useRef(0);
 
+  // Without the catch a failed load left the loading curtain over the map for
+  // good — the officer sees a spinner that never resolves and no reason why.
   useEffect(() => {
+    let cancelled = false;
     fetch("/api/map-data")
-      .then((r) => r.json())
-      .then((d) => { setDistricts(d.districts ?? []); setLoading(false); });
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("map-data failed"))))
+      .then((d) => { if (!cancelled) { setDistricts(d.districts ?? []); setLoading(false); } })
+      .catch(() => { if (!cancelled) { setDataError(true); setLoading(false); } });
+    return () => { cancelled = true; };
   }, []);
 
   // The fit is expensive and cached server-side for hours; nobody who stays on
@@ -127,22 +129,29 @@ export function MapView() {
       .catch(() => { if (seq === pointSeq.current) setPointState("error"); });
   }, []);
 
-  const rows: Row[] =
-    layer === "predicted"
-      ? (forecast?.districts ?? []).map((f) => ({ name: f.district, count: f.predicted30, forecast: f }))
-      : districts;
+  const rows: Row[] = useMemo(
+    () =>
+      layer === "predicted"
+        ? (forecast?.districts ?? []).map((f) => ({ name: f.district, count: f.predicted30, forecast: f }))
+        : districts,
+    [layer, forecast, districts]
+  );
 
+  // The Leaflet instance is built once and outlives every layer switch. It used
+  // to be rebuilt whenever the rows changed, which blanked the map for as long
+  // as a cold forecast took to arrive — and forever if it failed — and threw
+  // away the officer's pan and zoom every time they toggled the language.
   useEffect(() => {
-    if (loading || !mapRef.current || !rows.length) return;
+    if (loading || !mapRef.current) return;
     if (typeof window === "undefined") return;
 
     let cancelled = false; // guard against the dynamic import resolving post-unmount
+    const container = mapRef.current;
 
     import("leaflet").then(({ default: L }) => {
-      if (cancelled || !mapRef.current) return;
-      if (mapInstance.current) { mapInstance.current.remove(); mapInstance.current = null; }
+      if (cancelled || mapInstance.current) return;
 
-      const map = L.map(mapRef.current!, { zoomControl: true, scrollWheelZoom: true });
+      const map = L.map(container, { zoomControl: true, scrollWheelZoom: true });
       mapInstance.current = map;
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -155,11 +164,27 @@ export function MapView() {
       // throws "_leaflet_pos" on a removed map when the tab switches fast.
       setTimeout(() => { if (mapInstance.current === map) map.invalidateSize(); }, 200);
 
-      setMapEpoch((e) => e + 1); // the incident effects hang off this, not off a ref
+      setMapEpoch((e) => e + 1); // the marker effects hang off this, not off a ref
+    });
 
-      // The incident layer draws its own markers from CaseMaster coordinates —
-      // district centroids would only clutter the real ones.
-      if (layer === "incidents") return;
+    return () => { cancelled = true; mapInstance.current?.remove(); mapInstance.current = null; };
+  }, [loading]);
+
+  // District pins for the observed and predicted layers, in their own group so
+  // that swapping layers, refreshing the forecast or switching language redraws
+  // the markers and leaves the map — and the current viewport — alone.
+  useEffect(() => {
+    const map = mapInstance.current;
+    // The incident layer draws its own markers from CaseMaster coordinates —
+    // district centroids would only clutter the real ones.
+    if (!map || layer === "incidents" || !rows.length) return;
+
+    let cancelled = false;
+    let group: import("leaflet").LayerGroup | null = null;
+
+    import("leaflet").then(({ default: L }) => {
+      if (cancelled || mapInstance.current !== map) return;
+      group = L.layerGroup().addTo(map);
 
       const maxCount = Math.max(...rows.map((d) => d.count), 1);
 
@@ -192,7 +217,7 @@ export function MapView() {
           popupAnchor: [0, -Math.round(pinSize * 1.4)],
         });
 
-        const mapsUrl = gmapsUrl(lat, lng, dist.name);
+        const mapsUrl = gmapsUrl(lat, lng);
         const rank = rows.findIndex((d) => d.name === dist.name) + 1;
         const f = dist.forecast;
 
@@ -217,7 +242,7 @@ export function MapView() {
                </div>` : ""}`
           : `<span style="font-size:12px;color:#E63946;font-weight:600">${dist.count.toLocaleString()} ${esc(t("map.cases", lang))}</span><br/>`;
 
-        L.marker([lat, lng], { icon }).addTo(map).bindPopup(`
+        L.marker([lat, lng], { icon }).addTo(group!).bindPopup(`
           <div style="font-family:system-ui,sans-serif;min-width:180px;padding:2px">
             <div style="font-size:10px;color:#999;font-family:monospace;text-transform:uppercase;letter-spacing:.08em">${esc(t("map.rank", lang))} #${rank}</div>
             <b style="font-size:13px;display:block;margin:2px 0">${esc(dist.name)}</b>
@@ -231,9 +256,11 @@ export function MapView() {
       }
     });
 
-    return () => { cancelled = true; mapInstance.current?.remove(); mapInstance.current = null; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, districts, layer, forecast, lang]);
+    return () => {
+      cancelled = true;
+      if (group && mapInstance.current === map) map.removeLayer(group);
+    };
+  }, [mapEpoch, rows, layer, lang]);
 
   // Viewport tracking for the incident layer: zoom drives how coarse the grid
   // is, and a settled pan triggers a refetch for the new box.
@@ -311,6 +338,19 @@ export function MapView() {
   const maxCount = Math.max(...rows.map((d) => d.count), 1);
   const predicting = layer === "predicted";
   const plotting = layer === "incidents";
+
+  // When the active layer has nothing to pin, say why. An empty tile grid reads
+  // as a broken map, and a forecast that failed or is still fitting used to
+  // leave exactly that — the old overlay only spoke once the fit had succeeded.
+  const blank: { text: string; tone: string } | null = (() => {
+    if (loading || plotting || rows.length) return null;
+    if (predicting) {
+      if (forecastState === "error") return { text: t("hotspot.error", lang), tone: "var(--red)" };
+      if (forecastState === "ready") return { text: t("hotspot.empty", lang), tone: "var(--text-muted)" };
+      return { text: t("hotspot.loading", lang), tone: "var(--text-muted)" };
+    }
+    return dataError ? { text: "Could not load the crime map.", tone: "var(--red)" } : null;
+  })();
 
   const switchLayer = (next: Layer) => {
     setLayer(next);
@@ -417,9 +457,9 @@ export function MapView() {
           )}
           <div ref={mapRef} style={{ height: "100%", width: "100%" }} />
 
-          {predicting && forecastState === "ready" && !rows.length && (
+          {blank && (
             <div className="absolute inset-0 flex items-center justify-center z-10" style={{ background: "var(--bg-base)" }}>
-              <span className="font-data text-sm" style={{ color: "var(--text-muted)" }}>{t("hotspot.empty", lang)}</span>
+              <span className="font-data text-sm" style={{ color: blank.tone }}>{blank.text}</span>
             </div>
           )}
 
@@ -448,7 +488,7 @@ export function MapView() {
           {rows.map((d, i) => {
             const coords = fuzzyCoords(d.name);
             const mapsUrl = coords
-              ? gmapsUrl(coords[0], coords[1], d.name)
+              ? gmapsUrl(coords[0], coords[1])
               : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(d.name + " Karnataka")}`;
             const pct = d.count / maxCount;
             const f = d.forecast;

@@ -32,12 +32,14 @@ Question (EN / KN)
 Agent orchestrator (Mistral) — plans up to 4 tool iterations, first turn must call a tool
    │
    ├─ queryDatabase       RAG few-shot retrieval → SQL generation → SELECT-only validation → Neon
-   ├─ searchRelatedCases  Postgres full-text search over FIR narratives → citations
+   ├─ searchRelatedCases  Narrative retrieval → citations (pgvector first, full-text fallback)
    ├─ checkInsights       Precomputed anomalies: spikes, repeat accused, district surges
    ├─ getNetworkOrMapData Accused co-occurrence graph / per-district geospatial counts
    ├─ predictRisk         Chargesheet likelihood — Catalyst QuickML, local explainable fallback
    ├─ findSimilarCases    Modus-operandi linking — pgvector cosine over narrative embeddings (Mistral)
-   └─ predictHotspots     Where cases are projected to land next, and which stations carry that load
+   ├─ predictHotspots     Where cases are projected to land next, and which stations carry that load
+   ├─ buildCrewDossier    Two-hop co-accused + MO walk around a case or a person
+   └─ askClarification    Asks back instead of guessing when the question is ambiguous
    │
    ▼
 SSE stream: tool steps → result metadata (rows, vizType, citations) → narrative tokens
@@ -48,10 +50,14 @@ Persisted to Neon (chat history) · audited to Catalyst Data Store
 
 **Retrieval is three subsystems.** Few-shot example selection for SQL generation uses Mistral
 embeddings (`mistral-embed`, cached vectors), falling back to an LLM picker when the embeddings API
-is unavailable. Case citations use native Postgres `tsvector`/`ts_rank` full-text search with a
-≥2-content-word overlap gate — this is what stops aggregate questions ("how many FIRs last
-month") from surfacing spurious "related" cases. Modus-operandi linking (below) uses pgvector
-cosine distance over narrative embeddings stored on `CaseMaster.BriefFactsEmbedding`.
+is unavailable. Case citations are **vector-first**: `findSimilarCases()` embeds the question with `mistral-embed`
+and ranks by pgvector cosine distance over `CaseMaster.BriefFactsEmbedding` whenever
+`embeddingAvailable()` — which is only "`MISTRAL_API_KEY` is set", a required variable — so this is
+the normal path. It falls back to native Postgres `tsvector`/`ts_rank` full-text search when there is
+no key, when the vector query throws, or when it returns nothing. The **≥2-content-word overlap gate**
+that stops aggregate questions ("how many FIRs last month") from surfacing spurious "related" cases
+lives on that fallback only; the vector path takes its top-k by cosine distance ungated, which is the
+known cost of catching paraphrases. Modus-operandi linking (below) uses the same embedding column.
 
 ## What's built
 
@@ -344,8 +350,9 @@ The prototype is designed so a police officer can defend an answer in a review.
 
 20,000 synthetic FIR records calibrated to NCRB Karnataka crime-type proportions, across 1 state,
 30 districts and 210 police stations — with victims, accused, arrests, chargesheets, courts, and
-act/section associations. The schema mirrors the real KSP structure (29 models), so pointing the
-prototype at production data is a connection-string change, not a rewrite.
+act/section associations. The schema is 33 Prisma models: 26 mirroring the real KSP structure and 7 the app adds for itself
+(`KhabriUser`, `AnswerFeedback`, `AgentAuditLog`, `LearnedExample`, `Alert`, `ChatSession`,
+`ChatMessage`). Pointing the prototype at production data is a connection-string change, not a rewrite.
 
 Narratives are LLM-expanded from the seed's templated brief facts (`scripts/enrich-briefs.ts`). Where
 the same repeat offender has two or more cases in the same crime group, those cases are written with a
@@ -367,22 +374,48 @@ and a Mistral key.
 
 ## Evaluation
 
-`npm run eval -- --holdout` runs 93 question → gold-SQL pairs (83 English, 10 Kannada) through the
+`npm run eval -- --holdout` runs 99 question → gold-SQL pairs (89 English, 10 Kannada) through the
 **same pipeline the agent uses** (`lib/text-to-sql.ts`) and reports two numbers separately:
 *executes* (the SQL ran) and *matches* — the generated result set equals the gold SQL's result set
 (Spider-style execution match: value-only, order-insensitive, numbers at 2 dp, row lists compared on
 the set of `CaseMasterID`s). Holdout excludes each question's own example from few-shot retrieval.
 
-| Run (93 q, holdout) | executes | **matches** | Kannada | median latency |
-|---|---|---|---|---|
-| without SQL self-repair | 97% | **81%** | 10/10 | 2.3 s |
-| with one error-feedback repair | 99% | **84%** | 10/10 | 2.4 s |
+Every committed run is in `eval/results/`. The current bank (99 q) is the one to read:
 
-After adding legacy-name and case-number questions (99 q): 81% match, 97% executes, 10/10 Kannada.
-A later prompt pass (month formatting, no stray ID columns, "per district" vs "most", chargesheet
-semantics, age bands) lifted *executes* to 100% and left *matches* at 82% — the remaining misses are
-interpretation choices (which columns to show, whether "top" implies a limit), not wrong joins.
-Run-to-run LLM variance is a few points; treat the figure as low-to-mid 80s, not a single number.
+| Run (99 q, holdout, repair on) | executes | **matches** | Kannada | median |
+|---|---|---|---|---|
+| `2026-08-21-22-32-39` | 96/99 (97%) | **80/99 (81%)** | 10/10 | 2.6 s |
+| `2026-08-22-05-01-27` — after a prompt pass (month formatting, no stray ID columns, "per district" vs "most", chargesheet semantics, age bands) | 99/99 (100%) | **81/99 (82%)** | 9/10 | 2.1 s |
+
+Note the Kannada column: the run with the best *executes* is also the one where Kannada slipped to
+9/10. Across the five committed holdout runs Kannada scores 7, 10, 10, 10, 9 out of 10 — so 10/10 is
+something the system reaches, not something it holds.
+
+**On the self-repair ablation, honestly.** There is no paired run: `--no-repair` is a separate
+process, so each row below is an independent sample of the same LLM on the same questions, not the
+same generations with the repair step removed. Three runs exist on the earlier 93-question bank:
+
+| Run (93 q, holdout) | repair | executes | **matches** | Kannada |
+|---|---|---|---|---|
+| `2026-08-21-21-46-19` | off | 83/93 (89%) | **60/93 (65%)** | 7/10 |
+| `2026-08-21-21-58-32` | off | 90/93 (97%) | **75/93 (81%)** | 10/10 |
+| `2026-08-21-21-54-05` | on | 92/93 (99%) | **78/93 (84%)** | 10/10 |
+
+The two no-repair runs on identical questions differ by **16 points of match** (65% vs 81%) — larger
+than the 3-point gap between the better of them and the repair run. So the honest reading is: repair
+reliably helps *executes* (89–97% off, 99% on, and it is the mechanism that turns a DB error into a
+second attempt), while its effect on *matches* is **inside run-to-run variance and this data cannot
+separate it**. Quoting "97% → 99% / 81% → 84%" as the repair delta would be picking the favourable
+pair of three.
+
+The one place repair looks decisive is a 31-question subset run back-to-back
+(`2026-08-21-21-30-47` off vs `2026-08-21-21-32-20` on, same questions, two minutes apart): executes
+identical at 29/31 both times, matches 12/31 → 20/31. One pair on a third of the bank, offered as a
+signal, not a result.
+
+Treat overall accuracy as **low-to-mid 80s with a few points of run-to-run LLM variance**, not a
+single number. The remaining misses are interpretation choices (which columns to show, whether "top"
+implies a limit), not wrong joins.
 
 **Modus-operandi linking** (`npm run eval:similarity`, 300 random cases, 5 nearest neighbours each, full
 corpus of 19,975 embedded narratives): neighbours share the crime group **96%** and the specific crime
@@ -398,8 +431,8 @@ a second burst of 5 within the same minute hit the Mistral tier's rate limit and
 (p95). Single-demo and small-station use is comfortable; sustained concurrency needs a higher Mistral
 tier, not a code change.
 
-Per-question SQL, verdict, repair flag and latency for every run are committed under `eval/results/`.
-The remaining misses are presentation choices the model makes (`TO_CHAR 'YYYY-MM'` vs `DATE_TRUNC`,
+Per-question SQL, verdict, repair flag and latency are committed for every run, unfavourable ones
+included. The misses are presentation choices the model makes (`TO_CHAR 'YYYY-MM'` vs `DATE_TRUNC`,
 an extra ID column) and occasional syntax slips — not wrong joins or wrong filters.
 
 Guards on every generated query: AST-validated `SELECT`-only, a hard `LIMIT 500`, and an 8 s

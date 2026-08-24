@@ -9,13 +9,15 @@ import { similarity } from "./entity-resolve";
  * at the same station or reported again at the next one over because the
  * complainant did not know the first FIR had been taken.
  *
- * The two questions need opposite instincts. An MO link is happy with a loose
- * narrative match, because two burglaries by the same crew genuinely read
- * differently. A duplicate is the same event described twice, so the narrative
- * has to read almost the same AND the people have to line up. A similarity
- * number on its own would flag every pair of chain-snatchings in a week; this
- * scores several independent signals and reports which ones fired, so the
- * officer is told WHY rather than handed a percentage to trust.
+ * A similarity number on its own would flag every pair of chain-snatchings in a
+ * week — and on this corpus it is worse than that: the cosine between two files
+ * of one series and between two unrelated files of the same crime group are
+ * nearly the same distribution (see DUP.narrativeGate below for the numbers).
+ * So the narrative cannot decide this. What decides it is a matching
+ * complainant or victim, corroborated by the date and the station; the
+ * narrative is one weighted signal among five and is capped hard without a
+ * person. This scores each signal and reports which ones fired, so the officer
+ * is told WHY rather than handed a percentage to trust.
  *
  * Runs inside the caller's scope exactly like the crew walk — a district-posted
  * officer only ever sees pairs among the files RLS lets them read.
@@ -63,10 +65,29 @@ export interface DuplicateScore {
 
 export const DUP = {
   /**
-   * A duplicate should READ almost the same. The MO linker calls 0.72 a match
-   * and the crew walk 0.78 — both far too generous here, where the two texts
-   * are supposed to be two constables' accounts of one event. Below the gate a
-   * pair is a method match, not a re-filing, whatever else agrees.
+   * A cheap SQL pre-filter, and — measured — very nearly nothing else. Read the
+   * numbers before trusting this line.
+   *
+   * Measured 2026-08-25 over the live corpus, the top-8 nearest narratives of
+   * 400 random cases restricted to the same ±7-day window this detector uses:
+   * min .856, p05 .874, median .900, p95 .926, max .955. At .86 that gate
+   * passes 99.4% of the candidates the query returns. It rejects essentially
+   * nothing, and the older claim here — that .86 means the two files "read
+   * almost the same", while the MO linker's .72 and the crew walk's .78 were
+   * "far too generous" — was false: on this corpus none of the three rejected a
+   * single nearest neighbour.
+   *
+   * The wider picture is in SIMILAR_CASE_MIN_SCORE (lib/case-retrieval.ts):
+   * pairs from a known offender series (median .872) and unrelated pairs of the
+   * same crime group (median .835) overlap almost completely, so no cut on this
+   * axis separates "same event twice" from "same kind of event".
+   *
+   * What actually does the work in this file, therefore, is `personGate` and
+   * `noPersonCap` — a pair with no matching complainant or victim is held below
+   * the bar however well the text agrees. The gate is kept because narrowing
+   * 15k rows to 8 before pulling every name off them is worth doing, and
+   * because `weakNarrativeCap` should still refuse the rare pair that lands
+   * below the whole distribution. It is a bound, not evidence.
    */
   narrativeGate: 0.86,
   /** Scaling floor: 0.80 scores 0, 0.98 scores 1. */
@@ -170,7 +191,10 @@ export function scoreDuplicate(s: DuplicateSignals): DuplicateScore {
 function labelFor(k: DuplicateSignalName, s: DuplicateSignals): string {
   switch (k) {
     case "narrative":
-      return `Narratives read ${Math.round(s.narrative * 100)}% alike`;
+      // Not "92% alike" — the cosine is not a probability of anything. Show the
+      // raw number next to what unrelated files of the same crime group score,
+      // so the officer can see how little it separates.
+      return `Narrative cosine ${s.narrative.toFixed(2)} (unrelated same-type pairs median 0.84)`;
     case "people":
       return s.personLabel
         ? `Same person named in both — ${s.personLabel}`

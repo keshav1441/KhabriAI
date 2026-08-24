@@ -120,3 +120,19 @@ test("the groundedness verdict rides along when the narrative has been checked",
   assert.equal(trace.groundedness?.grounded, false);
   assert.equal(trace.groundedness?.checked, 1);
 });
+
+test("a failed query's SQL is never paired with another tool's row count", () => {
+  const trace = buildTrace({
+    calls: [
+      call({ status: "error", result: { status: "error", sql: "SELECT bad", message: "column does not exist" } }),
+      call({ tool: "buildCrewDossier", result: { status: "ok", rows: [{ name: "A" }, { name: "B" }, { name: "C" }] } }),
+    ],
+    scope: STATEWIDE,
+    totalMs: 400,
+  });
+
+  assert.equal(trace.sql, "SELECT bad");
+  // The query returned nothing; showing the dossier's three rows beside its SQL
+  // would tell an officer the failed query worked.
+  assert.equal(trace.rowCount, 0);
+});

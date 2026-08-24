@@ -59,12 +59,22 @@ export function VictimsView() {
   const [open, setOpen] = useState<string | null>(null);
   const [caseId, setCaseId] = useState<number | null>(null);
 
+  // The pairwise match behind /api/victims runs for tens of seconds, so a
+  // relaxed threshold can still be in flight when a stricter one comes back —
+  // without the flag the slow first answer overwrites the fast second.
   useEffect(() => {
+    let cancelled = false;
     setLoading(true);
     fetch(`/api/victims?minCases=${minCases}&limit=200`)
       .then((r) => r.json())
-      .then((d) => { setClusters(d.clusters ?? []); setDist(d.distribution ?? null); setLoading(false); })
-      .catch(() => setLoading(false));
+      .then((d) => {
+        if (cancelled) return;
+        setClusters(d.clusters ?? []);
+        setDist(d.distribution ?? null);
+        setLoading(false);
+      })
+      .catch(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [minCases]);
 
   return (

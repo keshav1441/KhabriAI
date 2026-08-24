@@ -150,12 +150,12 @@ export const STRINGS = {
   "alerts.kind.weekly_surge":   { en: "SURGE", kn: "ಉಲ್ಬಣ" },
   "alerts.kind.forecast":       { en: "FORECAST", kn: "ಮುನ್ಸೂಚನೆ" },
   "alerts.kind.mo_link":        { en: "MO LINK", kn: "ವಿಧಾನ ಸಂಪರ್ಕ" },
+  "alerts.kind.duplicate":      { en: "DUPLICATE", kn: "ನಕಲಿ" },
   "alerts.kind.default":        { en: "ALERT", kn: "ಎಚ್ಚರಿಕೆ" },
 
   // Crew dossier — the multi-hop MO/co-accused walk
   "nav.crew":             { en: "Crew Dossier", kn: "ತಂಡದ ಕಡತ" },
   "crew.tag":             { en: "CREW DOSSIER", kn: "ತಂಡದ ಕಡತ" },
-  "crew.title":           { en: "Crew Dossier", kn: "ತಂಡದ ಕಡತ" },
   "crew.subtitle":        { en: "Walk outward from one FIR or one person along co-accused links and repeated modus operandi — and see the series, not the single case.",
                             kn: "ಒಂದು ಎಫ್‌ಐಆರ್ ಅಥವಾ ಒಬ್ಬ ವ್ಯಕ್ತಿಯಿಂದ ಸಹ-ಆರೋಪಿ ಸಂಪರ್ಕ ಮತ್ತು ಪುನರಾವರ್ತಿತ ಅಪರಾಧ ವಿಧಾನದ ಮೂಲಕ ಹೊರಕ್ಕೆ ನಡೆದು — ಒಂದೇ ಪ್ರಕರಣವಲ್ಲ, ಇಡೀ ಸರಣಿಯನ್ನು ನೋಡಿ." },
   "crew.build":           { en: "Build crew dossier", kn: "ತಂಡದ ಕಡತ ಸಿದ್ಧಪಡಿಸಿ" },
@@ -394,8 +394,6 @@ export const STRINGS = {
 
   // Custody position
   "custody.title":        { en: "Custody position", kn: "ವಶದ ಸ್ಥಿತಿ" },
-  "custody.arrested":     { en: "Arrested", kn: "ಬಂಧಿತ" },
-  "custody.surrendered":  { en: "Surrendered", kn: "ಶರಣಾಗತ" },
   "custody.none":         { en: "Never brought in", kn: "ಎಂದೂ ಹಾಜರುಪಡಿಸಿಲ್ಲ" },
   "custody.filter":       { en: "Custody", kn: "ವಶ" },
   "custody.csNoCustody":  { en: "Chargesheeted with nobody in custody", kn: "ಯಾರೂ ವಶದಲ್ಲಿಲ್ಲದೆ ಆರೋಪಪಟ್ಟಿ" },
