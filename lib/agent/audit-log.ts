@@ -1,13 +1,27 @@
 import { appendFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { getCatalystApp, withCatalystTimeout } from "../catalyst-client";
+import { prisma } from "../db";
 
-// ponytail: local demo audit sink is an append-only JSONL file — no DB migration,
-// demonstrable with `cat .audit/agent-audit.jsonl`. Production uses the Catalyst
-// Data Store path below. Upgrade to a queryable Postgres table only if an in-app
-// audit viewer needs to page/filter it.
+// The audit trail is written three ways, for three different readers.
+//   Postgres  - the one the app can query, and what /admin/audit reads. It
+//               records the officer and the scope their query actually ran
+//               under, which the other two sinks never did.
+//   Catalyst  - the Data Store table, kept because it is off-box: an operator
+//               who can edit the application database cannot quietly edit it.
+//   JSONL     - a local file for a laptop demo with no Catalyst and, more
+//               usefully, a sink that still works when the database is the
+//               thing that broke.
+// All three are fire-and-forget. An audit write must never fail a query an
+// officer is waiting on, and must never throw into the streaming response.
 const LOCAL_AUDIT_DIR = join(process.cwd(), ".audit");
 const LOCAL_AUDIT_FILE = join(LOCAL_AUDIT_DIR, "agent-audit.jsonl");
+
+// Enough to reconstruct what a tool was asked and what it answered, without
+// making the audit table a second copy of the case database.
+const MAX_ARGS = 2000;
+const MAX_RESULT = 4000;
+const MAX_ANSWER = 8000;
 
 async function logLocal(record: object): Promise<void> {
   try {
@@ -23,8 +37,17 @@ async function logLocal(record: object): Promise<void> {
 // ToolCallCount, FinalAnswer — all text except ToolCallCount as bigint). The
 // SDK cannot create tables; this is a one-time manual console step, same as
 // the QuickML pipeline. Until that table exists, writes fail and are
-// swallowed below — chat keeps working without an audit trail.
+// swallowed — chat keeps working without the off-box copy.
 const AUDIT_TABLE = "AgentAuditLog";
+
+/** Who ran the query, and how far their posting let them see. */
+export interface AuditActor {
+  userId?: number | null;
+  email?: string | null;
+  role?: string | null;
+  districtId?: number | null;
+  districtName?: string | null;
+}
 
 export interface AuditStepRecord {
   runId: string;
@@ -33,6 +56,8 @@ export interface AuditStepRecord {
   args: unknown;
   result: unknown;
   status: "ok" | "error";
+  durationMs?: number;
+  actor?: AuditActor;
 }
 
 export interface AuditRunRecord {
@@ -40,12 +65,64 @@ export interface AuditRunRecord {
   question: string;
   toolCallCount: number;
   finalAnswer: string;
+  durationMs?: number;
+  actor?: AuditActor;
+}
+
+/** @internal exposed for tests */
+export function clip(value: unknown, max: number): string | null {
+  if (value === undefined || value === null) return null;
+  const text = typeof value === "string" ? value : JSON.stringify(value);
+  if (!text) return null;
+  return text.length > max ? `${text.slice(0, max)}… [truncated ${text.length - max} chars]` : text;
+}
+
+/** Row counts are the interesting part of a result: how much data was seen.
+ *  @internal exposed for tests */
+export function rowsIn(result: unknown): number | null {
+  const rows = (result as { rows?: unknown[] } | null)?.rows;
+  return Array.isArray(rows) ? rows.length : null;
+}
+
+function actorFields(actor?: AuditActor) {
+  return {
+    userId: actor?.userId ?? null,
+    userEmail: actor?.email ?? null,
+    userRole: actor?.role ?? null,
+    districtId: actor?.districtId ?? null,
+    districtName: actor?.districtName ?? null,
+  };
 }
 
 /** Fire-and-forget: never throws, never awaited by callers. */
 export async function logAuditStep(record: AuditStepRecord, req?: Request): Promise<void> {
+  const args = clip(record.args, MAX_ARGS);
+  const result = clip(record.result, MAX_RESULT);
+
+  await Promise.allSettled([
+    prisma.agentAuditLog
+      .create({
+        data: {
+          runId: record.runId,
+          eventType: "step",
+          question: record.question,
+          tool: record.tool,
+          args,
+          result,
+          status: record.status,
+          rowCount: rowsIn(record.result),
+          durationMs: record.durationMs ?? null,
+          ...actorFields(record.actor),
+        },
+      })
+      .catch((e: Error) => console.warn("audit step write failed:", e.message)),
+    writeCatalystStep(record, args, result, req),
+  ]);
+}
+
+async function writeCatalystStep(record: AuditStepRecord, args: string | null, result: string | null, req?: Request) {
   const app = getCatalystApp(req);
-  if (!app) { await logLocal({ eventType: "step", ...record }); return; }
+  if (!app) return logLocal({ eventType: "step", ...record });
   try {
     await withCatalystTimeout(
       app.datastore().table(AUDIT_TABLE).insertRow({
@@ -53,8 +130,8 @@ export async function logAuditStep(record: AuditStepRecord, req?: Request): Prom
         EventType: "step",
         Question: record.question,
         Tool: record.tool,
-        Args: JSON.stringify(record.args),
-        Result: JSON.stringify(record.result),
+        Args: args ?? "",
+        Result: result ?? "",
         Status: record.status,
       })
     );
@@ -65,8 +142,29 @@ export async function logAuditStep(record: AuditStepRecord, req?: Request): Prom
 
 /** Fire-and-forget: never throws, never awaited by callers. */
 export async function logAuditRun(record: AuditRunRecord, req?: Request): Promise<void> {
+  const finalAnswer = clip(record.finalAnswer, MAX_ANSWER);
+
+  await Promise.allSettled([
+    prisma.agentAuditLog
+      .create({
+        data: {
+          runId: record.runId,
+          eventType: "run",
+          question: record.question,
+          toolCallCount: record.toolCallCount,
+          finalAnswer,
+          durationMs: record.durationMs ?? null,
+          ...actorFields(record.actor),
+        },
+      })
+      .catch((e: Error) => console.warn("audit run write failed:", e.message)),
+    writeCatalystRun(record, finalAnswer, req),
+  ]);
+}
+
+async function writeCatalystRun(record: AuditRunRecord, finalAnswer: string | null, req?: Request) {
   const app = getCatalystApp(req);
-  if (!app) { await logLocal({ eventType: "run", ...record }); return; }
+  if (!app) return logLocal({ eventType: "run", ...record });
   try {
     await withCatalystTimeout(
       app.datastore().table(AUDIT_TABLE).insertRow({
@@ -74,7 +172,7 @@ export async function logAuditRun(record: AuditRunRecord, req?: Request): Promis
         EventType: "run",
         Question: record.question,
         ToolCallCount: record.toolCallCount,
-        FinalAnswer: record.finalAnswer,
+        FinalAnswer: finalAnswer ?? "",
       })
     );
   } catch (e) {

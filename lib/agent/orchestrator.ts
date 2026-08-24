@@ -144,7 +144,17 @@ export async function* runAgent(
 ): AsyncGenerator<AgentEvent> {
   const llm = getLlmClient();
   const runId = randomUUID();
+  const runStartedAt = Date.now();
   const scope = await getScope(req);
+  // The audit trail records who asked and how far their posting let them see,
+  // so a reviewer can tell an HQ answer from a district one after the fact.
+  const actor = {
+    userId: scope.userId,
+    email: scope.email,
+    role: scope.role,
+    districtId: scope.districtId,
+    districtName: scope.districtName,
+  };
   const scopeNote = scope.districtName
     ? ` This officer is posted to ${scope.districtName} district and can only see that district's data - every count, list and link is within ${scope.districtName}. Say "in ${scope.districtName}", never "statewide".`
     : "";
@@ -203,11 +213,11 @@ export async function* runAgent(
       const options = Array.isArray(clarify.args.options) ? (clarify.args.options as unknown[]).map(String).filter(Boolean) : [];
       const result = { status: "ok" as const, question: q, options };
       yield { type: "step", id: clarify.tc.id, tool: "askClarification", args: clarify.args, result, status: "ok" };
-      void logAuditStep({ runId, question, tool: "askClarification", args: clarify.args, result, status: "ok" }, req);
+      void logAuditStep({ runId, question, tool: "askClarification", args: clarify.args, result, status: "ok", actor }, req);
       yield { type: "meta", sql: "", rows: [], vizType: "table", sqlError: null, relatedCases: [] };
       const text = options.length ? [q, "", ...options.map((o) => "\u2022 " + o)].join("\n") : q;
       yield { type: "token", token: text };
-      void logAuditRun({ runId, question, toolCallCount: 1, finalAnswer: text }, req);
+      void logAuditRun({ runId, question, toolCallCount: 1, finalAnswer: text, durationMs: Date.now() - runStartedAt, actor }, req);
       yield { type: "done" };
       return;
     }
@@ -218,15 +228,16 @@ export async function* runAgent(
 
     const executed = await Promise.all(
       parsed.map(async ({ tc, args }) => {
+        const startedAt = Date.now();
         const { status, value } = await executeTool(tc.function.name, args, history, req);
-        return { tc, args, status, value };
+        return { tc, args, status, value, durationMs: Date.now() - startedAt };
       })
     );
 
-    for (const { tc, args, status, value } of executed) {
+    for (const { tc, args, status, value, durationMs } of executed) {
       toolCallCount++;
       yield { type: "step", id: tc.id, tool: tc.function.name, args, result: value, status };
-      void logAuditStep({ runId, question, tool: tc.function.name, args, result: value, status }, req);
+      void logAuditStep({ runId, question, tool: tc.function.name, args, result: value, status, durationMs, actor }, req);
       messages.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(capForLLM(value)) });
       if (tc.function.name === "queryDatabase") lastQueryResult = value as QueryDatabaseResult;
       if (tc.function.name === "searchRelatedCases") lastCasesResult = value as SearchRelatedCasesResult;
@@ -284,7 +295,7 @@ export async function* runAgent(
     yield { type: "token", token: finalAnswer };
   }
 
-  void logAuditRun({ runId, question, toolCallCount, finalAnswer }, req);
+  void logAuditRun({ runId, question, toolCallCount, finalAnswer, durationMs: Date.now() - runStartedAt, actor }, req);
 
   yield { type: "done" };
 }

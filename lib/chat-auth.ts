@@ -2,8 +2,15 @@ import { NextRequest } from "next/server";
 import { prisma, scopedClient, type Db } from "@/lib/db";
 import { verifySessionToken, SESSION_COOKIE_NAME } from "@/lib/session";
 
-export type Scope = { role: string; districtId: number | null; districtName: string | null };
-export const STATEWIDE: Scope = { role: "HQ", districtId: null, districtName: null };
+export type Scope = {
+  role: string;
+  districtId: number | null;
+  districtName: string | null;
+  /** Who the scope belongs to — the audit trail records the officer, not just the reach. */
+  userId: number | null;
+  email: string | null;
+};
+export const STATEWIDE: Scope = { role: "HQ", districtId: null, districtName: null, userId: null, email: null };
 
 // Works for NextRequest and the plain Request the agent tools carry. A browser
 // can send more than one khabri_session cookie (a stale one from a deleted
@@ -30,12 +37,12 @@ export function getScope(req: Request | undefined): Promise<Scope> {
   if (!p) {
     p = (async () => {
       for (const email of sessionEmails(req)) {
-        const rows = await prisma.$queryRawUnsafe<{ role: string; districtId: number | null; districtName: string | null }[]>(
-          `SELECT u."role", u."districtId", d."DistrictName" AS "districtName" FROM "KhabriUser" u LEFT JOIN "District" d ON d."DistrictID" = u."districtId" WHERE u."email" = $1`, email);
+        const rows = await prisma.$queryRawUnsafe<{ id: number; role: string; districtId: number | null; districtName: string | null }[]>(
+          `SELECT u."id", u."role", u."districtId", d."DistrictName" AS "districtName" FROM "KhabriUser" u LEFT JOIN "District" d ON d."DistrictID" = u."districtId" WHERE u."email" = $1`, email);
         const r = rows[0];
         if (!r) continue; // stale cookie for a deleted account - try the next one
-        if (r.role !== "SHO" || !r.districtId) return STATEWIDE;
-        return { role: r.role, districtId: r.districtId, districtName: r.districtName };
+        if (r.role !== "SHO" || !r.districtId) return { ...STATEWIDE, role: r.role, userId: r.id, email };
+        return { role: r.role, districtId: r.districtId, districtName: r.districtName, userId: r.id, email };
       }
       return STATEWIDE;
     })();
