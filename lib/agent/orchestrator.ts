@@ -11,10 +11,12 @@ import {
   runCheckInsights,
   runGetNetworkOrMapData,
   runPredictRisk,
+  runBuildCrewDossier,
   type ChatTurn,
   type QueryDatabaseResult,
   type SearchRelatedCasesResult,
   type FindSimilarCasesResult,
+  type BuildCrewDossierResult,
 } from "./tools";
 import { logAuditStep, logAuditRun } from "./audit-log";
 import { getScope } from "../chat-auth";
@@ -94,6 +96,10 @@ async function executeTool(
       const value = await runFindSimilarCases(args as Parameters<typeof runFindSimilarCases>[0], req);
       return { status: value.status, value };
     }
+    case "buildCrewDossier": {
+      const value = await runBuildCrewDossier(args as Parameters<typeof runBuildCrewDossier>[0], req);
+      return { status: value.status, value };
+    }
     case "searchRelatedCases": {
       const value = await runSearchRelatedCases(args as { query: string }, req);
       return { status: value.status, value };
@@ -146,6 +152,7 @@ export async function* runAgent(
   let lastQueryResult: QueryDatabaseResult | null = null;
   let lastCasesResult: SearchRelatedCasesResult | null = null;
   let lastSimilarResult: FindSimilarCasesResult | null = null;
+  let lastCrewResult: BuildCrewDossierResult | null = null;
   let toolCallCount = 0;
 
   for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
@@ -219,17 +226,22 @@ export async function* runAgent(
       if (tc.function.name === "queryDatabase") lastQueryResult = value as QueryDatabaseResult;
       if (tc.function.name === "searchRelatedCases") lastCasesResult = value as SearchRelatedCasesResult;
       if (tc.function.name === "findSimilarCases") lastSimilarResult = value as FindSimilarCasesResult;
+      if (tc.function.name === "buildCrewDossier") lastCrewResult = value as BuildCrewDossierResult;
     }
   }
 
   // A similar-case search is itself the evidence: show its rows as the table
   // and its cases in the Related Cases panel when no SQL query ran.
-  const similarRows = !lastQueryResult?.rows?.length && lastSimilarResult?.rows?.length ? lastSimilarResult.rows : null;
+  // A crew dossier's member list is evidence in the same way; it wins over a
+  // similar-case list because it is the broader answer.
+  const fallbackRows = !lastQueryResult?.rows?.length
+    ? (lastCrewResult?.rows?.length ? lastCrewResult.rows : lastSimilarResult?.rows?.length ? lastSimilarResult.rows : null)
+    : null;
   yield {
     type: "meta",
     sql: lastQueryResult?.sql ?? "",
-    rows: similarRows ?? lastQueryResult?.rows ?? [],
-    vizType: similarRows ? "table" : (lastQueryResult?.vizType ?? "table"),
+    rows: fallbackRows ?? lastQueryResult?.rows ?? [],
+    vizType: fallbackRows ? "table" : (lastQueryResult?.vizType ?? "table"),
     sqlError: lastQueryResult?.status === "error" ? (lastQueryResult.message ?? "Query failed") : null,
     relatedCases: lastCasesResult?.cases ?? lastSimilarResult?.cases ?? [],
   };

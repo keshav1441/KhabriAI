@@ -9,6 +9,9 @@ import { computeInsights } from "../insights-compute";
 import { prisma } from "../db";
 import { getCatalystApp, withCatalystTimeout } from "../catalyst-client";
 import { predictChargesheetRisk, type RiskContribution } from "../risk-model";
+import { buildCrew, type CrewDossier } from "../crew";
+import { scopedClient } from "../db";
+import { similarNames } from "../entity-resolve";
 
 export type { ChatTurn };
 
@@ -57,6 +60,18 @@ export interface PredictRiskResult {
   probability?: number;
   contributions?: RiskContribution[];
   source?: "local" | "quickml";
+  message?: string;
+}
+
+export interface BuildCrewDossierResult {
+  status: "ok" | "error";
+  /** Narratives stripped — see runBuildCrewDossier. */
+  dossier?: CrewDossier;
+  rows?: Record<string, unknown>[];
+  vizType?: VizType;
+  /** One name, several people: the agent must ask instead of picking one. */
+  ambiguousPerson?: { token: string; count: number; examples: string[] } | null;
+  suggestions?: string[];
   message?: string;
 }
 
@@ -166,6 +181,23 @@ export const TOOL_SCHEMAS: OpenAI.Chat.ChatCompletionTool[] = [
           description: { type: "string", description: "Free-text description of the method, when there is no source case." },
           excludeSourceDistrict: { type: "boolean", description: "True to return only cases from OTHER districts (cross-jurisdiction links)." },
           topK: { type: "number", description: "How many cases to return (default 5, max 10)." },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "buildCrewDossier",
+      description:
+        "Build a crew/gang dossier around one case or one person: walks outward along co-accused links (people charged in the same FIR) and modus-operandi links (narratives describing the same method), and returns the members, the cases with how each was reached, the districts crossed, the recurring signature phrases and what stage each case is at. Use when the officer asks WHO is behind a series, to map a crew or gang around a case or person, or to place a case inside a wider network. Do NOT use for a plain 'what else looks like this' single-case lookup - that is findSimilarCases.",
+      parameters: {
+        type: "object",
+        properties: {
+          crimeNo: { type: "string", description: "18-digit CrimeNo of the seed case, if the officer quoted one." },
+          caseId: { type: "number", description: "CaseMasterID of the seed case, if known." },
+          personName: { type: "string", description: "Full name of the accused to start from, when there is no case." },
+          personId: { type: "string", description: "PersonID of the accused to start from, if known." },
         },
       },
     },
@@ -361,5 +393,100 @@ export async function runPredictRisk(
   } catch (e) {
     console.error("predictRisk tool failed:", e);
     return { status: "error", message: "Risk prediction failed" };
+  }
+}
+
+type PersonHit = { person_id: string; name: string | null; cases: number };
+
+/**
+ * A name is not an identity. Resolve it to exactly one PersonID or refuse:
+ * picking the busiest "Ravi" would put the wrong man at the centre of a gang
+ * dossier. Matches the ambiguity contract queryDatabase already returns, so the
+ * agent asks the same follow-up question it asks for a bare first name.
+ */
+async function resolvePerson(
+  db: ReturnType<typeof scopedClient>,
+  rawName: string
+): Promise<{ personId: string } | BuildCrewDossierResult> {
+  const name = rawName.trim();
+  const hits = await db.$queryRawUnsafe<PersonHit[]>(
+    `SELECT a."PersonID" AS person_id, MAX(a."AccusedName") AS name, COUNT(DISTINCT a."CaseMasterID")::int AS cases
+     FROM "Accused" a
+     WHERE a."PersonID" IS NOT NULL AND a."AccusedName" ILIKE $1
+     GROUP BY a."PersonID"
+     ORDER BY cases DESC
+     LIMIT 10`,
+    `%${name}%`
+  );
+
+  if (!hits.length) {
+    // Never rewrite a person name silently - offer the near misses instead.
+    const all = await db.$queryRawUnsafe<{ n: string }[]>(`SELECT DISTINCT "AccusedName" AS n FROM "Accused" WHERE "AccusedName" IS NOT NULL`);
+    const suggestions = similarNames(name, all.map((r) => r.n).filter(Boolean), 5);
+    return { status: "error", message: `No accused named ${name} is in scope.`, suggestions };
+  }
+
+  // An exact name wins over the substring matches it dragged in.
+  const exact = hits.filter((h) => (h.name ?? "").toLowerCase() === name.toLowerCase());
+  const candidates = exact.length ? exact : hits;
+  if (candidates.length > 1) {
+    const examples = candidates.slice(0, 5).map((h) => `${h.name ?? h.person_id} (${h.cases} cases)`);
+    return {
+      status: "error",
+      message: `${candidates.length} different people match "${name}". Ask the officer for the full name, PersonID or district before building a dossier.`,
+      ambiguousPerson: { token: name, count: candidates.length, examples },
+    };
+  }
+  return { personId: candidates[0].person_id };
+}
+
+export async function runBuildCrewDossier(
+  args: { crimeNo?: string; caseId?: number; personName?: string; personId?: string },
+  req?: Request
+): Promise<BuildCrewDossierResult> {
+  const crimeNo = args.crimeNo?.trim();
+  const personName = args.personName?.trim();
+  let personId = args.personId?.trim() || undefined;
+  let caseId = Number(args.caseId) || undefined;
+  if (!caseId && !crimeNo && !personId && !personName) {
+    return { status: "error", message: "Give a case (CaseMasterID or CrimeNo) or a person (name or PersonID) to build the dossier around." };
+  }
+
+  try {
+    const { districtId } = await getScope(req);
+    const scoped = scopedClient(districtId);
+
+    if (!caseId && crimeNo) {
+      const r = await scoped.$queryRawUnsafe<{ id: number }[]>(`SELECT "CaseMasterID" AS id FROM "CaseMaster" WHERE "CrimeNo" = $1 LIMIT 1`, crimeNo);
+      caseId = r[0]?.id;
+      if (!caseId) return { status: "error", message: `No case with CrimeNo ${crimeNo}` };
+    }
+    if (!caseId && !personId && personName) {
+      const resolved = await resolvePerson(scoped, personName);
+      if ("status" in resolved) return resolved;
+      personId = resolved.personId;
+    }
+
+    const dossier = await buildCrew({ caseId, personId }, { districtId });
+    if (!dossier.cases.length) {
+      return { status: "error", message: "Nothing to build a dossier from - the seed case or person is not in this officer's scope." };
+    }
+
+    // The brief facts are the bulk of the payload and the planner never needs
+    // them: the recurring phrases are already distilled into `signature`.
+    const lean: CrewDossier = { ...dossier, cases: dossier.cases.map((c) => ({ ...c, briefFacts: null })) };
+    // One row per member for the table viz; the dossier carries the rest.
+    const rows = dossier.members.map((m) => ({
+      name: m.name,
+      PersonID: m.personId,
+      cases_in_crew: m.casesInCrew,
+      total_cases: m.totalCases,
+      districts: m.districts.join(", "),
+      arrests: m.arrests,
+    }));
+    return { status: "ok", dossier: lean, rows, vizType: "table" };
+  } catch (e) {
+    console.error("buildCrewDossier tool failed:", e);
+    return { status: "error", message: "Crew dossier build failed" };
   }
 }

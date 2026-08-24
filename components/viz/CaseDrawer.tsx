@@ -1,6 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import { STATUS_STYLE } from "@/lib/caseStatus";
+import { CrewDossier } from "../crew/CrewDossier";
+import { useChatStore } from "@/store/chat";
+import { t } from "@/lib/i18n";
 
 interface CaseData {
   case: Record<string, unknown>;
@@ -27,6 +30,8 @@ export function CaseDrawer({ caseId: requestedId, onClose }: { caseId: number | 
   }, [caseId]);
   const [data, setData] = useState<CaseData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [crewFor, setCrewFor] = useState<number | null>(null);
+  const lang = useChatStore((s) => s.lang);
 
   useEffect(() => {
     if (!caseId) { setData(null); return; }
@@ -189,6 +194,21 @@ export function CaseDrawer({ caseId: requestedId, onClose }: { caseId: number | 
               </Section>
             )}
 
+            {/* One MO hit is a lead; the crew walk is the series behind it. */}
+            <button
+              type="button"
+              onClick={() => setCrewFor(caseId)}
+              className="w-full text-left rounded-md px-3 py-2.5 transition-all"
+              style={{ background: "var(--khaki-dim)", border: "1px solid var(--khaki)" }}
+            >
+              <div className="text-xs font-bold font-data tracking-wide" style={{ color: "var(--khaki)" }}>
+                {t("crew.build", lang)} →
+              </div>
+              <div className="text-[11px] mt-0.5" style={{ color: "var(--text-secondary)" }}>
+                {t("crew.buildHint", lang)}
+              </div>
+            </button>
+
             {data.actSections.length > 0 && (
               <Section title={`Sections Charged (${data.actSections.length})`}>
                 <div className="flex flex-wrap gap-1.5 mt-1">
@@ -257,6 +277,14 @@ export function CaseDrawer({ caseId: requestedId, onClose }: { caseId: number | 
         )}
         </div>{/* dialog */}
       </div>{/* backdrop */}
+
+      {crewFor && (
+        <CrewDossier
+          caseId={crewFor}
+          onClose={() => setCrewFor(null)}
+          onOpenCase={(id) => { setCrewFor(null); setCaseId(id); }}
+        />
+      )}
     </>
   );
 }

@@ -64,6 +64,7 @@ cosine distance over narrative embeddings stored on `CaseMaster.BriefFactsEmbedd
 | Reports & early warning | Anomaly insights + least-squares 6-month trend forecast per district × crime group |
 | Risk prediction | Chargesheet likelihood with **per-feature contributions**, not a bare score |
 | **Modus-operandi linking** | pgvector nearest-narrative search: "which cases, anywhere in the state, describe the same method?" — from a case, a CrimeNo, or a free-text description; cross-district links flagged |
+| **Crew dossier** | Walks outward from one FIR or one person along co-accused links and matching narratives: members, case timeline, districts crossed, recurring signature phrases — and how each case was reached |
 | **Proactive alerts** | The detectors run on a schedule, not on a page view: spikes, repeat accused, weekly surges, forecasts and cross-district MO matches are written as per-officer alerts and surfaced in a header bell; clicking one puts the investigating question in the chat |
 | Kannada localization | Full nav/chat UI in Kannada, questions accepted in either language |
 | Voice + export | Speech in/out, conversation PDF export, CSV result export |
@@ -91,6 +92,27 @@ how often neighbours share the specific crime type and the crime group, and — 
 to a repeat-offender series — how often a same-crew case is found from the narrative alone, and what
 share of those links cross a district boundary. Results are recorded in `eval/results/*-similarity.json`
 and quoted in the Evaluation section below once the full corpus is embedded.
+
+## Crew dossier — from one link to the series behind it
+
+A single MO link answers "what else looks like this?". An investigation needs the next three
+questions: who is behind it, where has it run, and what is already done about it. From any case —
+or any accused — KhabriAI walks two hops outward along two kinds of edge: people charged in the
+same FIR, and narratives that describe the same method. It returns a briefing: the members with
+their case counts and arrests, the case timeline, the districts crossed, and the phrases the
+narratives keep repeating — the crew's habit in the files' own words. Co-accused hops stay inside
+the seed's crime groups, so a prolific offender's unrelated cases do not flood the dossier, and the
+caps (40 cases, 25 members) are spent on the strongest evidence first and declared when they bite.
+
+Every case in the dossier states **how it was reached** — seed, co-accused, or a narrative match
+with its score and the case it matched against. A co-accused link is a fact from the FIR; an MO link
+is a number the officer can judge. Nothing in the briefing is an unexplained assertion, which is what
+lets an officer defend it in review — and print it, as the dossier exports to PDF for the case file.
+
+One run on the synthetic corpus (`npm run crew -- --case 13778`): 40 cases, 25 members, 21 districts,
+4 chargesheeted against 36 still open, spanning 2024-10-02 to 2026-08-12, with the signature coming
+back as "men on a black pulsar without a number plate" and "cut the cctv cable", and MO links in the
+0.92–0.95 range chaining across districts. That is one seed on seeded data, not an evaluation.
 
 ## Proactive alerts — the system does not wait to be asked
 

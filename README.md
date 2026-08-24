@@ -20,6 +20,7 @@ Conversational AI for investigators to query crime data in plain English. Sign i
 | Embeddings | Gemini API (`gemini-embedding-2`) · LLM fallback for example selection |
 | Case retrieval | Postgres full-text search (`tsvector`/`ts_rank`) over `CaseMaster.BriefFacts` |
 | Proactive alerts | Scheduled detectors → per-officer `Alert` rows (Postgres unique dedupe) · header bell, 60s poll |
+| Crew dossier | Two-hop walk over co-accused + pgvector MO edges (`lib/crew.ts`) · browser-print PDF briefing |
 | Maps | Leaflet + react-leaflet |
 | Network graph | Cytoscape.js + cose-bilkent |
 | Charts | Recharts |
@@ -133,6 +134,56 @@ Or open the bell and hit **Run detection** — same engine, behind a signed-in b
 Tuning: `ALERT_MO_MIN_SCORE` (default `0.72`) and `ALERT_MO_RECENT_DAYS` (default `30`). The linker needs embeddings — run `npm run embed` first, otherwise only the anomaly and forecast detectors fire.
 
 Schema: `model Alert` in `prisma/schema.prisma`, migration `prisma/migrations/20260825000000_alerts`.
+
+---
+
+## Crew dossier
+
+An MO link answers *what else looks like this*. A dossier answers the next three questions — **who** is behind it, **where** has it run, **what** is already done. `lib/crew.ts` walks outward from one seed (a case or a person) for two hops along two kinds of edge and returns the connected component as a briefing: members, case timeline, districts crossed, the recurring phrases in the narratives, and the stage each case is at.
+
+**The two edges:**
+
+| Edge | What it is | How it is followed |
+|---|---|---|
+| `co-accused` | People named in the same FIR — a fact from the file, not an inference | Every person on a frontier case, then **their** other cases |
+| `mo` | pgvector nearest narratives (`CaseMaster.BriefFactsEmbedding`, one indexed `LATERAL` pass per hop) | Only from cases already on the method chain — the seed, or an earlier MO hit |
+
+**Why co-accused hops are crime-group-restricted.** A co-offender's other cases are filtered to the `CrimeMajorHeadID` values the seed cases belong to. Without it a prolific offender drags in every accident and dowry case they were ever named in, and the dossier stops describing a series and starts describing one person's whole record.
+
+**Why MO is followed only from the method chain.** Chasing narratives out of every co-offender's case turns a series into a survey of the whole state, so the similarity edge stays on the chain that started at the seed.
+
+**Caps.** 40 cases, 25 members, `hops: 2`, `moTopK: 4`, `moMinScore` default `0.78` (`CREW_MO_MIN_SCORE`). The cap is a budget spent on the strongest evidence first — MO hits by score, then co-accused cases newest first — and when a cap stops the walk the dossier is returned with `truncated: true` rather than silently trimmed. Every case carries **how it was reached** (`link: seed | co-accused | mo`, plus `linkedFrom` and `linkScore` for an MO edge), so nothing in the briefing is an unexplained assertion.
+
+**Signature.** `extractSignature()` counts word shingles (12 down to 4 words) across the dossier's narratives, never running a phrase across a clause boundary, keeps only phrases that recur in several separate files, and keeps the longest form of each — the crew's habit in the FIRs' own words.
+
+The whole walk runs through `scopedClient(districtId)`, so an SHO's dossier is built from the cases row-level security lets them see.
+
+**API:**
+
+| Route | Purpose |
+|---|---|
+| `GET /api/crew?caseId=13778` | Seed from a `CaseMasterID` |
+| `GET /api/crew?crimeNo=…` | Seed from the 18-digit CrimeNo an officer actually has in front of them |
+| `GET /api/crew?personId=KSP-P-00928` | Seed from a person — every case they are named in becomes the seed set |
+
+Session-guarded (`requireUser`) and scope-aware (`getScope`); `400` when no seed is given, `404` for an unknown CrimeNo or a seed that is not in scope.
+
+**Agent tool.** `buildCrewDossier` (`lib/agent/tools.ts`) takes `crimeNo`, `caseId`, `personName` or `personId`. A CrimeNo is resolved to an id inside the caller's scope; a name is resolved to a `PersonID` with an exact match preferred over the substring hits it dragged in — if several different people still match, the tool refuses and asks the officer to disambiguate (`ambiguousPerson` with examples), and if none match it returns near-miss name suggestions rather than rewriting the name silently. Brief facts are stripped before the dossier goes back to the planner (the recurring detail is already distilled into `signature`), and one row per member is returned for the table viz. The orchestrator treats that member list as evidence: it wins the visualization over a similar-cases result.
+
+**UI.** Two entry points:
+- **Crew** nav item in the dashboard (`components/views/CrewView.tsx`) — type a seed; digits are read as a case id, anything else as a PersonID.
+- **Build crew dossier** button in the Case File drawer (`components/viz/CaseDrawer.tsx`), under the Similar Modus Operandi list — one MO hit is a lead, the walk is the series behind it.
+
+Both render `components/crew/CrewDossier.tsx` (inline in the view, floating over the drawer). Clicking a case in the timeline opens its full case file.
+
+**PDF export.** The **↓ PDF** button calls `window.print()`; a print-only `.print-root` renders the dossier as sections — summary, signature, members, case timeline with the link that brought each case in — using the print rules in `app/globals.css`. Same browser-print route as the chat transcript, so a dossier reaches a case file as paper without a PDF dependency.
+
+**Run it without the UI:**
+```bash
+npm run crew -- --case 13778           # seed from a CaseMasterID
+npm run crew -- --person KSP-P-00928   # seed from a PersonID
+```
+Prints the summary line, districts, signature, members and the case timeline with `[mo 0.93 ← 13778]`-style provenance on every row, plus how many MO links cross a district boundary. `npm test` covers the signature extractor (`test/crew.test.ts`).
 
 ---
 
@@ -268,7 +319,7 @@ After changing `lib/mo-signature.ts`, regenerate with `npm run enrich -- --all` 
 app/
   (auth)/login/     Login page
   (auth)/signup/    Sign up page
-  dashboard/        Main app shell (sidebar, chat, map, reports, about)
+  dashboard/        Main app shell (sidebar, chat, map, network, crew, reports, about)
   api/
     auth/login/       Credential check → sets session cookie
     auth/google/      Google ID-token check → find-or-create user, sets session cookie
@@ -280,6 +331,7 @@ app/
     insights/         Anomaly insight cards (Catalyst Cache-backed)
     alerts/           Alert feed (GET) + mark read (PATCH)
     alerts/generate/  Run detection now (signed-in "Run detection" button)
+    crew/             Crew dossier around a case (caseId/crimeNo) or a person (personId)
     cron/insights/    Precompute target for scheduled insight refresh (also fans out alerts)
     cron/alerts/      Scheduled target for the alert engine (Bearer CRON_SECRET)
     cron/register/    Registers the Catalyst cron that calls the two above
@@ -288,7 +340,8 @@ app/
     reports/          Pre-aggregated insight cards
 components/
   chat/             ChatWindow, MessageBubble, CaseBoard (live tool steps), RelatedCases, ChatHistory
-  views/            Map, Network, Reports, About panels
+  views/            Map, Network, Crew, Reports, About panels
+  crew/             CrewDossier — dossier panel + print-only PDF rendering
   viz/              NetworkGraph, ResultsTable, CrimeChart, CaseDrawer
 lib/
   agent/
@@ -308,6 +361,7 @@ lib/
   query-classifier.ts  SQL → vizType (table / chart / graph)
   insights-compute.ts  The 3 anomaly-detection queries (spikes, repeat accused, surges)
   alerts.ts            Alert engine — detectors + cross-district MO linker, scope fan-out, dedupe
+  crew.ts              Crew dossier — two-hop co-accused + MO walk, caps, signature extraction
   insights-cache.ts    Insight cache keys/TTL over catalyst-cache
   catalyst-client.ts   Request-scoped Catalyst SDK init + timeout guard (null outside AppSail)
   catalyst-cache.ts    Catalyst Cache get/set with local fallback
@@ -321,11 +375,14 @@ prisma/
   schema.prisma     KSP FIR schema + KhabriUser + ChatSession + ChatMessage
   seed.ts           20,000 synthetic KSP-calibrated FIR records
   migrations/       …_add_case_fts — GIN full-text index on BriefFacts + ChatMessage.relatedCases
+test/
+  crew.test.ts      Signature extractor — recurrence, longest form, clause boundaries
 eval/
   run.ts            Offline accuracy harness
 scripts/
   prepare-standalone.mjs  Copies static/public/rag-examples.json + .env into the AppSail bundle, dereferences symlinks
   enrich-briefs.ts        LLM-expands templated BriefFacts into real FIR narratives
+  crew-check.ts           Prints a dossier for a seed without the UI (`npm run crew`)
 ```
 
 ---
@@ -347,6 +404,7 @@ scripts/
 | `CRON_SECRET` | No | Bearer token guarding `/api/cron/insights` precompute and `/api/cron/alerts` |
 | `ALERT_MO_MIN_SCORE` | No | Minimum cosine similarity for a cross-district MO alert (default `0.72`) |
 | `ALERT_MO_RECENT_DAYS` | No | How far back the MO linker looks for newly registered cases (default `30`) |
+| `CREW_MO_MIN_SCORE` | No | Minimum cosine similarity for a modus-operandi edge in the crew dossier walk (default `0.78`) |
 | `CATALYST_CRON_NAME` | No | Name of the registered Catalyst cron (default `khabri-alerts`) |
 | `CATALYST_JOBPOOL_NAME` | No | Job pool the scheduled job is submitted to (default `khabri-jobs`) |
 | `CATALYST_CRON_EVERY_HOURS` | No | Interval in hours (default `3`) |

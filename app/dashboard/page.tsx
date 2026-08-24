@@ -6,6 +6,7 @@ import { CaseBoard } from "@/components/chat/CaseBoard";
 import { ChatHistory } from "@/components/chat/ChatHistory";
 import { MapView } from "@/components/views/MapView";
 import { NetworkView } from "@/components/views/NetworkView";
+import { CrewView } from "@/components/views/CrewView";
 import { ProfilingView } from "@/components/views/ProfilingView";
 import { ReportsView } from "@/components/views/ReportsView";
 import { RegisterFirView } from "@/components/views/RegisterFirView";
@@ -16,12 +17,13 @@ import { useTheme } from "@/components/ThemeProvider";
 import { useChatStore } from "@/store/chat";
 import { t, type StringKey } from "@/lib/i18n";
 
-type View = "chat" | "map" | "network" | "profiling" | "reports" | "registerFir" | "about";
+type View = "chat" | "map" | "network" | "crew" | "profiling" | "reports" | "registerFir" | "about";
 
 const NAV_ITEMS: Array<{ icon: React.ReactNode; labelKey: StringKey; view: View }> = [
   { icon: <ChatIcon />, labelKey: "nav.chat", view: "chat" },
   { icon: <MapIcon />, labelKey: "nav.map", view: "map" },
   { icon: <NetworkIcon />, labelKey: "nav.network", view: "network" },
+  { icon: <CrewIcon />, labelKey: "nav.crew", view: "crew" },
   { icon: <ProfileIcon />, labelKey: "nav.profiling", view: "profiling" },
   { icon: <ReportIcon />, labelKey: "nav.reports", view: "reports" },
   { icon: <FilePlusIcon />, labelKey: "nav.registerFir", view: "registerFir" },
@@ -298,6 +300,7 @@ export default function DashboardPage() {
           )}
           {activeView === "map" && <MapView />}
           {activeView === "network" && <NetworkView />}
+          {activeView === "crew" && <CrewView />}
           {activeView === "profiling" && <ProfilingView />}
           {activeView === "reports" && <ReportsView />}
           {activeView === "registerFir" && <RegisterFirView onAskAssistant={() => setActiveView("chat")} />}
@@ -436,6 +439,9 @@ function FilePlusIcon() {
 }
 function NetworkIcon() {
   return <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><circle cx="5" cy="6" r="2" /><circle cx="19" cy="6" r="2" /><circle cx="12" cy="18" r="2" /><path strokeLinecap="round" strokeLinejoin="round" d="M6.8 7.2l4 9.2M17.2 7.2l-4 9.2M7 6h10" /></svg>;
+}
+function CrewIcon() {
+  return <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><circle cx="9" cy="8" r="3" /><path strokeLinecap="round" strokeLinejoin="round" d="M3 20v-1.5A4.5 4.5 0 017.5 14h3A4.5 4.5 0 0115 18.5V20M16 5.2a3 3 0 010 5.6M18.5 14A4.5 4.5 0 0121 18.5V20" /></svg>;
 }
 function ProfileIcon() {
   return <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 20v-2a4 4 0 014-4h2a4 4 0 014 4v2M8 9a3 3 0 100-6 3 3 0 000 6zM17 20v-1.5M20 20v-4M14 20v-6" /></svg>;
