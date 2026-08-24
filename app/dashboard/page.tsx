@@ -11,6 +11,7 @@ import { ReportsView } from "@/components/views/ReportsView";
 import { RegisterFirView } from "@/components/views/RegisterFirView";
 import { AboutView } from "@/components/views/AboutView";
 import { ConversationExport } from "@/components/chat/ConversationExport";
+import { AlertBell } from "@/components/alerts/AlertBell";
 import { useTheme } from "@/components/ThemeProvider";
 import { useChatStore } from "@/store/chat";
 import { t, type StringKey } from "@/lib/i18n";
@@ -32,6 +33,7 @@ export default function DashboardPage() {
   const { theme, toggle } = useTheme();
   const lang = useChatStore((s) => s.lang);
   const setLang = useChatStore((s) => s.setLang);
+  const setDraft = useChatStore((s) => s.setDraft);
   const [activeView, setActiveView] = useState<View>("chat");
   const [authed, setAuthed] = useState(false);
   const [time, setTime] = useState("");
@@ -238,6 +240,14 @@ export default function DashboardPage() {
 
             <span className="font-data text-xs tabular-nums hidden md:block" style={{ color: "var(--text-muted)" }}>{time}</span>
             <div className="w-px h-5 hidden md:block" style={{ background: "var(--border)" }} />
+
+            {/* Proactive alerts — clicking one drops its question into the chat composer. */}
+            <AlertBell
+              onInvestigate={(q) => {
+                setDraft(q);
+                setActiveView("chat");
+              }}
+            />
 
             {activeView === "chat" && <ConversationExport />}
 

@@ -13,8 +13,10 @@ function createPrismaClient() {
 
 function getPrismaClient(): PrismaClient {
   const cached = globalForPrisma.prisma;
-  // Recreate after schema changes — stale dev singleton lacks new models
-  if (cached && "chatSession" in cached) return cached;
+  // Recreate after schema changes — stale dev singleton lacks new models.
+  // Check the most recently added model, or a client generated before it will
+  // be reused and every call on the new model reads as undefined.
+  if (cached && "alert" in cached) return cached;
   const client = createPrismaClient();
   if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = client;
   return client;

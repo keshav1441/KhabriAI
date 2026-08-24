@@ -19,6 +19,7 @@ Conversational AI for investigators to query crime data in plain English. Sign i
 | Catalyst services | Cache (insights TTL) · Data Store (`AgentAuditLog`) · QuickML (chargesheet risk) — all optional, local fallbacks outside AppSail |
 | Embeddings | Gemini API (`gemini-embedding-2`) · LLM fallback for example selection |
 | Case retrieval | Postgres full-text search (`tsvector`/`ts_rank`) over `CaseMaster.BriefFacts` |
+| Proactive alerts | Scheduled detectors → per-officer `Alert` rows (Postgres unique dedupe) · header bell, 60s poll |
 | Maps | Leaflet + react-leaflet |
 | Network graph | Cytoscape.js + cose-bilkent |
 | Charts | Recharts |
@@ -88,6 +89,50 @@ Alongside the structured SQL answer, every question also runs a second, independ
   ```
   It's idempotent (only touches rows still matching the seed template) and safe to interrupt/rerun. Until it's run, the Related Cases panel will rarely show anything.
 - **Upgrade path**: if you add a real embedding-capable API key later (Gemini, OpenAI), only `lib/case-retrieval.ts` needs to change — swap the SQL for a pgvector `<=>` search. The chat route, SSE payload, frontend panel, and chat-history persistence are already provider-agnostic.
+
+---
+
+## Proactive alerts
+
+The insights panel is pull — it only exists while someone is looking at it. `lib/alerts.ts` is the push side: the same detectors run on a schedule and every finding is written as an `Alert` row for each officer whose scope it falls in, surfaced by the bell in the header.
+
+**What fires** (`kind` on the row):
+
+| kind | Detector | Severity |
+|---|---|---|
+| `spike` | District's last complete month vs the month before (`lib/insights-compute.ts`) | `critical` at ≥40% jump, else `warning` |
+| `repeat_suspect` | Accused linked to 3+ cases in 30 days; statewide when they're active in more than one district | `warning` |
+| `weekly_surge` | Crime group up >30% this week vs last, statewide | `critical` at ≥50%, else `warning` |
+| `forecast` | Least-squares 6-month trend per district × crime group (`lib/forecast.ts`) | `info` |
+| `mo_link` | **New** — cross-district modus-operandi linker (below) | `critical` |
+
+**Cross-district MO linker.** One pgvector `LATERAL` nearest-neighbour lookup per recent case: it scans the 60 most recently registered embedded cases from the last `ALERT_MO_RECENT_DAYS` days, and for each one takes the single closest `CaseMaster.BriefFactsEmbedding` **in a different district**. Matches at or above `ALERT_MO_MIN_SCORE` become alerts (max 5 per run). Each match produces one finding routed to *both* districts, so the two stations that can't see each other's files both get it.
+
+**Scope routing.** An SHO gets their own district's findings plus statewide ones (`districtId = null`); an HQ user gets everything — the same boundary the row-level-security policies draw around cases.
+
+**Dedupe.** Every finding carries a stable key built from the district and the numbers behind it (`spike:<district>:<this>:<last>`, `mo:<caseId>:<matchId>`, …), stored as `dedupeKey` under a unique `(userId, dedupeKey)` index and inserted with `skipDuplicates`. Re-running the job is idempotent: an officer is re-notified only when the underlying numbers move.
+
+**API routes:**
+
+| Route | Purpose |
+|---|---|
+| `GET /api/alerts` | The officer's feed — unread first, newest first, plus `unread` and `last24h` counts |
+| `PATCH /api/alerts` | Mark read — `{ ids: [...] }`, or every unread one when `ids` is omitted |
+| `POST /api/alerts/generate` | Run detection now (session-authed) — what the bell's **Run detection** button calls |
+| `GET /api/cron/alerts` | Scheduled target, `Bearer CRON_SECRET` |
+| `GET /api/cron/insights` | Precomputes insights **and** fans the same findings out as alerts, so one job keeps both current |
+
+**UI.** `components/alerts/AlertBell.tsx` — bell in the dashboard header, unread badge, 60s poll, a briefing header with the 24h count and a **Run detection** button. Clicking an alert marks it read and drops its `query` into the chat composer, so a finding becomes an investigation in one click.
+
+**Run it manually:**
+```bash
+npm run alerts                 # generates, then prints what the first few officers would be pushed
+```
+Or open the bell and hit **Run detection** — same engine, behind a signed-in button, so a demo doesn't wait for the cron interval.
+
+Tuning: `ALERT_MO_MIN_SCORE` (default `0.72`) and `ALERT_MO_RECENT_DAYS` (default `30`). The linker needs embeddings — run `npm run embed` first, otherwise only the anomaly and forecast detectors fire.
+
+Schema: `model Alert` in `prisma/schema.prisma`, migration `prisma/migrations/20260825000000_alerts`.
 
 ---
 
@@ -233,7 +278,11 @@ app/
     chats/[id]/       Load, append messages, delete session
     chat/             SSE — agent loop: tool steps + metadata + streaming narrative
     insights/         Anomaly insight cards (Catalyst Cache-backed)
-    cron/insights/    Precompute target for scheduled insight refresh
+    alerts/           Alert feed (GET) + mark read (PATCH)
+    alerts/generate/  Run detection now (signed-in "Run detection" button)
+    cron/insights/    Precompute target for scheduled insight refresh (also fans out alerts)
+    cron/alerts/      Scheduled target for the alert engine (Bearer CRON_SECRET)
+    cron/register/    Registers the Catalyst cron that calls the two above
     map-data/         Crime locations with lat/lng
     network-data/     Accused co-occurrence graph
     reports/          Pre-aggregated insight cards
@@ -258,6 +307,7 @@ lib/
   sql-validator.ts  SELECT-only guard, multi-statement block
   query-classifier.ts  SQL → vizType (table / chart / graph)
   insights-compute.ts  The 3 anomaly-detection queries (spikes, repeat accused, surges)
+  alerts.ts            Alert engine — detectors + cross-district MO linker, scope fan-out, dedupe
   insights-cache.ts    Insight cache keys/TTL over catalyst-cache
   catalyst-client.ts   Request-scoped Catalyst SDK init + timeout guard (null outside AppSail)
   catalyst-cache.ts    Catalyst Cache get/set with local fallback
@@ -294,7 +344,15 @@ scripts/
 | `MISTRAL_ORCH_MODEL` | No | Agent orchestrator model (default `mistral-large-latest`) |
 | `SESSION_SECRET` | Prod | HMAC key for session cookies — required in production |
 | `CATALYST_AUTOML_MODEL_ID` | No | QuickML model ID for the `predictRisk` tool (AppSail only) |
-| `CRON_SECRET` | No | Bearer token guarding `/api/cron/insights` precompute |
+| `CRON_SECRET` | No | Bearer token guarding `/api/cron/insights` precompute and `/api/cron/alerts` |
+| `ALERT_MO_MIN_SCORE` | No | Minimum cosine similarity for a cross-district MO alert (default `0.72`) |
+| `ALERT_MO_RECENT_DAYS` | No | How far back the MO linker looks for newly registered cases (default `30`) |
+| `CATALYST_CRON_NAME` | No | Name of the registered Catalyst cron (default `khabri-alerts`) |
+| `CATALYST_JOBPOOL_NAME` | No | Job pool the scheduled job is submitted to (default `khabri-jobs`) |
+| `CATALYST_CRON_EVERY_HOURS` | No | Interval in hours (default `3`) |
+| `CATALYST_CRON_TARGET` | No | `webhook` (default) or `appsail` — how the job pool reaches the app |
+| `CATALYST_APPSAIL_NAME` | No | AppSail service name when `CATALYST_CRON_TARGET=appsail` (default `khabriai`) |
+| `CATALYST_APP_URL` | No | Public origin the job pool calls; derived from the request when unset |
 
 ---
 
@@ -308,12 +366,35 @@ The `predeploy` hook runs `next build`, prepares the standalone bundle, and uplo
 
 **AppSail env vars to set:**
 - `DATABASE_URL`, `MISTRAL_API_KEY`, `SESSION_SECRET`
-- Optional: `CATALYST_AUTOML_MODEL_ID` (QuickML risk tool), `CRON_SECRET` (insights precompute)
+- Optional: `CATALYST_AUTOML_MODEL_ID` (QuickML risk tool), `CRON_SECRET` (insights precompute + alerts), `ALERT_MO_MIN_SCORE` / `ALERT_MO_RECENT_DAYS` (MO-link alert tuning)
 
 **Optional Catalyst console setup** (features degrade gracefully without them):
 - Data Store table `AgentAuditLog` — agent audit trail (columns per `lib/agent/audit-log.ts`)
 - QuickML classifier — enables the `predictRisk` tool
-- Job Scheduling — hit `/api/cron/insights` (Bearer `CRON_SECRET`) every ~3h to keep insight cards warm
+- Job Scheduling — the schedule that drives proactive alerts, see below
+
+### Scheduling the alert job
+
+Catalyst has no declarative cron config — a cron is either drawn in the console or created at runtime through the SDK as a *dynamic* cron. The app registers its own, so the schedule is part of the deployment instead of a click-path someone has to remember (`lib/catalyst-cron.ts`).
+
+**Prerequisite (console, once):** Job Scheduling → create a job pool named `khabri-jobs` of type **Webhook** (or **AppSail**, if you set `CATALYST_CRON_TARGET=appsail`).
+
+Then, after `catalyst deploy`, with `CRON_SECRET` set in the AppSail env:
+
+```bash
+# register the schedule (idempotent — an existing cron of the same name is left alone)
+curl -X POST -H "Authorization: Bearer $CRON_SECRET" https://<your-appsail-url>/api/cron/register
+
+# check what is registered
+curl -H "Authorization: Bearer $CRON_SECRET" https://<your-appsail-url>/api/cron/register
+
+# change the interval or target URL, then fire it once to prove it
+curl -X POST -H "Authorization: Bearer $CRON_SECRET" "https://<your-appsail-url>/api/cron/register?force=true&run=true"
+```
+
+It creates a `Periodic` cron (every `CATALYST_CRON_EVERY_HOURS`, Asia/Kolkata) whose job is a webhook back into this app: `GET /api/cron/insights` with the `CRON_SECRET` bearer, 2 retries 15 min apart. That route refreshes the insight cache **and** fans the findings out as per-officer alerts. `/api/cron/alerts` is the same engine without the cache refresh, if you'd rather schedule the two separately.
+
+The route is gated on `CRON_SECRET` (creating platform infrastructure is not something a session cookie should be able to do) and returns `503` with a clear message when called outside AppSail, where the Catalyst SDK cannot initialize.
 
 Memory: `app-config.json` requests 1024 MB. Lower to 512 if your plan rejects it.
 

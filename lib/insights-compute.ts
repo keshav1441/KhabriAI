@@ -10,9 +10,10 @@ export async function computeInsights(): Promise<InsightItem[]> {
   // the month before. Uses completed months (not the partial current month, in
   // which counts are always low), so the detector fires reliably.
   const spikeResult = await prisma.$queryRaw<
-    { district_name: string; this_month: bigint; last_month: bigint }[]
+    { district_id: number; district_name: string; this_month: bigint; last_month: bigint }[]
   >`
     SELECT
+      d."DistrictID" AS district_id,
       d."DistrictName" AS district_name,
       COUNT(*) FILTER (WHERE cm."CrimeRegisteredDate" >= DATE_TRUNC('month', NOW() - INTERVAL '1 month')
                          AND cm."CrimeRegisteredDate" <  DATE_TRUNC('month', NOW())) AS this_month,
@@ -21,7 +22,7 @@ export async function computeInsights(): Promise<InsightItem[]> {
     FROM "CaseMaster" cm
     JOIN "Unit" u ON u."UnitID" = cm."PoliceStationID"
     JOIN "District" d ON d."DistrictID" = u."DistrictID"
-    GROUP BY d."DistrictName"
+    GROUP BY d."DistrictID", d."DistrictName"
     HAVING
       COUNT(*) FILTER (WHERE cm."CrimeRegisteredDate" >= DATE_TRUNC('month', NOW() - INTERVAL '2 months')
                          AND cm."CrimeRegisteredDate" <  DATE_TRUNC('month', NOW() - INTERVAL '1 month')) > 5
@@ -42,20 +43,29 @@ export async function computeInsights(): Promise<InsightItem[]> {
       title: `Crime spike in ${row.district_name}`,
       detail: `${pct}% jump last month (${thisMonth} vs ${lastMonth} the month before)`,
       query: `Show crime breakdown in ${row.district_name} for the last 2 months`,
+      districtId: Number(row.district_id),
+      districtName: row.district_name,
+      severity: pct >= 40 ? "critical" : "warning",
+      dedupe: `spike:${row.district_id}:${thisMonth}:${lastMonth}`,
     });
   }
 
   // Anomaly 2: Repeat accused with 3+ cases in last 30 days
   const repeatResult = await prisma.$queryRaw<
-    { accused_name: string; case_count: bigint; crime_types: string }[]
+    { accused_name: string; case_count: bigint; crime_types: string; district_id: number | null; district_name: string | null; district_spread: bigint }[]
   >`
     SELECT
       a."AccusedName" AS accused_name,
       COUNT(DISTINCT a."CaseMasterID") AS case_count,
-      STRING_AGG(DISTINCT ch."CrimeGroupName", ', ') AS crime_types
+      STRING_AGG(DISTINCT ch."CrimeGroupName", ', ') AS crime_types,
+      MODE() WITHIN GROUP (ORDER BY d."DistrictID")   AS district_id,
+      MODE() WITHIN GROUP (ORDER BY d."DistrictName") AS district_name,
+      COUNT(DISTINCT d."DistrictID") AS district_spread
     FROM "Accused" a
     JOIN "CaseMaster" cm ON cm."CaseMasterID" = a."CaseMasterID"
     JOIN "CrimeHead" ch ON ch."CrimeHeadID" = cm."CrimeMajorHeadID"
+    JOIN "Unit" u ON u."UnitID" = cm."PoliceStationID"
+    JOIN "District" d ON d."DistrictID" = u."DistrictID"
     WHERE cm."CrimeRegisteredDate" >= NOW() - INTERVAL '30 days'
       AND a."AccusedName" IS NOT NULL
     GROUP BY a."AccusedName"
@@ -70,6 +80,12 @@ export async function computeInsights(): Promise<InsightItem[]> {
       title: `Repeat accused: ${row.accused_name}`,
       detail: `Linked to ${Number(row.case_count)} cases in last 30 days (${row.crime_types})`,
       query: `Show all cases linked to accused ${row.accused_name} in the last 30 days`,
+      // Active in more than one district: a statewide finding, so nobody sees
+      // only half of it.
+      districtId: Number(row.district_spread) > 1 ? null : row.district_id ?? null,
+      districtName: Number(row.district_spread) > 1 ? null : row.district_name ?? null,
+      severity: "warning",
+      dedupe: `repeat:${row.accused_name}:${Number(row.case_count)}`,
     });
   }
 
@@ -100,6 +116,10 @@ export async function computeInsights(): Promise<InsightItem[]> {
         title: `${row.crime_type} surging statewide`,
         detail: `${pct}% more ${row.crime_type} cases this week vs last week`,
         query: `Show ${row.crime_type} hotspots in the last 7 days with map`,
+        districtId: null,
+        districtName: null,
+        severity: pct >= 50 ? "critical" : "warning",
+        dedupe: `surge:${row.crime_type}:${thisWeek}:${lastWeek}`,
       });
     }
   }

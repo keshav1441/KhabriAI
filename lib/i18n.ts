@@ -133,6 +133,22 @@ export const STRINGS = {
   "fir.openCase":       { en: "Open case", kn: "ಪ್ರಕರಣ ತೆರೆಯಿರಿ" },
   "fir.askAssistant":   { en: "Ask the assistant about it", kn: "ಸಹಾಯಕನನ್ನು ಈ ಬಗ್ಗೆ ಕೇಳಿ" },
   "fir.registerAnother":{ en: "Register another", kn: "ಇನ್ನೊಂದು ದಾಖಲಿಸಿ" },
+  // Proactive alerts
+  "alerts.title":       { en: "Alerts", kn: "ಎಚ್ಚರಿಕೆಗಳು" },
+  "alerts.briefing":    { en: "Briefing", kn: "ಸಂಕ್ಷಿಪ್ತ ವರದಿ" },
+  "alerts.new24h":      { en: "new in 24h", kn: "24 ಗಂಟೆಯಲ್ಲಿ ಹೊಸದು" },
+  "alerts.empty":       { en: "No alerts. Detection runs on a schedule — findings appear here.",
+                          kn: "ಎಚ್ಚರಿಕೆಗಳಿಲ್ಲ. ಪತ್ತೆ ನಿಗದಿತವಾಗಿ ನಡೆಯುತ್ತದೆ — ಫಲಿತಾಂಶಗಳು ಇಲ್ಲಿ ಕಾಣಿಸುತ್ತವೆ." },
+  "alerts.markAll":     { en: "Mark all read", kn: "ಎಲ್ಲವನ್ನೂ ಓದಿದೆ ಎಂದು ಗುರುತಿಸಿ" },
+  "alerts.run":         { en: "Run detection", kn: "ಪತ್ತೆ ಚಲಾಯಿಸಿ" },
+  "alerts.running":     { en: "Scanning…", kn: "ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ…" },
+  "alerts.investigate": { en: "Investigate →", kn: "ತನಿಖೆ ಮಾಡಿ →" },
+  "alerts.kind.spike":          { en: "SPIKE", kn: "ಏರಿಕೆ" },
+  "alerts.kind.repeat_suspect": { en: "REPEAT", kn: "ಪುನರಾವರ್ತಿತ" },
+  "alerts.kind.weekly_surge":   { en: "SURGE", kn: "ಉಲ್ಬಣ" },
+  "alerts.kind.forecast":       { en: "FORECAST", kn: "ಮುನ್ಸೂಚನೆ" },
+  "alerts.kind.mo_link":        { en: "MO LINK", kn: "ವಿಧಾನ ಸಂಪರ್ಕ" },
+  "alerts.kind.default":        { en: "ALERT", kn: "ಎಚ್ಚರಿಕೆ" },
 } as const;
 
 export type StringKey = keyof typeof STRINGS;

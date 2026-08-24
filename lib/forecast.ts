@@ -8,9 +8,10 @@ import type { InsightItem } from "./insights-cache";
 // upward momentum and enough volume to matter.
 export async function computeForecasts(topN = 4): Promise<InsightItem[]> {
   const rows = await prisma.$queryRaw<
-    { district: string; crime_group: string; ym: string; n: bigint }[]
+    { district_id: number; district: string; crime_group: string; ym: string; n: bigint }[]
   >`
-    SELECT d."DistrictName" AS district,
+    SELECT d."DistrictID" AS district_id,
+           d."DistrictName" AS district,
            ch."CrimeGroupName" AS crime_group,
            TO_CHAR(DATE_TRUNC('month', cm."CrimeRegisteredDate"), 'YYYY-MM') AS ym,
            COUNT(*) AS n
@@ -19,7 +20,7 @@ export async function computeForecasts(topN = 4): Promise<InsightItem[]> {
     JOIN "District" d ON d."DistrictID" = u."DistrictID"
     JOIN "CrimeHead" ch ON ch."CrimeHeadID" = cm."CrimeMajorHeadID"
     WHERE cm."CrimeRegisteredDate" >= DATE_TRUNC('month', NOW()) - INTERVAL '5 months'
-    GROUP BY 1, 2, 3
+    GROUP BY 1, 2, 3, 4
   `;
 
   // Ordered list of the 6 month buckets we expect (oldest → newest).
@@ -34,11 +35,11 @@ export async function computeForecasts(topN = 4): Promise<InsightItem[]> {
   const monthIdx = new Map(months.map((m, i) => [m, i]));
 
   // Build a 6-point series per district|crime-group.
-  const series = new Map<string, { district: string; crime: string; y: number[] }>();
+  const series = new Map<string, { districtId: number; district: string; crime: string; y: number[] }>();
   for (const r of rows) {
     const key = `${r.district}||${r.crime_group}`;
     let s = series.get(key);
-    if (!s) { s = { district: r.district, crime: r.crime_group, y: Array(6).fill(0) }; series.set(key, s); }
+    if (!s) { s = { districtId: Number(r.district_id), district: r.district, crime: r.crime_group, y: Array(6).fill(0) }; series.set(key, s); }
     const idx = monthIdx.get(r.ym);
     if (idx !== undefined) s.y[idx] = Number(r.n);
   }
@@ -64,6 +65,10 @@ export async function computeForecasts(topN = 4): Promise<InsightItem[]> {
       title: `${s.crime} rising in ${s.district}`,
       detail: `Trending up ~${slope.toFixed(1)}/month · projected ${projected} next month (vs ${recent} this month)`,
       query: `Show monthly trend of ${s.crime} in ${s.district}`,
+      districtId: s.districtId,
+      districtName: s.district,
+      severity: "info",
+      dedupe: `forecast:${s.districtId}:${s.crime}:${projected}`,
       score: slope + (projected - recent),
     });
   }
@@ -71,5 +76,5 @@ export async function computeForecasts(topN = 4): Promise<InsightItem[]> {
   return forecasts
     .sort((a, b) => b.score - a.score)
     .slice(0, topN)
-    .map(({ type, title, detail, query }) => ({ type, title, detail, query }));
+    .map(({ score: _score, ...item }) => item);
 }

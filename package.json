@@ -14,6 +14,7 @@
     "embed": "tsx scripts/backfill-embeddings.ts",
     "shift-dates": "tsx scripts/shift-dates.ts",
     "demo:check": "tsx scripts/demo-check.ts",
+    "alerts": "tsx scripts/run-alerts.ts",
     "loadtest": "tsx scripts/loadtest.ts",
     "set-scope": "tsx scripts/set-scope.ts"
   },

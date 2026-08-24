@@ -411,6 +411,7 @@ export const ModelName = {
   ArrestSurrender: 'ArrestSurrender',
   ChargesheetDetails: 'ChargesheetDetails',
   KhabriUser: 'KhabriUser',
+  Alert: 'Alert',
   ChatSession: 'ChatSession',
   ChatMessage: 'ChatMessage'
 } as const
@@ -428,7 +429,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "state" | "district" | "unitType" | "unit" | "rank" | "designation" | "employee" | "caseCategory" | "gravityOffence" | "crimeHead" | "crimeSubHead" | "caseStatusMaster" | "court" | "caseMaster" | "victim" | "accused" | "act" | "section" | "crimeHeadActSection" | "actSectionAssociation" | "occupationMaster" | "religionMaster" | "casteMaster" | "complainantDetails" | "arrestSurrender" | "chargesheetDetails" | "khabriUser" | "chatSession" | "chatMessage"
+    modelProps: "state" | "district" | "unitType" | "unit" | "rank" | "designation" | "employee" | "caseCategory" | "gravityOffence" | "crimeHead" | "crimeSubHead" | "caseStatusMaster" | "court" | "caseMaster" | "victim" | "accused" | "act" | "section" | "crimeHeadActSection" | "actSectionAssociation" | "occupationMaster" | "religionMaster" | "casteMaster" | "complainantDetails" | "arrestSurrender" | "chargesheetDetails" | "khabriUser" | "alert" | "chatSession" | "chatMessage"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2430,6 +2431,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    Alert: {
+      payload: Prisma.$AlertPayload<ExtArgs>
+      fields: Prisma.AlertFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.AlertFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AlertPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.AlertFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AlertPayload>
+        }
+        findFirst: {
+          args: Prisma.AlertFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AlertPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.AlertFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AlertPayload>
+        }
+        findMany: {
+          args: Prisma.AlertFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AlertPayload>[]
+        }
+        create: {
+          args: Prisma.AlertCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AlertPayload>
+        }
+        createMany: {
+          args: Prisma.AlertCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.AlertCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AlertPayload>[]
+        }
+        delete: {
+          args: Prisma.AlertDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AlertPayload>
+        }
+        update: {
+          args: Prisma.AlertUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AlertPayload>
+        }
+        deleteMany: {
+          args: Prisma.AlertDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.AlertUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.AlertUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AlertPayload>[]
+        }
+        upsert: {
+          args: Prisma.AlertUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AlertPayload>
+        }
+        aggregate: {
+          args: Prisma.AlertAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateAlert>
+        }
+        groupBy: {
+          args: Prisma.AlertGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AlertGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.AlertCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AlertCountAggregateOutputType> | number
+        }
+      }
+    }
     ChatSession: {
       payload: Prisma.$ChatSessionPayload<ExtArgs>
       fields: Prisma.ChatSessionFieldRefs
@@ -2924,6 +2999,24 @@ export const KhabriUserScalarFieldEnum = {
 export type KhabriUserScalarFieldEnum = (typeof KhabriUserScalarFieldEnum)[keyof typeof KhabriUserScalarFieldEnum]
 
 
+export const AlertScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  kind: 'kind',
+  severity: 'severity',
+  title: 'title',
+  detail: 'detail',
+  query: 'query',
+  districtId: 'districtId',
+  caseId: 'caseId',
+  dedupeKey: 'dedupeKey',
+  createdAt: 'createdAt',
+  readAt: 'readAt'
+} as const
+
+export type AlertScalarFieldEnum = (typeof AlertScalarFieldEnum)[keyof typeof AlertScalarFieldEnum]
+
+
 export const ChatSessionScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -3225,6 +3318,7 @@ export type GlobalOmitConfig = {
   arrestSurrender?: Prisma.ArrestSurrenderOmit
   chargesheetDetails?: Prisma.ChargesheetDetailsOmit
   khabriUser?: Prisma.KhabriUserOmit
+  alert?: Prisma.AlertOmit
   chatSession?: Prisma.ChatSessionOmit
   chatMessage?: Prisma.ChatMessageOmit
 }

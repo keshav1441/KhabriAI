@@ -78,6 +78,7 @@ export const ModelName = {
   ArrestSurrender: 'ArrestSurrender',
   ChargesheetDetails: 'ChargesheetDetails',
   KhabriUser: 'KhabriUser',
+  Alert: 'Alert',
   ChatSession: 'ChatSession',
   ChatMessage: 'ChatMessage'
 } as const
@@ -403,6 +404,24 @@ export const KhabriUserScalarFieldEnum = {
 } as const
 
 export type KhabriUserScalarFieldEnum = (typeof KhabriUserScalarFieldEnum)[keyof typeof KhabriUserScalarFieldEnum]
+
+
+export const AlertScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  kind: 'kind',
+  severity: 'severity',
+  title: 'title',
+  detail: 'detail',
+  query: 'query',
+  districtId: 'districtId',
+  caseId: 'caseId',
+  dedupeKey: 'dedupeKey',
+  createdAt: 'createdAt',
+  readAt: 'readAt'
+} as const
+
+export type AlertScalarFieldEnum = (typeof AlertScalarFieldEnum)[keyof typeof AlertScalarFieldEnum]
 
 
 export const ChatSessionScalarFieldEnum = {

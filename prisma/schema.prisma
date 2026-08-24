@@ -336,6 +336,31 @@ model KhabriUser {
   districtId   Int?
   createdAt    DateTime      @default(now())
   chatSessions ChatSession[]
+  alerts       Alert[]
+}
+
+// Proactive early-warning delivered to an officer, rather than waiting to be
+// asked. Generated from the same anomaly/forecast pipeline as the dashboard
+// insights, plus cross-district modus-operandi links, then fanned out to the
+// officers whose scope the finding falls in (HQ sees everything).
+model Alert {
+  id         String     @id @default(cuid())
+  userId     Int
+  kind       String     // spike | repeat_suspect | weekly_surge | forecast | mo_link
+  severity   String     @default("info") // critical | warning | info
+  title      String
+  detail     String
+  query      String     @default("")
+  districtId Int?       // null = statewide finding
+  caseId     Int?       // the case an mo_link alert starts from
+  dedupeKey  String     // stable per finding+day, so a re-run does not duplicate
+  createdAt  DateTime   @default(now())
+  readAt     DateTime?
+  user       KhabriUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
 }
 
 model ChatSession {

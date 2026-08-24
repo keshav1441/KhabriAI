@@ -177,6 +177,11 @@ export type ChargesheetDetails = Prisma.ChargesheetDetailsModel
  */
 export type KhabriUser = Prisma.KhabriUserModel
 /**
+ * Model Alert
+ * 
+ */
+export type Alert = Prisma.AlertModel
+/**
  * Model ChatSession
  * 
  */

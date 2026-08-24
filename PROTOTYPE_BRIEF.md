@@ -64,6 +64,7 @@ cosine distance over narrative embeddings stored on `CaseMaster.BriefFactsEmbedd
 | Reports & early warning | Anomaly insights + least-squares 6-month trend forecast per district × crime group |
 | Risk prediction | Chargesheet likelihood with **per-feature contributions**, not a bare score |
 | **Modus-operandi linking** | pgvector nearest-narrative search: "which cases, anywhere in the state, describe the same method?" — from a case, a CrimeNo, or a free-text description; cross-district links flagged |
+| **Proactive alerts** | The detectors run on a schedule, not on a page view: spikes, repeat accused, weekly surges, forecasts and cross-district MO matches are written as per-officer alerts and surfaced in a header bell; clicking one puts the investigating question in the chat |
 | Kannada localization | Full nav/chat UI in Kannada, questions accepted in either language |
 | Voice + export | Speech in/out, conversation PDF export, CSV result export |
 | Auth & history | Neon Auth (Google via shared OAuth, email one-time codes) bridged to an HMAC-signed app session; password accounts for scripts; per-user chat threads in Neon |
@@ -90,6 +91,22 @@ how often neighbours share the specific crime type and the crime group, and — 
 to a repeat-offender series — how often a same-crew case is found from the narrative alone, and what
 share of those links cross a district boundary. Results are recorded in `eval/results/*-similarity.json`
 and quoted in the Evaluation section below once the full corpus is embedded.
+
+## Proactive alerts — the system does not wait to be asked
+
+Everything above answers a question an officer thought to ask. The detectors also run without one.
+On a schedule (`/api/cron/alerts`, or the same job that warms the insights cache), the anomaly and
+forecast detectors run, and a cross-district MO linker takes each case registered in the last 30 days
+and finds its nearest narrative **in a different district**. Every finding is fanned out as an alert row
+to the officers whose scope it falls in — an SHO gets their district's findings plus statewide ones,
+HQ gets all of them — and appears in a bell in the header; clicking it drops the investigating question
+into the chat.
+
+An MO match is written to **both** districts, so the SHO who registered the case and the SHO holding
+the matching file are told about each other on the same run. That is the link neither station can make alone, and neither would
+have gone looking for. Findings are deduplicated on a unique `(officer, finding)` key, so a re-run
+re-notifies nobody — an alert is new only when the numbers behind it move. On the synthetic corpus this
+fires on the seeded repeat-offender series; it is a mechanism, not a measured result.
 
 ## Handling real questions, not benchmark questions
 
