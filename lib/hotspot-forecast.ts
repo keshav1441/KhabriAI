@@ -104,12 +104,17 @@ function confidenceOf(total: number, fit: number): "low" | "medium" | "high" {
  * holds four days of cases — and including it bends every trend downwards, so
  * the fit ends at last month and the projection is for the month now running.
  */
-function monthBuckets(count = MONTHS_FITTED): string[] {
-  const now = new Date();
+/** @internal exposed for tests */
+export function monthBuckets(count = MONTHS_FITTED, now = new Date()): string[] {
+  // UTC, because the SQL window is DATE_TRUNC('month', NOW()) on a session
+  // running in GMT. Building these from local months instead means that between
+  // midnight and 05:30 IST on the first of a month the two disagree: the oldest
+  // month is dropped and the newest is filled with a zero, which drags every
+  // district's slope negative and silently empties the patrol priorities.
   const out: string[] = [];
   for (let i = count; i >= 1; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+    out.push(`${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`);
   }
   return out;
 }

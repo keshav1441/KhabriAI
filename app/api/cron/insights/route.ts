@@ -12,8 +12,13 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(req: NextRequest) {
   const expected = process.env.CRON_SECRET;
+  // Fail closed: an unset secret used to mean "no guard at all", which left a
+  // 300-second job anyone could trigger.
+  if (!expected) {
+    return Response.json({ error: "CRON_SECRET is not set" }, { status: 503 });
+  }
   const provided = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (expected && provided !== expected) {
+  if (provided !== expected) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -29,6 +34,6 @@ export async function GET(req: NextRequest) {
     return Response.json({ ok: true, count: insights.length, alerts });
   } catch (e) {
     console.error("Insights cron error:", e);
-    return Response.json({ ok: false, error: (e as Error).message }, { status: 500 });
+    return Response.json({ ok: false, error: "Insight precompute failed" }, { status: 500 });
   }
 }

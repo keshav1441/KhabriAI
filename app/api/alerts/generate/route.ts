@@ -18,6 +18,6 @@ export async function POST(req: NextRequest) {
     return Response.json({ ok: true, ...result });
   } catch (e) {
     console.error("alert generation failed:", e);
-    return Response.json({ ok: false, error: (e as Error).message }, { status: 500 });
+    return Response.json({ ok: false, error: "Alert generation failed" }, { status: 500 });
   }
 }

@@ -4,7 +4,7 @@ import { answerWithSQL, type ChatTurn } from "../text-to-sql";
 import { findSimilarCases, similarCasesTo, similarCasesToText, type RelatedCase } from "../case-retrieval";
 import { prisma as db } from "../db";
 import { getScope } from "../chat-auth";
-import { getCachedInsights, setCachedInsights, type InsightItem } from "../insights-cache";
+import { getCachedInsights, setCachedInsights, scopeInsights, type InsightItem } from "../insights-cache";
 import { computeInsights } from "../insights-compute";
 import { computeHotspots, type PatrolPriority } from "../hotspot-forecast";
 import { prisma } from "../db";
@@ -92,6 +92,26 @@ export interface BuildCrewDossierResult {
 
 // Crime groups the seed data marks as "Heinous" (matches prisma/seed.ts CRIME_HEADS).
 const HEINOUS_CRIME_GROUPS = new Set(["Crimes Against Body", "Crimes Against Women"]);
+
+/**
+ * Every tool argument arrives inside the planner's JSON, which is written by a
+ * model: a parameter described as an "18-digit CrimeNo" comes back as a number
+ * as readily as a string, and `args.crimeNo.trim()` on a number throws before
+ * the executor's own try/catch can see it - killing the whole run mid-answer.
+ * Nothing here trusts the declared type; everything is coerced first.
+ */
+function str(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  // An object or array is not a value the officer typed - "[object Object]"
+  // would be searched for as if it were a name.
+  if (typeof value === "object") return "";
+  return String(value).trim();
+}
+
+function num(value: unknown): number | undefined {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : undefined;
+}
 
 export const TOOL_SCHEMAS: OpenAI.Chat.ChatCompletionTool[] = [
   {
@@ -256,10 +276,10 @@ export async function runQueryDatabase(
   history: ChatTurn[],
   req?: Request
 ): Promise<QueryDatabaseResult> {
-  const question = args.question?.trim();
-  if (!question) return { status: "error", message: "Missing question" };
-
   try {
+    const question = str(args.question);
+    if (!question) return { status: "error", message: "Missing question" };
+
     const { sql, rows, repaired, repairError, fewShot, substitutions, suggestions, ambiguousPerson } = await answerWithSQL(question, { history, req });
     return { status: "ok", sql, rows, vizType: classifyQuery(sql), repaired, repairError, fewShot, substitutions, suggestions, ambiguousPerson };
   } catch (e) {
@@ -276,27 +296,34 @@ export async function runFindSimilarCases(args: {
   excludeSourceDistrict?: boolean;
   topK?: number;
 }, req?: Request): Promise<FindSimilarCasesResult> {
-  const topK = Math.min(Math.max(Number(args.topK) || 5, 1), 10);
   try {
+    const topK = Math.min(Math.max(num(args.topK) || 5, 1), 10);
+    const crimeNo = str(args.crimeNo);
+    const description = str(args.description);
     const { districtId } = await getScope(req);
-    let sourceId = args.caseMasterId ? Number(args.caseMasterId) : undefined;
+    // Resolve the seed through the officer's own scope. On the unscoped client
+    // a CrimeNo from another district resolves and then fails later with a
+    // different message than one that does not exist at all - which is enough
+    // to enumerate valid case numbers statewide from the chat box.
+    const scoped = scopedClient(districtId);
+    let sourceId = num(args.caseMasterId) || undefined;
     let sourceDistrict: string | null = null;
-    if (!sourceId && args.crimeNo) {
-      const r = await db.$queryRawUnsafe<{ id: number }[]>(`SELECT "CaseMasterID" AS id FROM "CaseMaster" WHERE "CrimeNo" = $1 LIMIT 1`, String(args.crimeNo).trim());
+    if (!sourceId && crimeNo) {
+      const r = await scoped.$queryRawUnsafe<{ id: number }[]>(`SELECT "CaseMasterID" AS id FROM "CaseMaster" WHERE "CrimeNo" = $1 LIMIT 1`, crimeNo);
       sourceId = r[0]?.id;
-      if (!sourceId) return { status: "error", message: `No case with CrimeNo ${args.crimeNo}` };
+      if (!sourceId) return { status: "error", message: `No case with CrimeNo ${crimeNo} in this officer's scope` };
     }
     if (sourceId && args.excludeSourceDistrict) {
-      const r = await db.$queryRawUnsafe<{ district: string }[]>(
+      const r = await scoped.$queryRawUnsafe<{ district: string }[]>(
         `SELECT d."DistrictName" AS district FROM "CaseMaster" cm JOIN "Unit" u ON u."UnitID" = cm."PoliceStationID" JOIN "District" d ON d."DistrictID" = u."DistrictID" WHERE cm."CaseMasterID" = $1`, sourceId);
       sourceDistrict = r[0]?.district ?? null;
     }
     const cases = sourceId
       ? await similarCasesTo(sourceId, { topK, excludeDistrict: sourceDistrict, districtId })
-      : args.description
-        ? await similarCasesToText(args.description, { topK, districtId })
+      : description
+        ? await similarCasesToText(description, { topK, districtId })
         : [];
-    if (!sourceId && !args.description) return { status: "error", message: "Give a case (CaseMasterID or CrimeNo) or a description of the method." };
+    if (!sourceId && !description) return { status: "error", message: "Give a case (CaseMasterID or CrimeNo) or a description of the method." };
     if (!cases.length) return { status: "error", message: "No embedded narratives to compare against (run scripts/backfill-embeddings.ts)." };
     // Table-shaped rows for the chat viz; the full cases go to the Related Cases panel.
     const rows = cases.map((c) => ({
@@ -311,10 +338,10 @@ export async function runFindSimilarCases(args: {
 }
 
 export async function runSearchRelatedCases(args: { query: string }, req?: Request): Promise<SearchRelatedCasesResult> {
-  const query = args.query?.trim();
-  if (!query) return { status: "error", message: "Missing query" };
-
   try {
+    const query = str(args.query);
+    if (!query) return { status: "error", message: "Missing query" };
+
     const cases = await findSimilarCases(query, 5, (await getScope(req)).districtId);
     return { status: "ok", cases };
   } catch (e) {
@@ -326,11 +353,17 @@ export async function runSearchRelatedCases(args: { query: string }, req?: Reque
 export async function runCheckInsights(req?: Request): Promise<CheckInsightsResult> {
   try {
     const cached = await getCachedInsights(req);
-    if (cached) return { status: "ok", insights: cached };
+    let insights = cached;
+    if (!insights) {
+      insights = await computeInsights();
+      await setCachedInsights(insights, req);
+    }
 
-    const insights = await computeInsights();
-    await setCachedInsights(insights, req);
-    return { status: "ok", insights };
+    // The chat box is not a way around the posting: the same cut /api/insights
+    // applies on the way out applies here, or a district officer reads another
+    // district's findings - named accused included - just by asking.
+    const { districtId } = await getScope(req);
+    return { status: "ok", insights: scopeInsights(insights, districtId) };
   } catch (e) {
     console.error("checkInsights tool failed:", e);
     return { status: "error", message: "Insights lookup failed" };
@@ -348,19 +381,28 @@ export async function runPredictHotspots(
   req?: Request
 ): Promise<PredictHotspotsResult> {
   try {
-    const horizon = Math.min(Math.max(Number(args.horizonDays) || 30, 7), 90);
+    const horizon = Math.min(Math.max(num(args.horizonDays) || 30, 7), 90);
     const forecast = await computeHotspots(horizon);
 
-    // The officer's posting bounds the answer the same way it bounds their SQL.
-    const { districtName } = await getScope(req);
-    const wanted = (args.district ?? districtName ?? "").trim().toLowerCase();
-    const group = (args.crimeGroup ?? "").trim().toLowerCase();
-
+    // The posting is a bound, not a default. Cutting on the district id first -
+    // exactly as /api/forecast/hotspots does - means `args.district` can only
+    // ever narrow what the officer may already see; a Kalaburagi SHO naming
+    // Mysuru gets nothing, not Mysuru's deployment priorities.
+    const { districtId, districtName } = await getScope(req);
     let priorities = forecast.priorities;
+    if (districtId) {
+      priorities = priorities.filter((p) => p.districtId === districtId).map((p, i) => ({ ...p, rank: i + 1 }));
+    }
+
+    const wanted = str(args.district).toLowerCase();
+    const group = str(args.crimeGroup).toLowerCase();
     if (wanted) priorities = priorities.filter((p) => p.district.toLowerCase().includes(wanted));
     if (group) priorities = priorities.filter((p) => p.crimeGroup.toLowerCase().includes(group));
 
     if (!priorities.length) {
+      // Name the district the answer was actually confined to, which for a
+      // district-posted officer is their own whichever district was asked for.
+      const scopeLabel = districtName ?? (wanted ? str(args.district) : null);
       return {
         status: "ok",
         horizonDays: horizon,
@@ -368,8 +410,8 @@ export async function runPredictHotspots(
         priorities: [],
         rows: [],
         vizType: "table",
-        message: wanted
-          ? `No crime group is trending up in ${args.district ?? districtName} with enough history to project.`
+        message: scopeLabel
+          ? `No crime group is trending up in ${scopeLabel} with enough history to project.`
           : "No cell has both a rising trend and enough history to project.",
       };
     }
@@ -397,28 +439,83 @@ export async function runPredictHotspots(
   }
 }
 
+// Per-district case counts, the same aggregate /api/map-data's Observed layer
+// reads. Run through the scoped client, so a district officer sees one row.
+const MAP_COUNTS_SQL = `
+  SELECT d."DistrictName" AS district_name, COUNT(*)::int AS case_count
+  FROM "CaseMaster" cm
+  JOIN "Unit" u ON u."UnitID" = cm."PoliceStationID"
+  JOIN "District" d ON d."DistrictID" = u."DistrictID"
+  GROUP BY d."DistrictName"
+  ORDER BY case_count DESC`;
+
+// The co-offender network, flattened to one row per person: who they are, how
+// many cases they carry, how many distinct co-accused link to them inside the
+// network, and the crime group they mostly work in. Edges are pairs charged
+// together in two or more FIRs - a recurring crew, not a one-off pairing.
+const NETWORK_SQL = `
+  WITH strong AS (
+    SELECT a1."PersonID" AS p1, a2."PersonID" AS p2
+    FROM "Accused" a1
+    JOIN "Accused" a2
+      ON a2."CaseMasterID" = a1."CaseMasterID"
+     AND a1."PersonID" < a2."PersonID"
+    WHERE a1."PersonID" IS NOT NULL AND a2."PersonID" IS NOT NULL
+    GROUP BY a1."PersonID", a2."PersonID"
+    HAVING COUNT(DISTINCT a1."CaseMasterID") >= 2
+  ),
+  linked AS (
+    SELECT p1 AS pid, p2 AS other FROM strong
+    UNION ALL
+    SELECT p2 AS pid, p1 AS other FROM strong
+  )
+  SELECT a."PersonID" AS "PersonID",
+         MAX(a."AccusedName") AS "AccusedName",
+         COUNT(DISTINCT a."CaseMasterID")::int AS case_count,
+         (SELECT COUNT(DISTINCT l.other)::int FROM linked l WHERE l.pid = a."PersonID") AS co_accused,
+         (SELECT ch."CrimeGroupName"
+            FROM "Accused" aa
+            JOIN "CaseMaster" cm ON cm."CaseMasterID" = aa."CaseMasterID"
+            JOIN "CrimeHead" ch ON ch."CrimeHeadID" = cm."CrimeMajorHeadID"
+           WHERE aa."PersonID" = a."PersonID"
+           GROUP BY ch."CrimeGroupName"
+           ORDER BY COUNT(*) DESC
+           LIMIT 1) AS crime_types
+  FROM "Accused" a
+  WHERE a."PersonID" IN (SELECT pid FROM linked)
+  GROUP BY a."PersonID"
+  ORDER BY co_accused DESC, case_count DESC
+  LIMIT 60`;
+
+/**
+ * Network and map evidence, read from the database directly.
+ *
+ * It used to re-enter its own HTTP layer with `fetch(origin + path)`, which
+ * forwarded no session cookie: requireUser 401'd every call, and with no `req`
+ * at all the relative URL threw. It also read `data.rows`, a key
+ * /api/network-data never returns. Querying here instead keeps the officer's
+ * scope (the same RLS transaction the routes use) and returns the rows/vizType
+ * contract every other tool speaks.
+ */
 export async function runGetNetworkOrMapData(
   args: { kind: "network" | "map" },
   req?: Request
 ): Promise<NetworkOrMapResult> {
-  const kind = args.kind === "map" ? "map" : "network";
+  const kind = str(args.kind) === "map" ? "map" : "network";
 
   try {
-    const origin = req ? new URL(req.url).origin : "";
-    const path = kind === "map" ? "/api/map-data" : "/api/network-data";
-    const res = await fetch(`${origin}${path}`, { cache: "no-store" });
-    if (!res.ok) return { status: "error", message: `${path} returned ${res.status}` };
+    const { districtId } = await getScope(req);
+    const scoped = scopedClient(districtId);
 
-    const data = await res.json();
     if (kind === "map") {
-      const rows = ((data.districts ?? []) as { name: string; count: number }[]).map((d) => ({
-        district_name: d.name,
-        case_count: d.count,
-      }));
+      const rows = await scoped.$queryRawUnsafe<{ district_name: string; case_count: number }[]>(MAP_COUNTS_SQL);
+      if (!rows.length) return { status: "error", message: "No cases to distribute across districts in this officer's scope." };
       return { status: "ok", rows, vizType: "chart" };
     }
 
-    return { status: "ok", rows: data.rows ?? [], vizType: "graph" };
+    const rows = await scoped.$queryRawUnsafe<Record<string, unknown>[]>(NETWORK_SQL);
+    if (!rows.length) return { status: "error", message: "No accused are linked by two or more shared cases in this officer's scope." };
+    return { status: "ok", rows, vizType: "graph" };
   } catch (e) {
     console.error("getNetworkOrMapData tool failed:", e);
     return { status: "error", message: "Network/map data lookup failed" };
@@ -439,6 +536,13 @@ export async function runPredictRisk(
   req?: Request
 ): Promise<PredictRiskResult> {
   const app = AUTOML_MODEL_ID ? getCatalystApp(req) : null;
+  const crimeType = str(args.crimeType);
+  const districtName = str(args.district);
+  const victimCount = num(args.victimCount) ?? 0;
+  const accusedCount = num(args.accusedCount) ?? 0;
+  const daysSinceRegistered = num(args.daysSinceRegistered) ?? 0;
+  // The planner writes "true"/"false" as often as a JSON boolean.
+  const hasArrest = args.hasArrest === true || str(args.hasArrest).toLowerCase() === "true";
 
   // Fallback: interpretable local model (also the Explainable-AI layer). Used
   // whenever the Catalyst QuickML classifier isn't available — i.e. any local
@@ -446,32 +550,32 @@ export async function runPredictRisk(
   // below takes over.
   if (!app || !AUTOML_MODEL_ID) {
     const pred = predictChargesheetRisk({
-      hasArrest: args.hasArrest,
-      daysSinceRegistered: args.daysSinceRegistered,
-      heinous: HEINOUS_CRIME_GROUPS.has(args.crimeType),
-      victimCount: args.victimCount,
-      accusedCount: args.accusedCount,
+      hasArrest,
+      daysSinceRegistered,
+      heinous: HEINOUS_CRIME_GROUPS.has(crimeType),
+      victimCount,
+      accusedCount,
     });
     return { status: "ok", label: pred.label, probability: pred.probability, contributions: pred.contributions, source: "local" };
   }
 
   try {
     const [crimeHead, district] = await Promise.all([
-      prisma.crimeHead.findFirst({ where: { CrimeGroupName: { equals: args.crimeType, mode: "insensitive" } } }),
-      prisma.district.findFirst({ where: { DistrictName: { equals: args.district, mode: "insensitive" } } }),
+      prisma.crimeHead.findFirst({ where: { CrimeGroupName: { equals: crimeType, mode: "insensitive" } } }),
+      prisma.district.findFirst({ where: { DistrictName: { equals: districtName, mode: "insensitive" } } }),
     ]);
-    if (!crimeHead) return { status: "error", message: `Unknown crime type: ${args.crimeType}` };
-    if (!district) return { status: "error", message: `Unknown district: ${args.district}` };
+    if (!crimeHead) return { status: "error", message: `Unknown crime type: ${crimeType}` };
+    if (!district) return { status: "error", message: `Unknown district: ${districtName}` };
 
     const result = await withCatalystTimeout(
       app.zia().automl(AUTOML_MODEL_ID, {
         crime_major_head_id: String(crimeHead.CrimeHeadID),
         district_id: String(district.DistrictID),
-        victim_count: String(args.victimCount),
-        accused_count: String(args.accusedCount),
-        days_since_registered: String(args.daysSinceRegistered),
+        victim_count: String(victimCount),
+        accused_count: String(accusedCount),
+        days_since_registered: String(daysSinceRegistered),
         gravity_heinous: HEINOUS_CRIME_GROUPS.has(crimeHead.CrimeGroupName ?? "") ? "1" : "0",
-        has_arrest: args.hasArrest ? "1" : "0",
+        has_arrest: hasArrest ? "1" : "0",
       })
     );
 
@@ -535,15 +639,15 @@ export async function runBuildCrewDossier(
   args: { crimeNo?: string; caseId?: number; personName?: string; personId?: string },
   req?: Request
 ): Promise<BuildCrewDossierResult> {
-  const crimeNo = args.crimeNo?.trim();
-  const personName = args.personName?.trim();
-  let personId = args.personId?.trim() || undefined;
-  let caseId = Number(args.caseId) || undefined;
-  if (!caseId && !crimeNo && !personId && !personName) {
-    return { status: "error", message: "Give a case (CaseMasterID or CrimeNo) or a person (name or PersonID) to build the dossier around." };
-  }
-
   try {
+    const crimeNo = str(args.crimeNo);
+    const personName = str(args.personName);
+    let personId = str(args.personId) || undefined;
+    let caseId = num(args.caseId) || undefined;
+    if (!caseId && !crimeNo && !personId && !personName) {
+      return { status: "error", message: "Give a case (CaseMasterID or CrimeNo) or a person (name or PersonID) to build the dossier around." };
+    }
+
     const { districtId } = await getScope(req);
     const scoped = scopedClient(districtId);
 

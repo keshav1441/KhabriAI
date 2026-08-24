@@ -20,10 +20,10 @@ import {
 
 const label = (stage: string) => stage.toUpperCase();
 
-const district = (name: string, predicted: number, delta: number): ForecastDistrict => ({
+const district = (name: string, predicted30: number, delta: number): ForecastDistrict => ({
   districtId: name.length,
   district: name,
-  predicted,
+  predicted30,
   delta,
   confidence: "medium",
 });

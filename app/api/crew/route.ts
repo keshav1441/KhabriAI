@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireUser, getScope } from "@/lib/chat-auth";
 import { buildCrew } from "@/lib/crew";
-import { prisma } from "@/lib/db";
+import { scopedClient } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -28,19 +28,24 @@ export async function GET(req: NextRequest) {
   try {
     const { districtId } = await getScope(req);
 
+    // One answer for "no such case" and "not yours to see". Two different 404s
+    // let an officer enumerate valid CrimeNos statewide by diffing the message.
+    const notFound = Response.json(
+      { error: "No case to build a dossier from — check the number, or it may be outside your posting" },
+      { status: 404 }
+    );
+
     if (!caseId && crimeNo) {
-      const rows = await prisma.$queryRawUnsafe<{ id: number }[]>(
+      const rows = await scopedClient(districtId).$queryRawUnsafe<{ id: number }[]>(
         `SELECT "CaseMasterID" AS id FROM "CaseMaster" WHERE "CrimeNo" = $1 LIMIT 1`,
         crimeNo
       );
-      if (!rows.length) return Response.json({ error: `No case with CrimeNo ${crimeNo}` }, { status: 404 });
+      if (!rows.length) return notFound;
       caseId = rows[0].id;
     }
 
     const dossier = await buildCrew({ caseId, personId }, { districtId });
-    if (!dossier.cases.length) {
-      return Response.json({ error: "Nothing to build a dossier from — the seed case or person is not in scope" }, { status: 404 });
-    }
+    if (!dossier.cases.length) return notFound;
     return Response.json({ dossier });
   } catch (e) {
     console.error("crew dossier failed:", e);

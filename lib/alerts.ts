@@ -148,7 +148,16 @@ async function computeDuplicateAlerts(): Promise<Candidate[]> {
     const where = h.sameStation
       ? `both at ${h.station ?? h.districtName}`
       : `${h.station ?? h.districtName} and ${h.matchStation ?? h.matchDistrictName}`;
-    const why = h.reasons.map((r) => r.label.toLowerCase()).join("; ");
+    // The people reason carries a complainant or victim's actual name. That name
+    // belongs to one of the two files, so it must not be written into the other
+    // district's alert row - the pair of CrimeNos is enough to act on either
+    // side, and the officer who owns the file can see the name in it.
+    const reasonText = (withName: boolean) =>
+      h.reasons
+        .filter((r) => withName || r.signal !== "people")
+        .map((r) => r.label.toLowerCase())
+        .join("; ");
+    const why = reasonText(true);
     const base = {
       type: "duplicate",
       title: `Possible duplicate FIR: ${label}`,
@@ -165,7 +174,17 @@ async function computeDuplicateAlerts(): Promise<Candidate[]> {
     const dedupe = `dup:${pair}`;
     out.push({ ...base, districtId: h.districtId, districtName: h.districtName, dedupe });
     if (h.matchDistrictId !== h.districtId) {
-      out.push({ ...base, districtId: h.matchDistrictId, districtName: h.matchDistrictName, dedupe });
+      const named = h.reasons.some((r) => r.signal === "people");
+      out.push({
+        ...base,
+        // Same finding, but the far district's copy is stripped of the name.
+        detail: named
+          ? `${label} (${h.registered ?? "recent"}) looks like the same incident as ${matchLabel} (${h.matchRegistered ?? "recent"}) — ${where}. ${pct}% likely: ${reasonText(false) || "the narratives and dates line up"}. A person named in both files is out of your posting; the other station holds that record.`
+          : base.detail,
+        districtId: h.matchDistrictId,
+        districtName: h.matchDistrictName,
+        dedupe,
+      });
     }
   }
   return out;

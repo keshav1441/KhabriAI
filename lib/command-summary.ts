@@ -41,6 +41,8 @@ export function dataOf<T>(r: PanelResult<T> | null | undefined): T | null {
 
 // ---- Severity ---------------------------------------------------------------
 
+import type { IncidentPoint, IncidentPointResult } from "./map-points";
+
 export type Tone = "critical" | "warning" | "info" | "neutral";
 
 /** The same three colours the alert bell uses; neutral is for a figure at rest. */
@@ -79,7 +81,8 @@ export interface AlertsPayload {
 export interface ForecastDistrict {
   districtId: number;
   district: string;
-  predicted: number;
+  /** Matches HotspotDistrict.predicted30 - the name the forecast actually returns. */
+  predicted30: number;
   delta: number;
   confidence: "low" | "medium" | "high";
 }
@@ -159,7 +162,7 @@ function note(n: number | null | undefined, phrase: (v: string) => string): stri
 export function pickHottestDistrict(districts: ForecastDistrict[] | null | undefined): ForecastDistrict | null {
   if (!districts?.length) return null;
   return [...districts].sort(
-    (a, b) => b.predicted - a.predicted || b.delta - a.delta || a.district.localeCompare(b.district)
+    (a, b) => b.predicted30 - a.predicted30 || b.delta - a.delta || a.district.localeCompare(b.district)
   )[0];
 }
 
@@ -234,7 +237,7 @@ export function buildFigures(inputs: FigureInputs, label: (stageId: string) => s
       id: "hottestDistrict",
       label: { key: "hotspot.predicted30" },
       value: hottest ? hottest.district : null,
-      note: hottest ? `${count(hottest.predicted)} cases` : null,
+      note: hottest ? `${count(hottest.predicted30)} cases` : null,
       tone: hottestTone(hottest),
       view: "map",
     },
@@ -269,19 +272,30 @@ export function buildFigures(inputs: FigureInputs, label: (stageId: string) => s
 
 // ---- Map summary -----------------------------------------------------------
 
+/** @deprecated use IncidentPoint from lib/map-points - kept for the existing tests. */
 export interface MapPoint {
   district?: string | null;
   lat?: number | null;
   lng?: number | null;
 }
 
-export interface MapPointsPayload {
-  points?: MapPoint[] | null;
-  total?: number | null;
-  missingCoords?: number | null;
-}
+/**
+ * Derived from the producer rather than restated. Declaring a payload shape by
+ * hand is what let the command centre read `predicted` off a forecast that only
+ * has `predicted30`, and miss `capped` here - the compiler cannot catch a
+ * contract you wrote down twice. Partial<> because a panel renders before its
+ * fetch resolves.
+ */
+export type MapPointsPayload = Omit<Partial<IncidentPointResult>, "points"> & {
+  // The counts come from the producer; the points are narrowed to the three
+  // fields this module actually reads, so a caller (or a test) is not made to
+  // invent a CrimeNo to ask which districts are busiest.
+  points?: Array<Pick<IncidentPoint, "district" | "lat" | "lng">> | null;
+};
 
 export interface MapDistrictShare {
+  /** How many points the share was computed over — never the corpus total. */
+  sampled?: number;
   district: string;
   count: number;
   share: number;
@@ -290,6 +304,14 @@ export interface MapDistrictShare {
 /**
  * The incident layer, counted rather than drawn — see the note in CommandView
  * on why this screen does not mount a second Leaflet map.
+ */
+/**
+ * Districts ranked over the points that were actually fetched — which is the
+ * newest N of the corpus, not the corpus. The caller must say so: this corpus
+ * is close to uniform across districts (~3.5% each), so on a 1,500-point sample
+ * the ranking is sampling noise, and printing it under a 20,000 headline reads
+ * as "Ballari is the busiest district" when it is nothing of the kind.
+ * `sampled` carries the denominator so the UI can label what it is showing.
  */
 export function summariseMapPoints(payload: MapPointsPayload | null, top = 5): MapDistrictShare[] {
   const points = payload?.points ?? [];
@@ -303,7 +325,7 @@ export function summariseMapPoints(payload: MapPointsPayload | null, top = 5): M
   const placed = [...byDistrict.values()].reduce((a, b) => a + b, 0);
   if (!placed) return [];
   return [...byDistrict.entries()]
-    .map(([district, n]) => ({ district, count: n, share: n / placed }))
+    .map(([district, n]) => ({ district, count: n, share: n / placed, sampled: placed }))
     .sort((a, b) => b.count - a.count || a.district.localeCompare(b.district))
     .slice(0, top);
 }

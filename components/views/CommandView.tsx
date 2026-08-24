@@ -192,7 +192,7 @@ export function CommandView({ onNavigate }: { onNavigate?: (view: string) => voi
             render={(d) => {
               const districts = (d.forecast?.districts ?? []).slice(0, 4);
               if (!districts.length) return <Empty text={t("hotspot.empty", lang)} />;
-              const top = Math.max(1, ...districts.map((x) => x.predicted));
+              const top = Math.max(1, ...districts.map((x) => x.predicted30));
               return (
                 <div className="px-4 py-3 space-y-2.5">
                   {districts.map((x) => (
@@ -201,7 +201,7 @@ export function CommandView({ onNavigate }: { onNavigate?: (view: string) => voi
                         <span className="text-xs font-bold truncate" style={{ color: "var(--text-primary)" }}>{x.district}</span>
                         <ConfidenceChip level={x.confidence} />
                         <span className="font-data text-xs ml-auto shrink-0" style={{ color: "var(--text-primary)" }}>
-                          {Math.round(x.predicted).toLocaleString()}
+                          {Math.round(x.predicted30).toLocaleString()}
                         </span>
                         <span
                           className="font-data text-[10px] shrink-0"
@@ -211,7 +211,7 @@ export function CommandView({ onNavigate }: { onNavigate?: (view: string) => voi
                         </span>
                       </div>
                       <div className="mt-1 h-1.5 rounded-sm overflow-hidden" style={{ background: "var(--bg-raised)" }}>
-                        <div className="h-full rounded-sm" style={{ width: `${(x.predicted / top) * 100}%`, background: "var(--red)", opacity: 0.75 }} />
+                        <div className="h-full rounded-sm" style={{ width: `${(x.predicted30 / top) * 100}%`, background: "var(--red)", opacity: 0.75 }} />
                       </div>
                     </div>
                   ))}
@@ -232,9 +232,21 @@ export function CommandView({ onNavigate }: { onNavigate?: (view: string) => voi
               if (!shares.length) return <Empty text={t("map.noCoords", lang)} />;
               return (
                 <div className="px-4 py-3">
+                  {/* The ranking below is over the points actually fetched — the
+                      newest slice, not the corpus — so the denominator is named
+                      rather than left next to the corpus total to be misread. */}
+                  {/* "shown of total", the way MapView renders it. Printing the
+                      corpus total here read as "20,000 incidents shown" when the
+                      panel had fetched the newest 1,500 - and the district bars
+                      below are computed over that sample, not the corpus. */}
                   <p className="font-data text-[10px] tracking-widest uppercase mb-2" style={{ color: "var(--text-muted)" }}>
-                    {`${(d.total ?? 0).toLocaleString()} ${t("map.incidentCount", lang)} · ${(d.missingCoords ?? 0).toLocaleString()} ${t("map.noCoords", lang)}`}
+                    {`${(d.points?.length ?? 0).toLocaleString()}${d.capped ? ` / ${(d.total ?? 0).toLocaleString()}` : ""} ${t("map.incidentCount", lang)} · ${(d.missingCoords ?? 0).toLocaleString()} ${t("map.noCoords", lang)}`}
                   </p>
+                  {d.capped && (
+                    <p className="text-[11px] mb-2" style={{ color: "var(--text-muted)" }}>
+                      {t("map.sampleNote", lang).replace("{n}", (shares[0]?.sampled ?? 0).toLocaleString())}
+                    </p>
+                  )}
                   <div className="space-y-1.5">
                     {shares.map((s) => (
                       <div key={s.district} className="flex items-center gap-2">

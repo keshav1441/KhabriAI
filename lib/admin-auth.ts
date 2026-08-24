@@ -6,9 +6,10 @@ import { getUserFromRequest } from "./chat-auth";
  * trail. Both show other officers' questions, so a district posting is not
  * enough: reviewing is an HQ function.
  *
- * ADMIN_EMAILS narrows it further when set. Every account created from /login
- * defaults to HQ, so on a demo deployment "HQ" alone is not much of a gate;
- * setting the list makes it a real one.
+ * ADMIN_EMAILS is required, not optional. Every account created from /login
+ * defaults to HQ and the role arrives in the signup request body, so without
+ * the list anyone who can register can read every officer's questions. Unset
+ * means the governance consoles are closed to everybody.
  */
 export type Reviewer = { id: number; email: string; firstName: string; lastName: string; role: string };
 
@@ -20,12 +21,20 @@ function allowList(): string[] {
 }
 
 export async function getReviewer(req: NextRequest): Promise<Reviewer | null> {
+  const list = allowList();
+
+  // Fail closed. Signup takes the posting from the request body and anything
+  // that is not "SHO" becomes HQ, so "HQ only" is not a gate at all on a
+  // deployment that accepts self-registration: an attacker just registers.
+  // The allowlist is the only thing standing between a new account and every
+  // officer's questions, so its absence disables the consoles rather than
+  // opening them.
+  if (!list.length) return null;
+
   const user = await getUserFromRequest(req);
   if (!user) return null;
   if (user.role === "SHO") return null;
-
-  const list = allowList();
-  if (list.length && !list.includes(user.email.toLowerCase())) return null;
+  if (!list.includes(user.email.toLowerCase())) return null;
 
   return { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role };
 }

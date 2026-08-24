@@ -327,6 +327,8 @@ export const STRINGS = {
 
   // Incident-level map
   "map.layer.incidents":  { en: "Incidents", kn: "ಘಟನೆಗಳು" },
+  "map.sampleNote":       { en: "Ranked over the {n} most recent FIRs, not the whole corpus.",
+                            kn: "ಇತ್ತೀಚಿನ {n} ಎಫ್‌ಐಆರ್‌ಗಳ ಆಧಾರದ ಮೇಲೆ, ಇಡೀ ದಾಖಲೆಯ ಮೇಲೆ ಅಲ್ಲ." },
   "map.incidentHint":     { en: "Each point is one FIR, placed at its recorded location.", kn: "ಪ್ರತಿ ಬಿಂದು ಒಂದು ಎಫ್‌ಐಆರ್, ಅದರ ದಾಖಲಿತ ಸ್ಥಳದಲ್ಲಿ." },
   "map.incidentCount":    { en: "incidents shown", kn: "ಘಟನೆಗಳು ತೋರಿಸಲಾಗಿದೆ" },
   "map.noCoords":         { en: "without recorded coordinates", kn: "ದಾಖಲಿತ ನಿರ್ದೇಶಾಂಕಗಳಿಲ್ಲದೆ" },
