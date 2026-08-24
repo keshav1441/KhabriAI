@@ -1,5 +1,6 @@
 import { prisma } from "./db";
 import { computeInsights } from "./insights-compute";
+import { scanDuplicates } from "./duplicate-detect";
 import type { InsightItem } from "./insights-cache";
 
 /**
@@ -124,6 +125,52 @@ async function computeMoLinkAlerts(): Promise<Candidate[]> {
   return out;
 }
 
+const DUP_MAX_ALERTS = 5;
+
+/**
+ * The other half of the MO linker. That one finds different crimes by the same
+ * crew; this finds one crime with two files — an incident reported again at the
+ * next station, or re-entered at the same one. Nobody notices from inside a
+ * single station's register, and both files carry on consuming investigation
+ * time until someone does.
+ *
+ * Bounded the same way: recent registrations only, capped, and the scoring
+ * refuses to assert without a matching complainant or victim.
+ */
+async function computeDuplicateAlerts(): Promise<Candidate[]> {
+  const hits = await scanDuplicates({ maxPairs: DUP_MAX_ALERTS });
+
+  const out: Candidate[] = [];
+  for (const h of hits) {
+    const pct = Math.round(h.likelihood * 100);
+    const label = h.crimeNo ?? `case ${h.caseId}`;
+    const matchLabel = h.matchCrimeNo ?? `case ${h.matchId}`;
+    const where = h.sameStation
+      ? `both at ${h.station ?? h.districtName}`
+      : `${h.station ?? h.districtName} and ${h.matchStation ?? h.matchDistrictName}`;
+    const why = h.reasons.map((r) => r.label.toLowerCase()).join("; ");
+    const base = {
+      type: "duplicate",
+      title: `Possible duplicate FIR: ${label}`,
+      detail: `${label} (${h.registered ?? "recent"}) looks like the same incident as ${matchLabel} (${h.matchRegistered ?? "recent"}) — ${where}. ${pct}% likely: ${why}.`,
+      query: `Compare FIR ${h.crimeNo ?? h.caseId} and FIR ${h.matchCrimeNo ?? h.matchId} — are these the same incident filed twice?`,
+      caseId: h.caseId,
+      // Near-certain wastes two investigations and double-counts the crime
+      // statistics; merely probable is a question for the IO, not an emergency.
+      severity: (h.likelihood >= 0.85 ? "critical" : "warning") as "critical" | "warning",
+    };
+    // Symmetric key, low id first, so the same pair found from either direction
+    // on a later run is the same finding and does not re-notify.
+    const pair = h.caseId < h.matchId ? `${h.caseId}:${h.matchId}` : `${h.matchId}:${h.caseId}`;
+    const dedupe = `dup:${pair}`;
+    out.push({ ...base, districtId: h.districtId, districtName: h.districtName, dedupe });
+    if (h.matchDistrictId !== h.districtId) {
+      out.push({ ...base, districtId: h.matchDistrictId, districtName: h.matchDistrictName, dedupe });
+    }
+  }
+  return out;
+}
+
 export function toCandidate(i: InsightItem): Candidate {
   return {
     ...i,
@@ -170,12 +217,13 @@ export async function generateAlerts(): Promise<{ created: number; users: number
   const users = await prisma.khabriUser.findMany({ select: { id: true, role: true, districtId: true } });
   if (!users.length) return { created: 0, users: 0, findings: 0 };
 
-  const [insights, moLinks] = await Promise.all([
+  const [insights, moLinks, duplicates] = await Promise.all([
     computeInsights().catch((e) => { console.error("alerts: insight compute failed:", e); return [] as InsightItem[]; }),
     computeMoLinkAlerts().catch((e) => { console.error("alerts: MO link compute failed:", e); return [] as Candidate[]; }),
+    computeDuplicateAlerts().catch((e) => { console.error("alerts: duplicate compute failed:", e); return [] as Candidate[]; }),
   ]);
 
-  const candidates: Candidate[] = [...insights.map(toCandidate), ...moLinks];
+  const candidates: Candidate[] = [...insights.map(toCandidate), ...moLinks, ...duplicates];
   if (!candidates.length) return { created: 0, users: users.length, findings: 0 };
 
   const data = fanOut(candidates, users);

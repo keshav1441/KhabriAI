@@ -70,6 +70,11 @@ cosine distance over narrative embeddings stored on `CaseMaster.BriefFactsEmbedd
 | **Proactive alerts** | The detectors run on a schedule, not on a page view: spikes, repeat accused, weekly surges, forecasts and cross-district MO matches are written as per-officer alerts and surfaced in a header bell; clicking one puts the investigating question in the chat |
 | **Answer feedback → few-shot learning** | Thumbs-up/down on every answer; a thumbs-down carries the question, the SQL and the tools that ran. An HQ reviewer writes the query it should have used, and once that passes the SELECT-only validator *and* executes, the pair becomes a few-shot example the next similar question retrieves — no redeploy. The holdout eval deliberately ignores learned examples |
 | **Audit trail** | Every tool call and every completed question written with the officer, the scope it ran under, the arguments, the row count and the latency — to Postgres, an off-box Catalyst table and a local JSONL file. Readable at `/admin/audit`, grouped by question, filterable by officer, tool, scope and failure |
+| **FIR ingestion from a document** | An FIR that already exists on paper is read into the registration form — a `.pdf` text layer or pasted text. The model may only *quote*; every quote is checked back against the document and resolved against the real station, crime-head, court and section tables, and anything ambiguous is left blank. Nothing is saved until the officer presses Register |
+| **Groundedness guard** | Every figure in an answer is re-derived from the tool results that produced it. Four accepted derivations — a returned value, a row count, a column sum, a percentage of two returned numbers. A figure nothing computed is named in red under the answer and recorded on the audit run |
+| **Duplicate FIR detection** | The mirror of MO linking: not "same crew, different crimes" but "same crime, two files". Narratives must read almost identically *and* a complainant or victim must match; without a matching person the score is held below the bar. Surfaced in the Case File and pushed as an alert to both districts |
+| **My Desk (pendency)** | The screen an SHO opens daily: open cases ranked by days remaining on the statutory 60/90-day chargesheet clock, with the arrest position and a chargesheet-likelihood read on every row. The gravity basis for each clock is declared on the row |
+| **Data quality dashboard** | 13 checks over the case records themselves — missing sections, empty narratives, chargesheet flags with nothing behind them, contradictory crime heads, impossible dates — with a severity-weighted completeness score and the districts the defects sit in |
 | Kannada localization | Full nav/chat UI in Kannada, questions accepted in either language |
 | Voice + export | Speech in/out, conversation PDF export, CSV result export |
 | Auth & history | Neon Auth (Google via shared OAuth, email one-time codes) bridged to an HMAC-signed app session; password accounts for scripts; per-user chat threads in Neon |
@@ -197,6 +202,103 @@ accountable for; filtering to a tool still returns the question that produced th
 scope is rendered distinctly from statewide, since what the officer was *allowed* to see is the point.
 One run on the synthetic corpus (`npm run audit`): 4 runs, 4 tool calls, 0 failures, median run
 6,621 ms, `queryDatabase` 3 calls at a 3,603 ms median. Nothing prunes the table yet.
+
+## FIR ingestion — the door every other feature is reached through
+
+Everything above assumes the case is already in the database. In a station it is on paper first, and
+re-typing it is where an FIR either arrives or does not. KhabriAI reads an FIR document — a PDF's
+embedded text layer, or text pasted from one — and drafts the registration form. The model is allowed
+to do exactly one thing: **quote**. It never emits an id, because a hallucinated station id would file
+a real FIR at the wrong station and nothing downstream would question it.
+
+Four layers sit between a quote and a filled field. The quote is checked back against the document, so
+an invented complainant loses their row. What survives is resolved against the actual lookup tables, so
+a station that does not exist is left blank rather than approximated. When the runner-up is within 0.1
+similarity of the best match the field is refused, because lookup names share too much boilerplate for
+a near-tie to be anything but a coin flip. And the structural cases refuse outright: a station name that
+exists in two districts, a sub-head under two crime groups, a court that does not belong to the district
+on the FIR. Nothing is saved automatically — the officer reads the draft, sees which fields came from
+the document and which could not be found, and presses Register, through the same validation a
+hand-typed FIR goes through.
+
+**The limit, stated plainly: there is no OCR.** A scanned FIR has no text layer, and the app says so
+and asks for the text rather than pretending it read something.
+
+## Groundedness — refusing to state a figure the system did not compute
+
+The synthesis model is told to cite concrete numbers. When a tool returns nothing useful, it will
+occasionally cite one anyway — and a fabricated count inside a fluent briefing is worse than no count,
+because an officer cannot tell the two apart by reading. So every figure in an answer is re-derived from
+the tool payloads that produced it, before the officer sees it.
+
+Four derivations are accepted and no others: the number is a value in a returned row, it is the count of
+returned rows, it is the sum of a returned column, or it is a percentage of two returned numbers.
+Differences, averages, medians and growth rates are deliberately rejected — with a large result set they
+would validate almost any number, which is the opposite of a guard. Years, dates, CrimeNos and section
+numbers are excluded as references rather than claims, and so are figures the officer's own question
+already contained ("the last **30** days") and the size they asked for ("top 5"), because flagging those
+would put a red warning on a correct answer and teach the officer to ignore the guard.
+
+The verdict is shown lopsidedly: a clean answer gets one muted line, an unverified figure gets a badge
+that names the figure. It is also written onto the audit run, so a reviewer can ask which answers ever
+carried a number nothing computed. The checker never rewrites an answer; it only labels it.
+
+## Duplicate FIRs — the mirror image of MO linking
+
+MO linking asks *different crimes, same crew?*. This asks the opposite: *same crime, two files?* — one
+incident written up twice, re-entered at the same station or reported again at the next one over because
+the complainant did not know an FIR had already been taken. Two investigations run, one crime is counted
+twice, and nobody notices from inside a single station's register.
+
+The two questions need opposite instincts. An MO link is content with a loose narrative match, because
+two burglaries by the same crew genuinely read differently; the linker calls 0.72 a match. A duplicate is
+one event described twice, so the narrative gate is **0.86** — it must read almost the same — and the
+people have to line up as well. Narrative carries .35 of the score, matching people .30, the date .15,
+the station .10 and the crime sub-head .10, above a threshold of 0.62. Two conservatism caps do the
+real work: without a matching complainant or victim the score is held at 0.55, and without a strong
+narrative at 0.45. Both are below the bar, so the pair is still visible to anyone scanning by hand but
+the system never asserts it.
+
+Nothing is merged and nothing is closed. The pair is surfaced in the Case File with the reasons that
+fired — "narratives read 91% alike", "same person named in both", "incidents 2 days apart" — and pushed
+as an alert to **both** districts, so the two SHOs who cannot see each other's registers are told at once.
+
+## My Desk — the screen an SHO opens every morning
+
+Every other screen answers a question an officer thought to ask. This one answers the question they have
+before they sit down: of the cases still on my hands, which is closest to slipping? Open cases — no
+chargesheet filed and not already disposed — are ranked by **days remaining on the statutory chargesheet
+clock**, the only deadline on the screen with a consequence attached: miss it and the accused takes
+default bail. Ranking by case age instead would put a 70-day-old grave case above a 65-day-old ordinary
+one that is already five days past its limit. Ties go to the case with no arrest, then the one the risk
+model says is drifting.
+
+**Two limits are declared rather than hidden.** The clock is 60 or 90 days depending on gravity, and the
+statutory test is "punishable with ten years or more" — which this schema cannot evaluate, because
+`Section` carries no punishment column. `GravityOffence` holds only Heinous and Non-Heinous, which is not
+the same distinction, so it is used as a **declared proxy** and every row states the basis its clock was
+set on: `heinous`, `non-heinous`, or `assumed` where gravity is missing. Second: there is no hearing-date
+column anywhere in the schema, so the desk names the committing court and stays silent about dates rather
+than inventing a next hearing it cannot know.
+
+## Data quality — everything above rests on the records underneath
+
+Every other surface in this prototype is a claim about the case records, and a claim is worth exactly
+what the records are worth. Nothing in the chain announces a gap: the map silently drops FIRs with no
+coordinates, similarity silently ranks the ones with no narrative last, and the disposal rate quietly
+counts a chargesheet flag with no chargesheet behind it. The dashboard is where those silences are
+counted out loud — 13 read-only checks over the case tables, each stating the operational consequence
+rather than the rule, with real CrimeNos a reviewer can go and look at.
+
+The score is a severity-weighted mean of the pass rates — critical 3, warning 2, info 1 — because 20 FIRs
+with no act or section matter more than 200 with no coordinates, and an unweighted mean would say the
+opposite. It is capped at 99.9 while anything is failing: a handful of bad records out of 20,000 rounds
+to a clean 100, which becomes a lie the moment the reviewer scrolls down. A per-district table says where
+the defects sit, so a cleanup instruction has an address.
+
+One run on the synthetic corpus: 99.9%, 3 of 13 checks failing — 25 FIRs still on the seed's boilerplate
+narrative, one missing a victim, one missing coordinates — across 20 of the 30 districts. On real KSP
+data this is the screen that would run first.
 
 ## Handling real questions, not benchmark questions
 

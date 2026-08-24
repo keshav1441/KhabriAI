@@ -31,6 +31,16 @@ type Form = ReturnType<typeof initialForm>;
 const num = (s: string) => (s === "" ? undefined : Number(s));
 const toPerson = (p: PersonRow) => ({ name: p.name, ageYear: num(p.ageYear), genderId: num(p.genderId), ...(p.personId ? { personId: p.personId } : {}) });
 
+// Extracted-field keys -> the label the officer already sees on that control.
+const FIELD_LABEL: Record<string, StringKey> = {
+  districtId: "fir.district", policeStationId: "fir.station", courtId: "fir.court",
+  crimeMajorHeadId: "fir.crimeGroup", crimeMinorHeadId: "fir.crime",
+  crimeRegisteredDate: "fir.registeredDate", incidentFromDate: "fir.incidentDate",
+  caseCategoryId: "fir.category", gravityOffenceId: "fir.gravity",
+  latitude: "fir.latitude", longitude: "fir.longitude", briefFacts: "fir.briefFacts",
+  complainant: "fir.sec.complainant", accused: "fir.sec.accused", victims: "fir.sec.victims", sections: "fir.sec.sections",
+};
+
 const inputStyle: CSSProperties = { background: "var(--bg-input)", border: "1px solid var(--border)", color: "var(--text-primary)" };
 const focus = (e: React.FocusEvent<HTMLElement>) => { e.currentTarget.style.borderColor = "var(--ink)"; };
 const blur = (e: React.FocusEvent<HTMLElement>) => { e.currentTarget.style.borderColor = "var(--border)"; };
@@ -55,8 +65,58 @@ export function RegisterFirView({ onAskAssistant }: { onAskAssistant: () => void
   };
   useEffect(loadLookups, []);
 
-  const set = <K extends keyof Form>(k: K, v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const [docBusy, setDocBusy] = useState(false);
+  const [docError, setDocError] = useState<string | null>(null);
+  const [docName, setDocName] = useState<string | null>(null);
+  const [pasted, setPasted] = useState("");
+  const [fromDoc, setFromDoc] = useState<string[]>([]);
+  const [notFound, setNotFound] = useState<string[]>([]);
+  const [docWarnings, setDocWarnings] = useState<string[]>([]);
+
+  // Touching a prefilled field means the officer has taken it over — the badge goes.
+  const unmark = (...keys: string[]) => setFromDoc((d) => d.filter((x) => !keys.includes(x)));
+  const mark = (k: string) => (fromDoc.includes(k) ? L("fir.upload.source") : undefined);
+
+  const set = <K extends keyof Form>(k: K, v: Form[K]) => { setForm((f) => ({ ...f, [k]: v })); unmark(k); };
   const setRows = (k: "accused" | "victims", rows: PersonRow[]) => set(k, rows);
+
+  const discardDoc = () => { setFromDoc([]); setNotFound([]); setDocWarnings([]); setDocName(null); setDocError(null); setPasted(""); };
+
+  const applyDraft = (data: { form?: Partial<Form>; extracted?: string[]; missing?: string[]; warnings?: string[] }) => {
+    const f = data.form ?? {};
+    setForm({
+      ...initialForm(), ...f,
+      complainant: f.complainant ?? blankPerson(),
+      accused: f.accused?.length ? f.accused : [blankPerson()],
+      victims: f.victims ?? [],
+      sections: f.sections ?? [],
+    });
+    setFromDoc(data.extracted ?? []);
+    setNotFound(data.missing ?? []);
+    setDocWarnings(data.warnings ?? []);
+    setError(null);
+  };
+
+  // Reads a document into the form and stops there: registering is still a separate,
+  // deliberate press of the button at the bottom.
+  const readDocument = async (file: File | null) => {
+    setDocBusy(true);
+    setDocError(null);
+    try {
+      const init: RequestInit = file
+        ? { method: "POST", body: (() => { const fd = new FormData(); fd.append("file", file); return fd; })() }
+        : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: pasted }) };
+      const res = await fetch("/api/fir/extract", init);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setDocError(data.error ?? `HTTP ${res.status}`); return; }
+      applyDraft(data);
+      setDocName(file ? file.name : null);
+    } catch {
+      setDocError("Network error");
+    } finally {
+      setDocBusy(false);
+    }
+  };
 
   const district = lookups?.districts.find((d) => String(d.DistrictID) === form.districtId);
   const head = lookups?.crimeHeads.find((h) => String(h.CrimeHeadID) === form.crimeMajorHeadId);
@@ -98,7 +158,7 @@ export function RegisterFirView({ onAskAssistant }: { onAskAssistant: () => void
     }
   };
 
-  const reset = () => { setForm(initialForm()); setDone(null); setError(null); };
+  const reset = () => { setForm(initialForm()); setDone(null); setError(null); discardDoc(); };
 
   if (loadError) {
     return (
@@ -144,22 +204,70 @@ export function RegisterFirView({ onAskAssistant }: { onAskAssistant: () => void
           <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{L("fir.subtitle")}</p>
         </div>
 
+        <section className="rounded-md p-4" style={{ background: "var(--bg-surface)", border: "1px dashed var(--ink)" }}>
+          <h3 className="text-xs font-bold tracking-widest uppercase" style={{ color: "var(--ink)" }}>{L("fir.upload.title")}</h3>
+          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{L("fir.upload.hint")}</p>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <label className="text-xs font-bold px-3 py-1.5 rounded-md" style={{ background: "var(--ink)", color: "var(--bg-input)", cursor: docBusy ? "wait" : "pointer", opacity: docBusy ? 0.6 : 1 }}>
+              {docBusy ? L("fir.upload.extracting") : L("fir.upload.choose")}
+              <input type="file" accept=".txt,.pdf,text/plain,application/pdf" style={{ display: "none" }} disabled={docBusy}
+                onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) readDocument(f); }} />
+            </label>
+            {docName && <span className="font-data text-xs" style={{ color: "var(--text-secondary)" }}>{docName}</span>}
+            {(fromDoc.length > 0 || notFound.length > 0) && (
+              <button type="button" onClick={() => { setForm(initialForm()); discardDoc(); }} className="text-xs font-medium px-3 py-1.5 rounded-md" style={{ color: "var(--text-secondary)", border: "1px solid var(--border)" }}>
+                {L("fir.upload.clear")}
+              </button>
+            )}
+          </div>
+
+          <div className="mt-2 flex items-end gap-2">
+            <textarea rows={2} aria-label={L("fir.upload.title")} className={inputClass} style={{ ...inputStyle, resize: "vertical" }} onFocus={focus} onBlur={blur}
+              value={pasted} onChange={(e) => setPasted(e.target.value)} />
+            <button type="button" disabled={docBusy || pasted.trim().length < 40} onClick={() => readDocument(null)}
+              className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-md" style={{ color: "var(--ink)", border: "1px solid var(--ink)", opacity: docBusy || pasted.trim().length < 40 ? 0.4 : 1 }}>
+              {L("feedback.send")}
+            </button>
+          </div>
+
+          {docError && (
+            <div role="alert" className="mt-2 rounded-md px-3 py-2 text-xs" style={{ background: "var(--red-dim)", border: "1px solid var(--red)", color: "var(--red)" }}>
+              <span className="font-bold">{L("fir.upload.failed")}:</span> {docError}
+            </div>
+          )}
+          {fromDoc.length > 0 && (
+            <div className="mt-2 rounded-md px-3 py-2 text-xs" style={{ background: "var(--ink-dim)", border: "1px solid var(--ink)", color: "var(--text-primary)" }}>
+              {L("fir.upload.filled")}
+            </div>
+          )}
+          {notFound.length > 0 && (
+            <div className="mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
+              <span className="font-bold">{L("fir.upload.unfilled")}:</span>{" "}
+              {notFound.map((f) => (FIELD_LABEL[f] ? L(FIELD_LABEL[f]) : f)).join(" · ")}
+            </div>
+          )}
+          {docWarnings.map((w, i) => (
+            <div key={i} className="mt-1 text-xs" style={{ color: "var(--amber)" }}>⚠ {w}</div>
+          ))}
+        </section>
+
         <Section title={L("fir.sec.jurisdiction")}>
           <Grid>
-            <Field label={L("fir.district")}>
+            <Field label={L("fir.district")} source={mark("districtId")}>
               <select required className={inputClass} style={inputStyle} onFocus={focus} onBlur={blur} value={form.districtId}
-                onChange={(e) => setForm((f) => ({ ...f, districtId: e.target.value, policeStationId: "", courtId: "" }))}>
+                onChange={(e) => { setForm((f) => ({ ...f, districtId: e.target.value, policeStationId: "", courtId: "" })); unmark("districtId", "policeStationId", "courtId"); }}>
                 <option value="">{L("fir.select")}</option>
                 {lookups.districts.map((d) => <option key={d.DistrictID} value={d.DistrictID}>{d.DistrictName}</option>)}
               </select>
             </Field>
-            <Field label={L("fir.station")}>
+            <Field label={L("fir.station")} source={mark("policeStationId")}>
               <select required className={inputClass} style={inputStyle} onFocus={focus} onBlur={blur} value={form.policeStationId} disabled={!district} onChange={(e) => set("policeStationId", e.target.value)}>
                 <option value="">{L("fir.select")}</option>
                 {district?.units.map((u) => <option key={u.UnitID} value={u.UnitID}>{u.UnitName}</option>)}
               </select>
             </Field>
-            <Field label={L("fir.court")} optional={L("fir.optional")}>
+            <Field label={L("fir.court")} optional={L("fir.optional")} source={mark("courtId")}>
               <select className={inputClass} style={inputStyle} onFocus={focus} onBlur={blur} value={form.courtId} onChange={(e) => set("courtId", e.target.value)}>
                 <option value="">{L("fir.select")}</option>
                 {courts.map((c) => <option key={c.CourtID} value={c.CourtID}>{c.CourtName}</option>)}
@@ -170,65 +278,65 @@ export function RegisterFirView({ onAskAssistant }: { onAskAssistant: () => void
 
         <Section title={L("fir.sec.offence")}>
           <Grid>
-            <Field label={L("fir.crimeGroup")}>
+            <Field label={L("fir.crimeGroup")} source={mark("crimeMajorHeadId")}>
               <select required className={inputClass} style={inputStyle} onFocus={focus} onBlur={blur} value={form.crimeMajorHeadId}
-                onChange={(e) => setForm((f) => ({ ...f, crimeMajorHeadId: e.target.value, crimeMinorHeadId: "", sections: [] }))}>
+                onChange={(e) => { setForm((f) => ({ ...f, crimeMajorHeadId: e.target.value, crimeMinorHeadId: "", sections: [] })); unmark("crimeMajorHeadId", "crimeMinorHeadId", "sections"); }}>
                 <option value="">{L("fir.select")}</option>
                 {lookups.crimeHeads.map((h) => <option key={h.CrimeHeadID} value={h.CrimeHeadID}>{h.CrimeGroupName}</option>)}
               </select>
             </Field>
-            <Field label={L("fir.crime")}>
+            <Field label={L("fir.crime")} source={mark("crimeMinorHeadId")}>
               <select required className={inputClass} style={inputStyle} onFocus={focus} onBlur={blur} value={form.crimeMinorHeadId} disabled={!head} onChange={(e) => set("crimeMinorHeadId", e.target.value)}>
                 <option value="">{L("fir.select")}</option>
                 {head?.subHeads.map((s) => <option key={s.CrimeSubHeadID} value={s.CrimeSubHeadID}>{s.CrimeHeadName}</option>)}
               </select>
             </Field>
-            <Field label={L("fir.registeredDate")}>
+            <Field label={L("fir.registeredDate")} source={mark("crimeRegisteredDate")}>
               <input type="date" required max={today()} className={`${inputClass} font-data`} style={inputStyle} onFocus={focus} onBlur={blur} value={form.crimeRegisteredDate} onChange={(e) => set("crimeRegisteredDate", e.target.value)} />
             </Field>
-            <Field label={L("fir.incidentDate")} optional={L("fir.optional")}>
+            <Field label={L("fir.incidentDate")} optional={L("fir.optional")} source={mark("incidentFromDate")}>
               <input type="date" max={form.crimeRegisteredDate || today()} className={`${inputClass} font-data`} style={inputStyle} onFocus={focus} onBlur={blur} value={form.incidentFromDate} onChange={(e) => set("incidentFromDate", e.target.value)} />
             </Field>
-            <Field label={L("fir.category")} optional={L("fir.optional")}>
+            <Field label={L("fir.category")} optional={L("fir.optional")} source={mark("caseCategoryId")}>
               <select className={inputClass} style={inputStyle} onFocus={focus} onBlur={blur} value={form.caseCategoryId} onChange={(e) => set("caseCategoryId", e.target.value)}>
                 <option value="">{L("fir.select")}</option>
                 {lookups.categories.map((c) => <option key={c.CaseCategoryID} value={c.CaseCategoryID}>{c.LookupValue}</option>)}
               </select>
             </Field>
-            <Field label={L("fir.gravity")} optional={L("fir.optional")}>
+            <Field label={L("fir.gravity")} optional={L("fir.optional")} source={mark("gravityOffenceId")}>
               <select className={inputClass} style={inputStyle} onFocus={focus} onBlur={blur} value={form.gravityOffenceId} onChange={(e) => set("gravityOffenceId", e.target.value)}>
                 <option value="">{L("fir.select")}</option>
                 {lookups.gravity.map((g) => <option key={g.GravityOffenceID} value={g.GravityOffenceID}>{g.LookupValue}</option>)}
               </select>
             </Field>
-            <Field label={L("fir.latitude")} optional={L("fir.optional")}>
+            <Field label={L("fir.latitude")} optional={L("fir.optional")} source={mark("latitude")}>
               <input type="number" step="any" min={-90} max={90} className={`${inputClass} font-data`} style={inputStyle} onFocus={focus} onBlur={blur} value={form.latitude} onChange={(e) => set("latitude", e.target.value)} placeholder="12.9716" />
             </Field>
-            <Field label={L("fir.longitude")} optional={L("fir.optional")}>
+            <Field label={L("fir.longitude")} optional={L("fir.optional")} source={mark("longitude")}>
               <input type="number" step="any" min={-180} max={180} className={`${inputClass} font-data`} style={inputStyle} onFocus={focus} onBlur={blur} value={form.longitude} onChange={(e) => set("longitude", e.target.value)} placeholder="77.5946" />
             </Field>
           </Grid>
         </Section>
 
         <Section title={L("fir.sec.facts")}>
-          <Field label={L("fir.briefFacts")}>
+          <Field label={L("fir.briefFacts")} source={mark("briefFacts")}>
             <textarea required minLength={20} maxLength={4000} rows={5} className={inputClass} style={{ ...inputStyle, resize: "vertical" }} onFocus={focus} onBlur={blur} value={form.briefFacts} onChange={(e) => set("briefFacts", e.target.value)} />
           </Field>
         </Section>
 
-        <Section title={L("fir.sec.complainant")}>
+        <Section title={L("fir.sec.complainant")} source={mark("complainant")}>
           <PersonFields row={form.complainant} onChange={(r) => set("complainant", r)} L={L} required />
         </Section>
 
-        <Section title={L("fir.sec.accused")} hint={L("fir.maxRows")}>
+        <Section title={L("fir.sec.accused")} hint={L("fir.maxRows")} source={mark("accused")}>
           <RowList rows={form.accused} onChange={(rows) => setRows("accused", rows)} L={L} withPersonId min={1} />
         </Section>
 
-        <Section title={L("fir.sec.victims")} hint={L("fir.maxRows")}>
+        <Section title={L("fir.sec.victims")} hint={L("fir.maxRows")} source={mark("victims")}>
           <RowList rows={form.victims} onChange={(rows) => setRows("victims", rows)} L={L} min={0} />
         </Section>
 
-        <Section title={L("fir.sec.sections")} hint={L("fir.maxRows")}>
+        <Section title={L("fir.sec.sections")} hint={L("fir.maxRows")} source={mark("sections")}>
           <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))" }}>
             {sections.map((s) => {
               const key = `${s.ActCode}|${s.SectionCode}`;
@@ -242,6 +350,14 @@ export function RegisterFirView({ onAskAssistant }: { onAskAssistant: () => void
                 </label>
               );
             })}
+            {/* An extracted section whose act sits outside the chosen crime group would be
+                checked but invisible - show it so the officer can review or drop it. */}
+            {form.sections.filter((k) => !sections.some((x) => `${x.ActCode}|${x.SectionCode}` === k)).map((k) => (
+              <label key={k} className="flex items-start gap-2 text-xs px-2 py-1 rounded-md" style={{ color: "var(--text-primary)", background: "var(--ink-dim)", cursor: "pointer" }}>
+                <input type="checkbox" className="mt-0.5" checked onChange={() => set("sections", form.sections.filter((x) => x !== k))} />
+                <span className="font-data font-bold">{k.replace("|", " ")}</span>
+              </label>
+            ))}
           </div>
         </Section>
 
@@ -267,11 +383,11 @@ function Centered({ children }: { children: ReactNode }) {
   return <div className="flex-1 flex flex-col items-center justify-center gap-3 h-40">{children}</div>;
 }
 
-function Section({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+function Section({ title, hint, source, children }: { title: string; hint?: string; source?: string; children: ReactNode }) {
   return (
-    <section className="rounded-md p-4" style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+    <section className="rounded-md p-4" style={{ background: "var(--bg-surface)", border: `1px solid ${source ? "var(--ink)" : "var(--border)"}` }}>
       <div className="flex items-baseline justify-between mb-3">
-        <h3 className="text-xs font-bold tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>{title}</h3>
+        <h3 className="text-xs font-bold tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>{title}{source && <SourceBadge label={source} />}</h3>
         {hint && <span className="text-xs" style={{ color: "var(--text-muted)" }}>{hint}</span>}
       </div>
       {children}
@@ -283,14 +399,24 @@ function Grid({ children }: { children: ReactNode }) {
   return <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>{children}</div>;
 }
 
-function Field({ label, optional, children }: { label: string; optional?: string; children: ReactNode }) {
+function Field({ label, optional, source, children }: { label: string; optional?: string; source?: string; children: ReactNode }) {
   return (
     <label className="block">
       <span className="block text-xs mb-1" style={{ color: "var(--text-secondary)" }}>
         {label}{optional && <span style={{ color: "var(--text-muted)" }}> · {optional}</span>}
+        {source && <SourceBadge label={source} />}
       </span>
       {children}
     </label>
+  );
+}
+
+// Marks a value that came out of the uploaded document and has not been touched since.
+function SourceBadge({ label }: { label: string }) {
+  return (
+    <span className="ml-1.5 text-xs font-bold px-1.5 py-0.5 rounded" style={{ background: "var(--ink-dim)", color: "var(--ink)", textTransform: "none", letterSpacing: 0 }}>
+      {label}
+    </span>
   );
 }
 

@@ -163,6 +163,46 @@ function AnswerFeedback({ message }: { message: ChatMessage }) {
   );
 }
 
+/**
+ * The groundedness marker. Deliberately lopsided: a clean answer gets one muted
+ * line an officer can skip, an unverified figure gets a red badge that names the
+ * figure - that is the case someone has to look at before it reaches a briefing.
+ */
+function GroundednessMark({ message }: { message: ChatMessage }) {
+  const lang = useChatStore((s) => s.lang);
+  const verdict = message.groundedness;
+  // Nothing to say about an answer that quoted no figures at all.
+  if (!verdict || verdict.checked === 0) return null;
+
+  if (verdict.grounded) {
+    return (
+      <div
+        className="flex items-center gap-1 text-xs font-data"
+        style={{ color: "var(--text-muted)" }}
+        title={t("answer.groundedTip", lang)}
+      >
+        <span aria-hidden>✓</span>
+        {t("answer.grounded", lang)}
+      </div>
+    );
+  }
+
+  const unverified = verdict.claims.filter((c) => !c.supported).map((c) => c.text);
+  return (
+    <div
+      className="inline-flex items-start gap-1.5 px-2 py-1 rounded text-xs font-data"
+      style={{ background: "var(--red-dim)", border: "1px solid var(--red)", color: "var(--red)" }}
+      title={t("answer.ungroundedTip", lang)}
+    >
+      <span aria-hidden>⚠</span>
+      <span>
+        {t("answer.ungrounded", lang)}
+        {unverified.length > 0 && <>: {unverified.join(", ")}</>}
+      </span>
+    </div>
+  );
+}
+
 export function MessageBubble({ message }: { message: ChatMessage }) {
   const lang = useChatStore((s) => s.lang);
   if (message.role === "user") {
@@ -230,6 +270,8 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
             </button>
           )}
         </div>
+
+        {!message.loading && message.content && <GroundednessMark message={message} />}
 
         {!message.loading && message.content && <AnswerFeedback message={message} />}
 

@@ -102,6 +102,13 @@ export default function FeedbackConsolePage() {
             Audit trail →
           </Link>
           <Link
+            href="/admin/data-quality"
+            className="text-xs font-medium px-3 py-1.5 rounded-md transition-all"
+            style={{ color: "var(--text-secondary)", border: "1px solid var(--border)" }}
+          >
+            Data quality →
+          </Link>
+          <Link
             href="/dashboard"
             className="text-xs font-medium px-3 py-1.5 rounded-md transition-all"
             style={{ color: "var(--text-secondary)", border: "1px solid var(--border)" }}

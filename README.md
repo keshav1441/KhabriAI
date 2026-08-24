@@ -24,7 +24,12 @@ Conversational AI for investigators to query crime data in plain English. Sign i
 | Predictive hotspots | Least-squares trend per district × crime group over 6 complete months (`lib/hotspot-forecast.ts`) · patrol priorities · Catalyst Cache 180 min |
 | Answer feedback | Thumbs-up/down per answer → reviewed correction becomes a few-shot example in Postgres (`LearnedExample`), merged into retrieval at query time (`lib/rag.ts`) |
 | Audit trail | Every tool call and run to Postgres + Catalyst Data Store + local JSONL, with the officer and the scope it ran under (`lib/agent/audit-log.ts`) |
-| Reviewer consoles | `/admin/feedback` and `/admin/audit` — HQ role required, narrowed by `ADMIN_EMAILS` (`lib/admin-auth.ts`) |
+| Groundedness guard | Every figure in an answer re-derived from the tool payloads it was given (`lib/groundedness.ts`) · badge in the chat, verdict on the audit run |
+| FIR ingestion | Document → draft registration form: PDF text layer via `node:zlib` (no OCR), Mistral quotes only, every value resolved against the real lookups (`lib/fir-extract.ts`, `lib/pdf-text.ts`) |
+| Duplicate FIRs | Narrative gate 0.86 over pgvector + people / date / station scoring (`lib/duplicate-detect.ts`) · Case File section · `duplicate` alert |
+| Pendency (My Desk) | Statutory chargesheet clock 60/90 days over open cases, ranked by days remaining (`lib/pendency.ts`) |
+| Data quality | 13 read-only checks over the case tables, severity-weighted score (`lib/data-quality.ts`) · Catalyst Cache 60 min |
+| Reviewer consoles | `/admin/feedback`, `/admin/audit` and `/admin/data-quality` — HQ role required, narrowed by `ADMIN_EMAILS` (`lib/admin-auth.ts`) |
 | Maps | Leaflet + react-leaflet — 30 hardcoded district centroids, not per-incident coordinates |
 | Network graph | Cytoscape.js + cose-bilkent |
 | Charts | Recharts |
@@ -109,7 +114,8 @@ The insights panel is pull — it only exists while someone is looking at it. `l
 | `repeat_suspect` | Accused linked to 3+ cases in 30 days; statewide when they're active in more than one district | `warning` |
 | `weekly_surge` | Crime group up >30% this week vs last, statewide | `critical` at ≥50%, else `warning` |
 | `forecast` | Least-squares 6-month trend per district × crime group (`lib/forecast.ts`) | `info` |
-| `mo_link` | **New** — cross-district modus-operandi linker (below) | `critical` |
+| `mo_link` | Cross-district modus-operandi linker (below) | `critical` |
+| `duplicate` | **New** — the same incident filed twice (`lib/duplicate-detect.ts`, see [Duplicate FIR detection](#duplicate-fir-detection)) | `critical` at ≥ 0.85 likelihood, else `warning` |
 
 **Cross-district MO linker.** One pgvector `LATERAL` nearest-neighbour lookup per recent case: it scans the 60 most recently registered embedded cases from the last `ALERT_MO_RECENT_DAYS` days, and for each one takes the single closest `CaseMaster.BriefFactsEmbedding` **in a different district**. Matches at or above `ALERT_MO_MIN_SCORE` become alerts (max 5 per run). Each match produces one finding routed to *both* districts, so the two stations that can't see each other's files both get it.
 
@@ -308,6 +314,196 @@ It asks a real agent question, waits for the fire-and-forget writes to land, the
 
 ---
 
+## FIR document ingestion
+
+Everything else in the app starts from a case that is already in the database. Registration is where a case gets there, and an officer with the FIR already typed up elsewhere should not have to type it again. `POST /api/fir/extract` reads an FIR document and returns a **draft of the registration form** — nothing more. It writes nothing: the officer reviews every field and presses **Register**, which still goes through `validateFirInput` (`lib/fir.ts`) and `createCase` (`lib/fir-create.ts`) exactly as a hand-typed FIR does.
+
+**What it reads.** A `.txt` upload, a `.pdf`, or text pasted into the box. `lib/pdf-text.ts` is a ~70-line reader for a PDF's **embedded text layer** — it Flate-decodes the content streams with `node:zlib` and replays the `Tj`/`TJ` text-showing operators. Deliberately not a PDF library, deliberately not an OCR, and no new dependency. A scanned FIR has no text layer, so it comes back empty and the route answers **422** with "this PDF has no readable text layer — open it, copy the text, and paste it below" instead of pretending it read something.
+
+**The model may only quote.** `lib/fir-extract.ts` asks Mistral (`MISTRAL_EXTRACT_MODEL`, default `mistral-large-latest`, `temperature: 0`, JSON mode) for verbatim strings from the document — a district *name*, a station *name*, the section as the document writes it. It is never asked for, and never allowed to emit, an id. A hallucinated `policeStationId` would file a real FIR at the wrong station and nothing downstream would ever question it.
+
+**Four layers stand between a quote and a filled field:**
+
+| Layer | What it stops |
+|---|---|
+| Quote-back check (`appearsInDocument`) | A value the model reports but the document does not contain — punctuation- and case-insensitively — is dropped with a warning. An invented complainant loses the whole person row |
+| Vocabulary resolution (`resolveVocab` → `lib/entity-resolve.ts`) | A name that resolves to no real `District` / `Unit` / `CrimeHead` / `CrimeSubHead` / `Court` / `CaseCategory` / `GravityOffence` row is left blank, never approximated. Legacy names still resolve through the same alias table the SQL path uses |
+| Near-tie rule (`MATCH_MARGIN = 0.1`) | Lookup names share boilerplate ("… PS", "… District Court"), so when the runner-up is within 0.1 trigram similarity of the best candidate the match is a coin flip — both are refused and the field stays blank |
+| Structural refusals | A station name that exists in **two districts**; a crime sub-head that belongs to **two crime groups**; a court that is **not a court of the resolved district**; a section number that belongs to two acts with no act named in the text. Each is a warning and a blank field |
+
+Dates parse day-first for numeric forms and refuse two-digit years outright; an unparseable date stays blank rather than becoming today. Sections are only accepted as real `Act|Section` pairs from the `Section` table. **Brief facts** is the single field allowed to be a condensation rather than a quote — it lands in a textarea the officer reads in full, and a reworded word there cannot misfile a case the way a wrong id can — but it is still flagged ("condensed from the document — read them before registering").
+
+**Limits.** 5 MB per file (**413** above it), 20,000 characters read (`MAX_DOC_CHARS`; a longer document is truncated and says so), `.txt`/`.pdf` only (**415** otherwise), and a document under 40 characters of text is refused as too short to be an FIR.
+
+**UI.** The dashed **Start from a document** block at the top of the **Register FIR** view (`components/views/RegisterFirView.tsx`): choose a file or paste the text, and the form fills. Every field the document filled is marked as such and un-marks the moment the officer edits it; the fields it could not find are listed, and so is every warning above. **Clear** throws the draft away and returns an empty form.
+
+**Env:** `MISTRAL_EXTRACT_MODEL` (default `mistral-large-latest`). **Route:** `POST /api/fir/extract` — session-guarded, `runtime = "nodejs"` because the PDF reader needs `node:zlib`.
+
+`npm test` covers the whole draft-building step with no network and no database (`test/fir-extract.test.ts`): quote-back, resolution, the near-tie rule, ambiguous stations, sub-heads under two groups, a court outside the district, invented people, and sections absent from the Act/Section list.
+
+One run on the synthetic corpus: a pasted FIR resolved station, district, crime head and sub-head, the dates and the complainant with age and gender in 3.7 s — and refused a BNS section string that is not in the Act/Section list rather than guessing a section for it. That is one document, not an evaluation.
+
+---
+
+## Groundedness guard
+
+The synthesis model is told to cite concrete numbers from the tool results. When a tool returns nothing useful it will occasionally cite a number anyway, and **a fabricated count in a briefing is worse than no count** — an officer cannot tell the two apart by reading. `lib/groundedness.ts` re-derives, from the tool payloads alone, whether every figure in the narrative could have come from the data, and marks the ones that could not. It is pure: no database, no network, no second model call. It never rewrites the answer, it only labels it.
+
+**Exactly four accepted derivations:**
+
+| Derivation | What it means |
+|---|---|
+| **Literal** | The number is a value in a returned row, or inside a returned string cell ("Whitefield (34%)") |
+| **Count** | It equals the length of a returned list — "5 linked cases" is a claim about the data's shape |
+| **Sum** | It equals the total of a numeric column across the returned rows, or of a returned numeric array |
+| **Percent** | Only for a token written as a percentage, and only when it equals `a/b*100` for two returned numbers, or `v*100` for a returned fraction `v` in `[0,1]` (probabilities and similarity scores come back that way) |
+
+**Deliberately not accepted:** differences, averages, medians, growth rates, per-capita figures, or arithmetic over more than two returned numbers. Each of those has too many candidate operand pairs — on a large result set they would validate almost any number, which is the opposite of a guard. The candidate pools are capped (300 values, 120 for the quadratic percentage pass), and the cap only ever makes the checker stricter.
+
+**What is not a claim.** Years, dates, CrimeNo / PersonID / CaseMasterID strings, section numbers and `u/s` references, list ordinals, month names — the model is repeating a label it was handed, not asserting a quantity it computed. Two more exclusions matter as much: **figures echoed from the officer's own question** ("FIRs in the last **30** days") and **request sizes** ("top **5**"). Flagging either would put a red warning on a perfectly correct answer, and a guard that cries wolf is worse than no guard. A four-digit number followed by a unit word ("1,984 **cases**") is still checked — that one is a count that happens to look like a year. Prose keys (`sql`, `briefFacts`, `narrative`, …) are excluded from the data pool, so a hallucinated count cannot "match" the digits of a section number that happened to appear in the generated SQL.
+
+**Wiring.** `lib/agent/orchestrator.ts` collects every tool payload during the run, checks the finished narrative against them, and yields the verdict as a `meta` event. A failed check is caught and swallowed — the guard must never break an answer.
+
+**Surfaced, deliberately lopsided** (`components/chat/MessageBubble.tsx`): a clean answer gets one muted `✓` line an officer can skip; an unverified figure gets a red badge **that names the figure**. An answer that quoted no figures at all says nothing.
+
+**Recorded.** `lib/agent/audit-log.ts` writes the verdict onto the run row, reusing the two columns a run row always left null: `status` is the one-word verdict (`grounded` / `ungrounded` / `no-figures`) and `result` holds the claims behind it — so "show me the answers that carried a figure no tool returned" is answerable at `/admin/audit` with no schema change.
+
+**End-to-end agent eval.**
+
+```bash
+npm run eval:agent                     # 30 questions through the whole orchestrator
+npm run eval:agent -- --limit=5        # smoke
+npm run eval:agent -- --only=hotspot   # one family of questions
+npm run eval:agent -- --lang=kn        # the Kannada surface
+```
+
+`eval/agent-eval.ts` runs the **whole orchestrator** — a live planner call and a live synthesis call per question against the real database — and records, per question: which tools the planner actually chose (routing), wall-clock latency, whether the run errored or degraded to a fallback sentence, and the groundedness verdict with the unverified figures named. It asserts no single correct answer, because for most of these questions there isn't one. It is **deliberately not part of `npm test`**: it costs money and minutes, so it is run on purpose. Results land in `eval/results/agent-*.json`.
+
+`npm test` covers the checker itself (`test/groundedness.test.ts`): the four derivations, the reference exclusions, echoed windows and request sizes, and that an invented figure is still caught when a window is present.
+
+One run on the synthetic corpus: on *"How many FIRs were filed in Ballari in the last 30 days, and what share were cybercrimes?"* the verdict was `grounded` with 2 claims checked (36 and 4) — the "30 days" window correctly not treated as a claim. That is one question, not an evaluation.
+
+---
+
+## Duplicate FIR detection
+
+The mirror image of modus-operandi linking. MO linking asks *different crimes, same crew?*; this asks the opposite — **same crime, two files?** One incident written up twice: re-entered at the same station, or reported again at the next one over because the complainant did not know the first FIR had been taken. Nobody notices from inside a single station's register, and both files carry on consuming investigation time until someone does.
+
+**The two questions need opposite instincts.** An MO link is happy with a loose narrative match, because two burglaries by the same crew genuinely read differently. A duplicate is one event described twice, so the narrative has to read **almost the same** *and* the people have to line up. The MO linker calls **0.72** a match and the crew walk **0.78**; the duplicate gate is **0.86** (`DUP.narrativeGate`). Below it, a pair is a method match, not a re-filing, whatever else agrees.
+
+**Signals and weights** (`lib/duplicate-detect.ts`, `scoreDuplicate` — pure, no database):
+
+| Signal | Weight | Why that size |
+|---|---|---|
+| `narrative` | **.35** | The strongest single indicator, but alone it is exactly the false positive we are avoiding — so it is under half. Scaled 0.80 → 0, 0.98 → 1 |
+| `people` | **.30** | What separates "same kind of crime" from "same crime". Best name match across **both** files' complainants *and* victims — the complainant in one file is often recorded as the victim in the other, so roles are compared across each other |
+| `date` | **.15** | Corroboration: a re-filing lands days apart, not months. Decays over a 7-day window |
+| `station` | **.10** | Same station = 1, same district = 0.6, other district = 0.15. A same-station pair is usually a clerical re-entry, but the cross-district case is the whole point of the feature, so this can never be a large share |
+| `crimeType` | **.10** | Same crime sub-head. Cheap agreement, easily coincidental. Small on purpose |
+
+**Threshold 0.62**, and two conservatism caps that are about refusing to assert rather than hiding:
+
+- **No matching person** (best name similarity below `0.72`) → the score is held at **0.55**, below the bar. Two burglaries on the same street in the same week are not a duplicate.
+- **Weak narrative** (below the 0.86 gate) → held at **0.45**. The same victim robbed twice in a fortnight is two crimes, not one file typed twice; matching people cannot rescue narratives that describe different events.
+
+Names are matched after honorifics and the `s/o` / `w/o` tails are stripped — two clerks writing the same complainant rarely agree on them. Every candidate comes back with the **reasons that fired** ("Narratives read 91% alike", "Same person named in both — …", "Incidents 2 days apart"), so the officer is told *why* rather than handed a percentage to trust.
+
+**Two entry points into the database side**, both running through `scopedClient` so a district-posted officer only ever sees the half of a pair RLS lets them read. The narrative floor and the date window are applied **in SQL**, so the expensive part — pulling every complainant and victim name — only runs over a handful of rows:
+
+- `findDuplicatesOf(caseId)` — the nearest 8 narratives to one FIR, scored and ranked. Behind `GET /api/case/duplicates?id=`.
+- `scanDuplicates()` — the corpus sweep the alert job runs: the 60 most recent registrations from the last `ALERT_DUP_RECENT_DAYS` days, one indexed `LATERAL` nearest-neighbour lookup each, capped at 5 pairs. A duplicate is symmetric, so `(a,b)` and `(b,a)` are keyed as one finding.
+
+**Alerts.** A sixth `kind` joins the bell: `duplicate` — **critical** at ≥ 0.85 likelihood (two investigations and a double-counted crime statistic), **warning** below that (a question for the IO, not an emergency). Dedupe key `dup:<lowId>:<highId>`, and a cross-district pair is written to **both** districts, the same routing the MO linker uses.
+
+**UI.** A possible-duplicate section in the Case File drawer (`components/viz/CaseDrawer.tsx`), fetched separately from the Similar Modus Operandi list because it is the opposite question — each candidate shows its likelihood, the reasons behind it and whether it was filed at the same station, and clicking it opens that case file.
+
+**Env:** `DUP_MIN_NARRATIVE` (default `0.86`, the narrative gate applied in SQL) · `DUP_WINDOW_DAYS` (default `7`) · `ALERT_DUP_RECENT_DAYS` (default `30`).
+
+**Run it without the UI:**
+```bash
+npm run duplicates -- --case 13778          # candidates for one FIR
+npm run duplicates -- --scan                # the corpus sweep the alert job runs
+npm run duplicates -- --scan --all          # including everything below the bar, for tuning
+```
+
+`npm test` covers the scoring in isolation (`test/duplicate-detect.test.ts`): the near-certain pair, an identical narrative alone staying below the bar, matching people failing to rescue different events, the cross-station catch, honorific-tolerant name matching, and a complainant in one file matching a victim in the other.
+
+One run on the synthetic corpus (`npm run duplicates -- --scan`): exactly one pair cleared the bar — **74%**, Vijayapura East PS ~ Kolar East PS, the same person named in both files, narratives 91% alike, incidents 2 days apart. Everything that agreed on the narrative alone stayed at or below 0.55, which is the caps doing their job. That is one scan on seeded data, not an evaluation.
+
+---
+
+## My Desk — pendency and the chargesheet clock
+
+Every other screen answers a question an officer chose to ask. This is the one an SHO opens every morning without asking anything: **of the cases still on my hands, which is closest to slipping?** `lib/pendency.ts` derives it all — nothing is stored — over `CaseMaster`, its arrests and its (absent) chargesheet, read inside the caller's scope.
+
+**Open** means no chargesheet row **and** a status that is not `Charge Sheeted`, `Closed` or `False Case` — a closed case is off the desk even without a chargesheet, because it is not pending on anyone. Cases with no registration date are dropped: with no FIR date there is no clock to run, and a fabricated day zero would be the worst of both.
+
+**The clock.** BNSS s.187(3) (CrPC s.167(2) before it) gives **90 days** to file a chargesheet for offences punishable with death, life, or imprisonment of not less than ten years, and **60 days** for everything else — otherwise default bail follows.
+
+> **The honest limit.** The schema's `GravityOffence` holds only **Heinous** and **Non-Heinous**. That is **not** the statutory "punishable with ten years or more" test. The sections that would settle it live in `ActSectionAssociation`, but `Section` carries **no punishment column**, so the real ten-year test cannot be evaluated from this database at all. Heinous is the closest classification the schema owns, so it is used as a **declared proxy**: every row carries `clock.basis` — `heinous` (90 days), `non-heinous` (60), or `assumed` (90, when gravity is missing) — and the UI shows it. Unknown gravity falls back to the *longer* clock on purpose: guessing the shorter limit would paint an SHO's desk red on the strength of a missing lookup value.
+
+Day `limitDays` is still inside the limit; a case is overdue from day `limitDays + 1`. Within 15 days of the deadline it reads **due soon** rather than merely open (red / amber / quiet, so the desk is readable from across the room).
+
+**Attention ordering** is one key: **days remaining on the statutory clock, ascending**. That clock is the only deadline on this screen with a consequence attached. Case age alone would rank a 70-day-old heinous case above a 65-day-old ordinary one, which is backwards — the ordinary one is already five days past its limit. Ties break: no arrest before an arrest (nothing else can move until someone is held), then lower chargesheet likelihood first (the model says this one is drifting), then the older FIR, then case id so the list is stable across reloads.
+
+Each row also carries the **chargesheet likelihood with its per-feature contributions**, from the same interpretable local model the `predictRisk` tool falls back to (`lib/risk-model.ts`) — called directly, because the tool reaches for Catalyst and a `Request`, neither of which belongs on a pendency read.
+
+> **No hearing date.** There is no hearing-date column anywhere in the schema. The desk shows the **committing court** where one is recorded and stays silent about dates, rather than inventing a next hearing it cannot know.
+
+The rows are fetched under a 2,000-row cap, so a statewide HQ user cannot pull the whole corpus into memory to sort it — but the **summary strip is counted in SQL over every open case in scope**, because a headline that silently reports the cap instead of the truth is worse than no headline at all.
+
+**API.**
+
+| Route | Purpose |
+|---|---|
+| `GET /api/pendency?filter=all\|overdue\|noArrest&limit=100` | The desk, already in attention order. `limit` clamped 1–200; runs entirely inside `scopedDb`, so an SHO's pendency is their district's pendency. A failure returns an empty desk with a zeroed strip, not a broken screen |
+
+**UI.** **My Desk** in the dashboard nav (`components/views/DeskView.tsx`) — the summary strip, three filter chips (all / overdue / no arrest), and rows that open the Case File drawer. The view never re-sorts: the API returns attention order, and re-sorting in the client would quietly disagree with the rule the library documents.
+
+`npm test` covers the clock and the ordering as pure functions with `now` passed in (`test/pendency.test.ts`): the 60/90 boundaries day by day, the `assumed` fallback, the ordering rule and its tie-breaks, the open predicate, and the summary counts.
+
+One run on the synthetic corpus: **8,795 open cases, 7,923 overdue, 7,294 with no arrest, median age 364 days.** That is seeded data whose dates were shifted for the demo, not a real pendency figure.
+
+---
+
+## Data quality dashboard
+
+Every other surface in this app is a claim about the case records — the agent's SQL, the hotspot forecast, the MO links, the alerts. A claim is worth what the records underneath it are worth, and **nobody in the chain gets told when a column is empty**: the map silently drops the FIRs with no coordinates, similarity silently ranks the ones with no narrative last. `lib/data-quality.ts` is where those silences get counted out loud.
+
+**13 checks**, each one read-only SQL over the case tables — deliberately separate queries rather than one wide scan, so a reviewer reads them one at a time and a check that breaks fails alone instead of taking the console with it.
+
+| Severity | Checks |
+|---|---|
+| **critical** (weight 3) | No act or section recorded · no narrative, or only seed boilerplate · marked chargesheeted with no chargesheet record · crime sub-head that does not belong to its major head · registration date in the future · arrests with no accused linked |
+| **warning** (weight 2) | No named accused · no complainant · no victim · missing coordinates · chargesheet filed but the case not marked chargesheeted · incident date after the registration date |
+| **info** (weight 1) | Stations that have filed cases but never a chargesheet |
+
+Two are sharper than they look. *No named accused* also fails an `Accused` row whose name is null — a record of nothing counts as nothing. *Arrests with no accused linked* catches three shapes, including a link to an accused belonging to a **different case**, which a nullable foreign key cannot prevent. Each check states **why a reviewer should care** in operational terms, carries its own denominator (cases / arrests / stations), and lists up to six stably-ordered examples — real CrimeNos, or station names — so the reviewer can go and look.
+
+**The score.** A severity-weighted mean of the pass rates:
+
+```
+score = 100 × ( 1 − Σ(wᵢ · failRateᵢ) / Σwᵢ )      critical 3 · warning 2 · info 1
+```
+
+Weighting by severity rather than by row count is the point: 20 FIRs with no act/section matter more than 200 with no coordinates, and an unweighted mean would say the opposite. **The score is capped at 99.9 while anything is failing** — a handful of bad records out of 20k rounds to a clean 100, which becomes a lie the moment a reviewer scrolls down and sees a failing check. 100 is reserved for a report with nothing failing at all. The headline is a headline; the ranked list under it is what gets acted on.
+
+**Where the problem sits.** A per-district table counts a case as defective if it fails **any** case-level check — one FIR with four gaps is still one bad record, and a reviewer sending a cleanup instruction thinks in records. The breakdown reuses the very same predicate fragments the checks are built from, so a district's defect count and the check list can never disagree.
+
+**API.**
+
+| Route | Purpose |
+|---|---|
+| `GET /api/admin/data-quality` | The full report — score, ranked checks with examples, per-district defect rates. Reviewer-gated (`requireReviewer`), Catalyst Cache **60 min**, `?refresh=1` to bypass |
+
+Thirteen full-table scans over 20k cases only move when the case data does — a nightly load, not a page view — hence the cache; `?refresh=1` is the way past it when a reviewer has just had a correction applied and wants to see it land.
+
+**Console.** `/admin/data-quality`, linked from the dashboard profile popover and from both sibling consoles. `components/admin/QualityCheckList.tsx` ranks the checks worst-first — severity decides the tier, the failure rate orders inside it, and a clean check sinks regardless of how severe it would have been — with expandable examples; `components/admin/DistrictQualityTable.tsx` ranks districts by defect rate.
+
+One run on the synthetic corpus: score **99.9%**, **3 of 13 checks failing** — 25 FIRs still carrying the seed boilerplate narrative (0.125%), 1 missing a victim, 1 missing coordinates — across **20 of 30 districts**. That is one run on seeded data, not an evaluation.
+
+---
+
 ## Setup
 
 ### 1. Install dependencies
@@ -443,6 +639,7 @@ app/
   dashboard/        Main app shell (sidebar, chat, map, network, crew, reports, about)
   admin/feedback/   Reviewer console — accuracy chart + review queue
   admin/audit/      Audit viewer — runs, tool calls, scope badges, tool latency
+  admin/data-quality/  Data quality console — completeness score, ranked checks, per-district defects
   api/
     auth/login/       Credential check → sets session cookie
     auth/google/      Google ID-token check → find-or-create user, sets session cookie
@@ -455,6 +652,10 @@ app/
     alerts/           Alert feed (GET) + mark read (PATCH)
     alerts/generate/  Run detection now (signed-in "Run detection" button)
     crew/             Crew dossier around a case (caseId/crimeNo) or a person (personId)
+    case/duplicates/  Probable duplicate filings of one FIR (?id=), scored and explained
+    fir/extract/      FIR document (.txt/.pdf/pasted) → draft registration form; saves nothing
+    cases/            Registers an FIR — validateFirInput + createCase
+    pendency/         My Desk — open cases with the statutory chargesheet clock (?filter=, ?limit=)
     forecast/hotspots/  Predictive hotspots + patrol priorities (?horizon=7-90, cached 180 min)
     cron/insights/    Precompute target for scheduled insight refresh (also fans out alerts)
     cron/alerts/      Scheduled target for the alert engine (Bearer CRON_SECRET)
@@ -467,10 +668,15 @@ app/
     admin/feedback/stats/  Satisfaction line, learned-example count, thumbs-down weak spots
     admin/audit/      Audit trail grouped by run, with filters
     admin/audit/summary/   Volume, failures, officers, per-tool median latency
+    admin/data-quality/    13 checks over the case tables — reviewer-gated, cached 60 min, ?refresh=1
 components/
   chat/             ChatWindow, MessageBubble (answer feedback), CaseBoard (live tool steps), RelatedCases, ChatHistory
   admin/            AccuracyChart, ReviewQueue, AuditRunList, ToolLatencyTable
-  views/            Map, Network, Crew, Reports, About panels
+    QualityCheckList.tsx     Ranked data-quality checks, severity badges, expandable examples
+    DistrictQualityTable.tsx Per-district defect rates
+  views/            Map, Network, Crew, Reports, Desk, Register FIR, About panels
+    DeskView.tsx        My Desk — pendency in attention order, clock chips, filter chips
+    RegisterFirView.tsx FIR registration form, with the Start-from-a-document block on top
     MapView.tsx         District-centroid hotspot map + Observed | Predicted layer toggle
     PatrolPriorities.tsx  Ranked patrol priorities panel — fit, confidence, station shares, method
   crew/             CrewDossier — dossier panel + print-only PDF rendering
@@ -479,7 +685,7 @@ lib/
   agent/
     orchestrator.ts   Agent loop — Mistral planner, tool execution, SSE event stream
     tools.ts          5 tool implementations + JSON schemas
-    audit-log.ts      Fire-and-forget audit trail — Postgres + Catalyst Data Store + local JSONL, with actor and scope
+    audit-log.ts      Fire-and-forget audit trail — Postgres + Catalyst Data Store + local JSONL, with actor, scope and the groundedness verdict
   rag.ts                RAG router (embeddings → LLM fallback) — few-shot SQL examples only, seeded + learned merged
   feedback.ts           Vote capture, review queue, the approval gate (validate + execute), stats
   learned-examples.ts   Approved corrections as few-shot examples — embedded, cached 60s
@@ -499,6 +705,13 @@ lib/
   alerts.ts            Alert engine — detectors + cross-district MO linker, scope fan-out, dedupe
   crew.ts              Crew dossier — two-hop co-accused + MO walk, caps, signature extraction
   hotspot-forecast.ts  Predictive hotspots — least-squares trend per district × crime group, patrol priorities
+  groundedness.ts      Re-derives every figure in an answer from the tool payloads — four accepted derivations, nothing else
+  duplicate-detect.ts  Duplicate-FIR scoring (pure) + the per-case lookup and the corpus scan the alert job runs
+  pendency.ts          My Desk — the 60/90-day chargesheet clock, its declared gravity proxy, and the attention ordering
+  data-quality.ts      13 read-only checks over the case tables + the severity-weighted completeness score
+  fir-extract.ts       FIR document → form draft: quote-back, vocabulary resolution, near-tie and structural refusals
+  pdf-text.ts          A PDF's embedded text layer via node:zlib — no OCR, no dependency
+  fir.ts / fir-create.ts  FIR input validation and the case-creation transaction (unchanged by ingestion)
   insights-cache.ts    Insight cache keys/TTL over catalyst-cache
   catalyst-client.ts   Request-scoped Catalyst SDK init + timeout guard (null outside AppSail)
   catalyst-cache.ts    Catalyst Cache get/set with local fallback
@@ -517,8 +730,13 @@ test/
   rag-merge.test.ts  mergeExamples — seeded vs learned ranking, dedupe, the overlap floor
   audit-log.test.ts  Truncation that states itself, and the row count taken from a result
   hotspot-forecast.test.ts  fitTrend — slope/intercept recovery, R² behaviour, projection
+  fir-extract.test.ts       Quote-back, resolution, near-ties, ambiguous stations/sub-heads/courts, invented people
+  groundedness.test.ts      The four derivations, the reference exclusions, echoed windows and request sizes
+  duplicate-detect.test.ts  The weights, the gate, both conservatism caps, cross-role name matching
+  pendency.test.ts          The 60/90 boundaries, the assumed basis, the attention ordering and its tie-breaks
 eval/
   run.ts            Offline accuracy harness
+  agent-eval.ts     End-to-end agent harness — 30 questions, tool routing, latency, errors, groundedness (`npm run eval:agent`)
 scripts/
   prepare-standalone.mjs  Copies static/public/rag-examples.json + .env into the AppSail bundle, dereferences symlinks
   enrich-briefs.ts        LLM-expands templated BriefFacts into real FIR narratives
@@ -526,6 +744,7 @@ scripts/
   hotspot-check.ts        Prints the forecast and patrol priorities without the map (`npm run hotspots`)
   feedback-check.ts       Vote → review → retrieval, end to end (`npm run feedback`)
   audit-check.ts          Runs one real agent question and reads the trail back (`npm run audit`)
+  duplicate-check.ts      Duplicate candidates for one FIR, or the corpus sweep (`npm run duplicates`)
 ```
 
 ---
@@ -542,12 +761,16 @@ scripts/
 | `RAG_MODE` | No | `embed` or `llm` to force retrieval mode |
 | `MISTRAL_SUMMARY_MODEL` | No | Summary model (default `mistral-small-latest`) |
 | `MISTRAL_ORCH_MODEL` | No | Agent orchestrator model (default `mistral-large-latest`) |
+| `MISTRAL_EXTRACT_MODEL` | No | Model that reads an FIR document into a form draft (default `mistral-large-latest`) |
 | `SESSION_SECRET` | Prod | HMAC key for session cookies — required in production |
 | `CATALYST_AUTOML_MODEL_ID` | No | QuickML model ID for the `predictRisk` tool (AppSail only) |
 | `CRON_SECRET` | No | Bearer token guarding `/api/cron/insights` precompute and `/api/cron/alerts` |
 | `ALERT_MO_MIN_SCORE` | No | Minimum cosine similarity for a cross-district MO alert (default `0.72`) |
 | `ALERT_MO_RECENT_DAYS` | No | How far back the MO linker looks for newly registered cases (default `30`) |
 | `CREW_MO_MIN_SCORE` | No | Minimum cosine similarity for a modus-operandi edge in the crew dossier walk (default `0.78`) |
+| `DUP_MIN_NARRATIVE` | No | Narrative similarity floor for duplicate-FIR detection, applied in SQL (default `0.86` — the gate itself) |
+| `DUP_WINDOW_DAYS` | No | How many days apart two incidents may be and still be considered the same filing (default `7`) |
+| `ALERT_DUP_RECENT_DAYS` | No | How far back the duplicate scan looks for newly registered cases (default `30`) |
 | `CATALYST_CRON_NAME` | No | Name of the registered Catalyst cron (default `khabri-alerts`) |
 | `CATALYST_JOBPOOL_NAME` | No | Job pool the scheduled job is submitted to (default `khabri-jobs`) |
 | `CATALYST_CRON_EVERY_HOURS` | No | Interval in hours (default `3`) |

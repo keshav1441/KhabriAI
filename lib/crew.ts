@@ -251,14 +251,14 @@ export function extractSignature(narratives: string[], minCases = 2, max = 6): s
 
   const seenIn = new Map<string, Set<number>>();
   texts.forEach((clauses, i) => {
-    const words = clauses.flatMap((c) => [...c.split(/\s+/).filter(Boolean), " "]);
+    const words = clauses.flatMap((c) => [...c.split(/\s+/).filter(Boolean), "\u0000"]);
     // Long shingles first: the full trait sentence ("two men on a black pulsar
     // without a number plate") contains its own fragments, so keeping the
     // longest match that still recurs collapses the fragments automatically.
     for (let n = 12; n >= 4; n--) {
       for (let s = 0; s + n <= words.length; s++) {
         const gram = words.slice(s, s + n);
-        if (gram.includes(" ")) continue; // clause boundary
+        if (gram.includes("\u0000")) continue; // clause boundary
         // Skip filler-only runs — they recur everywhere and say nothing.
         if (gram.filter((w) => !STOP.has(w) && w.length > 2).length < n / 2) continue;
         const key = gram.join(" ");

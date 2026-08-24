@@ -18,15 +18,26 @@ const CSTYPE: Record<string, string> = { A: "Chargesheet Filed", B: "False Case"
 
 type SimilarCase = { id: number; crimeNo: string | null; crimeType: string | null; district: string | null; station: string | null; status: string | null; registered: string | null; score: number; briefFacts: string | null };
 
+type DuplicateReason = { signal: string; weight: number; label: string };
+type DuplicateCase = { id: number; crimeNo: string | null; crimeType: string | null; district: string | null; station: string | null; status: string | null; registered: string | null; incident: string | null; sameStation: boolean; likelihood: number; reasons: DuplicateReason[] };
+
 export function CaseDrawer({ caseId: requestedId, onClose }: { caseId: number | null; onClose: () => void }) {
   // The drawer can navigate between linked cases without the parent knowing.
   const [caseId, setCaseId] = useState<number | null>(requestedId);
   const [similar, setSimilar] = useState<SimilarCase[] | null>(null);
+  const [dupes, setDupes] = useState<DuplicateCase[] | null>(null);
   useEffect(() => { setCaseId(requestedId); }, [requestedId]);
   useEffect(() => {
     if (!caseId) { setSimilar(null); return; }
     setSimilar(null);
     fetch(`/api/case/similar?id=${caseId}`).then((r) => (r.ok ? r.json() : { cases: [] })).then((d) => setSimilar(d.cases ?? [])).catch(() => setSimilar([]));
+  }, [caseId]);
+  // Separate fetch from the MO one: a duplicate check is the opposite question
+  // and must not be held up by, or hold up, the method search.
+  useEffect(() => {
+    if (!caseId) { setDupes(null); return; }
+    setDupes(null);
+    fetch(`/api/case/duplicates?id=${caseId}`).then((r) => (r.ok ? r.json() : { duplicates: [] })).then((d) => setDupes(d.duplicates ?? [])).catch(() => setDupes([]));
   }, [caseId]);
   const [data, setData] = useState<CaseData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -193,6 +204,60 @@ export function CaseDrawer({ caseId: requestedId, onClose }: { caseId: number | 
                 </div>
               </Section>
             )}
+
+            {/* The mirror of the section above: not "same crew, other crimes"
+                but "same crime, another file". Shown even when empty — an
+                officer needs to know the check ran and came back clean. */}
+            <Section title={dupes && dupes.length > 0 ? `${t("dup.title", lang)} (${dupes.length})` : t("dup.title", lang)}>
+              {dupes === null && (
+                <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{t("dup.checking", lang)}</p>
+              )}
+              {dupes !== null && dupes.length === 0 && (
+                <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{t("dup.none", lang)}</p>
+              )}
+              {dupes !== null && dupes.length > 0 && (
+                <div className="space-y-1.5">
+                  {dupes.map((d) => (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => setCaseId(d.id)}
+                      title={t("dup.open", lang)}
+                      className="w-full text-left rounded px-2.5 py-2 transition-colors"
+                      style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)" }}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-data text-xs" style={{ color: "var(--ink)" }}>{d.crimeNo ?? `#${d.id}`}</span>
+                        <span className="font-data text-[11px]" style={{ color: d.likelihood >= 0.8 ? "var(--red)" : "var(--text-muted)" }}>
+                          {t("dup.likelihood", lang)} {Math.round(d.likelihood * 100)}%
+                        </span>
+                      </div>
+                      <div className="text-[11px] mt-0.5" style={{ color: "var(--text-secondary)" }}>
+                        {d.sameStation ? t("dup.sameStation", lang) : t("dup.otherStation", lang)} - {d.station ?? "—"} - {d.district} - {d.registered}
+                      </div>
+                      {d.reasons.length > 0 && (
+                        <div className="mt-1.5">
+                          <div className="text-[10px] uppercase tracking-wide font-data" style={{ color: "var(--text-muted)" }}>
+                            {t("dup.why", lang)}
+                          </div>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {d.reasons.map((r) => (
+                              <span
+                                key={r.signal}
+                                className="text-[10px] px-1.5 py-0.5 rounded font-data"
+                                style={{ background: "var(--bg-raised)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}
+                              >
+                                {r.label}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </Section>
 
             {/* One MO hit is a lead; the crew walk is the series behind it. */}
             <button

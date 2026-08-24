@@ -1,6 +1,7 @@
 "use client";
 import { create } from "zustand";
 import type { ChatSessionSummary } from "@/lib/chat-api";
+import type { GroundednessVerdict } from "@/lib/groundedness";
 
 export type VizType = "table" | "chart" | "graph";
 export type Lang = "en" | "kn";
@@ -25,6 +26,9 @@ export interface ChatMessage {
   relatedCases?: RelatedCase[];
   /** Tool names that ran for this answer, captured when it completed. */
   tools?: string[];
+  /** Whether every figure in this answer was found in the returned data.
+   *  Arrives on the trailing `meta` event, after the narrative is complete. */
+  groundedness?: GroundednessVerdict;
   /** This officer's vote on this answer. Client-only — never sent to /api/chats. */
   feedback?: "up" | "down";
   loading?: boolean;

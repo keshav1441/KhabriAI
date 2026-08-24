@@ -2,6 +2,7 @@ import { appendFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { getCatalystApp, withCatalystTimeout } from "../catalyst-client";
 import { prisma } from "../db";
+import type { GroundednessVerdict } from "../groundedness";
 
 // The audit trail is written three ways, for three different readers.
 //   Postgres  - the one the app can query, and what /admin/audit reads. It
@@ -67,6 +68,21 @@ export interface AuditRunRecord {
   finalAnswer: string;
   durationMs?: number;
   actor?: AuditActor;
+  /** Verdict of the groundedness guard on `finalAnswer`, when it ran. */
+  groundedness?: GroundednessVerdict;
+}
+
+// A run row leaves `status` and `result` null - they only ever described a tool
+// step. Reusing them for the verdict keeps the audit answerable ("show me the
+// answers with an unverified figure") with no schema change: `status` is the
+// one-word verdict, `result` the claims behind it.
+function groundednessFields(verdict?: GroundednessVerdict) {
+  if (!verdict) return { status: null, result: null, rowCount: null };
+  return {
+    status: verdict.checked === 0 ? "no-figures" : verdict.grounded ? "grounded" : "ungrounded",
+    result: clip({ groundedness: { checked: verdict.checked, claims: verdict.claims } }, MAX_RESULT),
+    rowCount: null,
+  };
 }
 
 /** @internal exposed for tests */
@@ -155,6 +171,7 @@ export async function logAuditRun(record: AuditRunRecord, req?: Request): Promis
           finalAnswer,
           durationMs: record.durationMs ?? null,
           ...actorFields(record.actor),
+          ...groundednessFields(record.groundedness),
         },
       })
       .catch((e: Error) => console.warn("audit run write failed:", e.message)),
@@ -173,6 +190,7 @@ async function writeCatalystRun(record: AuditRunRecord, finalAnswer: string | nu
         Question: record.question,
         ToolCallCount: record.toolCallCount,
         FinalAnswer: finalAnswer ?? "",
+        Status: groundednessFields(record.groundedness).status ?? "",
       })
     );
   } catch (e) {

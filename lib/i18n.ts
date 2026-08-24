@@ -255,6 +255,52 @@ export const STRINGS = {
   "feedback.send":        { en: "Send", kn: "ಕಳುಹಿಸಿ" },
   "feedback.skip":        { en: "Skip", kn: "ಬಿಟ್ಟುಬಿಡಿ" },
   "feedback.failed":      { en: "Could not record that", kn: "ಅದನ್ನು ದಾಖಲಿಸಲಾಗಲಿಲ್ಲ" },
+  // FIR document intake
+  "fir.upload.title":     { en: "Start from a document", kn: "ದಾಖಲೆಯಿಂದ ಪ್ರಾರಂಭಿಸಿ" },
+  "fir.upload.hint":      { en: "Upload a scanned or typed FIR. Everything extracted is shown for checking before anything is saved.",
+                            kn: "ಸ್ಕ್ಯಾನ್ ಮಾಡಿದ ಅಥವಾ ಟೈಪ್ ಮಾಡಿದ ಎಫ್‌ಐಆರ್ ಅಪ್‌ಲೋಡ್ ಮಾಡಿ. ಉಳಿಸುವ ಮೊದಲು ಹೊರತೆಗೆದ ಎಲ್ಲವನ್ನೂ ಪರಿಶೀಲನೆಗೆ ತೋರಿಸಲಾಗುತ್ತದೆ." },
+  "fir.upload.choose":    { en: "Choose a file", kn: "ಕಡತ ಆಯ್ಕೆಮಾಡಿ" },
+  "fir.upload.extracting":{ en: "Reading the document…", kn: "ದಾಖಲೆಯನ್ನು ಓದಲಾಗುತ್ತಿದೆ…" },
+  "fir.upload.failed":    { en: "Could not read that document", kn: "ಆ ದಾಖಲೆಯನ್ನು ಓದಲಾಗಲಿಲ್ಲ" },
+  "fir.upload.filled":    { en: "Fields filled from the document — check every one before registering",
+                            kn: "ದಾಖಲೆಯಿಂದ ಭರ್ತಿ ಮಾಡಲಾಗಿದೆ — ದಾಖಲಿಸುವ ಮೊದಲು ಪ್ರತಿಯೊಂದನ್ನೂ ಪರಿಶೀಲಿಸಿ" },
+  "fir.upload.unfilled":  { en: "Not found in the document", kn: "ದಾಖಲೆಯಲ್ಲಿ ಸಿಗಲಿಲ್ಲ" },
+  "fir.upload.clear":     { en: "Discard extraction", kn: "ಹೊರತೆಗೆದದ್ದನ್ನು ತ್ಯಜಿಸಿ" },
+  "fir.upload.source":    { en: "From the document", kn: "ದಾಖಲೆಯಿಂದ" },
+
+  // Groundedness of the narrative
+  "answer.grounded":      { en: "Figures check out", kn: "ಅಂಕಿಅಂಶಗಳು ಸರಿಹೊಂದಿವೆ" },
+  "answer.ungrounded":    { en: "Unverified figure", kn: "ಪರಿಶೀಲಿಸದ ಅಂಕಿ" },
+  "answer.groundedTip":   { en: "Every number in this answer was found in the data the tools returned.",
+                            kn: "ಈ ಉತ್ತರದ ಪ್ರತಿಯೊಂದು ಸಂಖ್ಯೆಯೂ ಟೂಲ್‌ಗಳು ಹಿಂತಿರುಗಿಸಿದ ಡೇಟಾದಲ್ಲಿ ಕಂಡುಬಂದಿದೆ." },
+  "answer.ungroundedTip": { en: "A figure in this answer was not found in the returned data. Treat it as unconfirmed.",
+                            kn: "ಈ ಉತ್ತರದಲ್ಲಿನ ಒಂದು ಅಂಕಿ ಹಿಂತಿರುಗಿಸಿದ ಡೇಟಾದಲ್ಲಿ ಸಿಗಲಿಲ್ಲ. ಅದನ್ನು ಖಚಿತಪಡಿಸದ್ದೆಂದು ಪರಿಗಣಿಸಿ." },
+
+  // Duplicate FIR detection
+  "dup.title":            { en: "Possible duplicate filings", kn: "ಸಂಭಾವ್ಯ ಪುನರಾವರ್ತಿತ ದಾಖಲಾತಿಗಳು" },
+  "dup.none":             { en: "No likely duplicate of this FIR", kn: "ಈ ಎಫ್‌ಐಆರ್‌ನ ಪುನರಾವರ್ತನೆ ಕಂಡುಬಂದಿಲ್ಲ" },
+  "dup.checking":         { en: "Checking for duplicates…", kn: "ಪುನರಾವರ್ತನೆ ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ…" },
+  "dup.likelihood":       { en: "Likelihood", kn: "ಸಾಧ್ಯತೆ" },
+  "dup.sameStation":      { en: "Same station", kn: "ಅದೇ ಠಾಣೆ" },
+  "dup.otherStation":     { en: "Different station", kn: "ಬೇರೆ ಠಾಣೆ" },
+  "dup.why":              { en: "Why this matched", kn: "ಇದು ಏಕೆ ಹೊಂದಿಕೆಯಾಯಿತು" },
+  "dup.open":             { en: "Open the other file", kn: "ಇನ್ನೊಂದು ಕಡತ ತೆರೆಯಿರಿ" },
+
+  // Officer's desk
+  "nav.desk":             { en: "My Desk", kn: "ನನ್ನ ಮೇಜು" },
+  "desk.title":           { en: "Cases on my desk", kn: "ನನ್ನ ಮೇಜಿನ ಪ್ರಕರಣಗಳು" },
+  "desk.subtitle":        { en: "What is open, what is overdue, and what is closest to slipping.",
+                            kn: "ಯಾವುದು ಬಾಕಿ ಇದೆ, ಯಾವುದು ವಿಳಂಬವಾಗಿದೆ, ಮತ್ತು ಯಾವುದು ಕೈತಪ್ಪುವ ಹಂತದಲ್ಲಿದೆ." },
+  "desk.empty":           { en: "Nothing pending in this scope", kn: "ಈ ವ್ಯಾಪ್ತಿಯಲ್ಲಿ ಬಾಕಿ ಏನೂ ಇಲ್ಲ" },
+  "desk.age":             { en: "Days since FIR", kn: "ಎಫ್‌ಐಆರ್ ನಂತರದ ದಿನಗಳು" },
+  "desk.noArrest":        { en: "No arrest yet", kn: "ಇನ್ನೂ ಬಂಧನವಿಲ್ಲ" },
+  "desk.csOverdue":       { en: "Chargesheet overdue", kn: "ಆರೋಪಪಟ್ಟಿ ವಿಳಂಬ" },
+  "desk.csDue":           { en: "Chargesheet due soon", kn: "ಆರೋಪಪಟ್ಟಿ ಶೀಘ್ರದಲ್ಲಿ ಬಾಕಿ" },
+  "desk.risk":            { en: "Chargesheet likelihood", kn: "ಆರೋಪಪಟ್ಟಿ ಸಾಧ್ಯತೆ" },
+  "desk.filter.all":      { en: "All open", kn: "ಎಲ್ಲಾ ಬಾಕಿ" },
+  "desk.filter.overdue":  { en: "Overdue", kn: "ವಿಳಂಬ" },
+  "desk.filter.noArrest": { en: "No arrest", kn: "ಬಂಧನವಿಲ್ಲ" },
+  "desk.court":           { en: "Court", kn: "ನ್ಯಾಯಾಲಯ" },
 } as const;
 
 export type StringKey = keyof typeof STRINGS;

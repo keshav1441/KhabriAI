@@ -210,14 +210,18 @@ export function ChatWindow() {
                 status: parsed.status,
               });
             } else if (parsed.type === "meta") {
-              meta = {
-                sql: parsed.sql,
-                rows: parsed.rows,
-                vizType: parsed.vizType as VizType,
-                sqlError: parsed.sqlError,
-                relatedCases: parsed.relatedCases,
-              };
-              updateMessage(asstMsgId, meta);
+              // `meta` arrives twice - evidence first, then the groundedness
+              // verdict once the narrative is done. Merge only the keys that
+              // are actually present so the second one cannot blank the table.
+              const patch: Partial<ChatMessage> = {};
+              if (parsed.sql !== undefined) patch.sql = parsed.sql;
+              if (parsed.rows !== undefined) patch.rows = parsed.rows;
+              if (parsed.vizType !== undefined) patch.vizType = parsed.vizType as VizType;
+              if (parsed.sqlError !== undefined) patch.sqlError = parsed.sqlError;
+              if (parsed.relatedCases !== undefined) patch.relatedCases = parsed.relatedCases;
+              if (parsed.groundedness !== undefined) patch.groundedness = parsed.groundedness;
+              meta = { ...meta, ...patch };
+              updateMessage(asstMsgId, patch);
             } else if (parsed.type === "token") {
               summary += parsed.token;
               updateMessage(asstMsgId, { content: summary });

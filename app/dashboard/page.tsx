@@ -10,6 +10,7 @@ import { NetworkView } from "@/components/views/NetworkView";
 import { CrewView } from "@/components/views/CrewView";
 import { ProfilingView } from "@/components/views/ProfilingView";
 import { ReportsView } from "@/components/views/ReportsView";
+import { DeskView } from "@/components/views/DeskView";
 import { RegisterFirView } from "@/components/views/RegisterFirView";
 import { AboutView } from "@/components/views/AboutView";
 import { ConversationExport } from "@/components/chat/ConversationExport";
@@ -18,10 +19,11 @@ import { useTheme } from "@/components/ThemeProvider";
 import { useChatStore } from "@/store/chat";
 import { t, type StringKey } from "@/lib/i18n";
 
-type View = "chat" | "map" | "network" | "crew" | "profiling" | "reports" | "registerFir" | "about";
+type View = "chat" | "desk" | "map" | "network" | "crew" | "profiling" | "reports" | "registerFir" | "about";
 
 const NAV_ITEMS: Array<{ icon: React.ReactNode; labelKey: StringKey; view: View }> = [
   { icon: <ChatIcon />, labelKey: "nav.chat", view: "chat" },
+  { icon: <DeskIcon />, labelKey: "nav.desk", view: "desk" },
   { icon: <MapIcon />, labelKey: "nav.map", view: "map" },
   { icon: <NetworkIcon />, labelKey: "nav.network", view: "network" },
   { icon: <CrewIcon />, labelKey: "nav.crew", view: "crew" },
@@ -303,6 +305,7 @@ export default function DashboardPage() {
           {activeView === "network" && <NetworkView />}
           {activeView === "crew" && <CrewView />}
           {activeView === "profiling" && <ProfilingView />}
+          {activeView === "desk" && <DeskView />}
           {activeView === "reports" && <ReportsView />}
           {activeView === "registerFir" && <RegisterFirView onAskAssistant={() => setActiveView("chat")} />}
           {activeView === "about" && <AboutView />}
@@ -352,6 +355,13 @@ export default function DashboardPage() {
                 style={{ color: "var(--text-muted)" }}
               >
                 Audit trail →
+              </Link>
+              <Link
+                href="/admin/data-quality"
+                className="text-xs font-data"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Data quality →
               </Link>
             </div>
           </div>
@@ -451,6 +461,19 @@ function MapIcon() {
 function InfoIcon() {
   return <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><circle cx="12" cy="12" r="10" /><path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-4m0-4h.01" /></svg>;
 }
+// A clipboard with a clock: the desk is a list of things against a deadline.
+function DeskIcon() {
+  return (
+    <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 4h6a1 1 0 011 1v1H8V5a1 1 0 011-1z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 6H6a1 1 0 00-1 1v12a1 1 0 001 1h8" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16 6h2a1 1 0 011 1v4" />
+      <circle cx="17.5" cy="16.5" r="3.5" />
+      <path strokeLinecap="round" d="M17.5 14.8v1.8l1.2.9" />
+    </svg>
+  );
+}
+
 function ReportIcon() {
   return <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>;
 }

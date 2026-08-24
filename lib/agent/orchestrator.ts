@@ -20,6 +20,7 @@ import {
   type BuildCrewDossierResult,
 } from "./tools";
 import { logAuditStep, logAuditRun } from "./audit-log";
+import { checkGroundedness, type GroundednessVerdict } from "../groundedness";
 import { getScope } from "../chat-auth";
 
 const ORCH_MODEL = process.env.MISTRAL_ORCH_MODEL ?? "mistral-large-latest";
@@ -49,13 +50,18 @@ export type StepEvent = {
   result: unknown;
   status: "ok" | "error" | "pending";
 };
+// Every field is optional because `meta` is sent twice: once when the evidence
+// is ready (before the narrative streams) and once after the narrative,
+// carrying only the groundedness verdict - which cannot exist until there is a
+// narrative to check. The client merges whichever keys arrive.
 export type MetaEvent = {
   type: "meta";
-  sql: string;
-  rows: Record<string, unknown>[];
-  vizType: VizType;
-  sqlError: string | null;
-  relatedCases: RelatedCase[];
+  sql?: string;
+  rows?: Record<string, unknown>[];
+  vizType?: VizType;
+  sqlError?: string | null;
+  relatedCases?: RelatedCase[];
+  groundedness?: GroundednessVerdict;
 };
 export type TokenEvent = { type: "token"; token: string };
 export type DoneEvent = { type: "done" };
@@ -169,6 +175,9 @@ export async function* runAgent(
   let lastSimilarResult: FindSimilarCasesResult | null = null;
   let lastCrewResult: BuildCrewDossierResult | null = null;
   let toolCallCount = 0;
+  // Everything the tools handed back this run - the only evidence the
+  // groundedness guard is allowed to judge the narrative against.
+  const toolResults: unknown[] = [];
 
   for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
     let assistantMsg: OpenAI.Chat.ChatCompletionMessage | undefined;
@@ -236,6 +245,7 @@ export async function* runAgent(
 
     for (const { tc, args, status, value, durationMs } of executed) {
       toolCallCount++;
+      toolResults.push(value);
       yield { type: "step", id: tc.id, tool: tc.function.name, args, result: value, status };
       void logAuditStep({ runId, question, tool: tc.function.name, args, result: value, status, durationMs, actor }, req);
       messages.push({ role: "tool", tool_call_id: tc.id, content: JSON.stringify(capForLLM(value)) });
@@ -295,7 +305,18 @@ export async function* runAgent(
     yield { type: "token", token: finalAnswer };
   }
 
-  void logAuditRun({ runId, question, toolCallCount, finalAnswer, durationMs: Date.now() - runStartedAt, actor }, req);
+  // The guard is advisory: it labels the answer, it never withholds it. Any
+  // failure inside the checker leaves the verdict unset and the answer intact.
+  let groundedness: GroundednessVerdict | undefined;
+  try {
+    // The question goes in too: a number the officer asked with is theirs, not a claim.
+    groundedness = checkGroundedness(finalAnswer, toolResults, question);
+  } catch (e) {
+    console.warn("groundedness check failed:", (e as Error).message);
+  }
+  if (groundedness) yield { type: "meta", groundedness };
+
+  void logAuditRun({ runId, question, toolCallCount, finalAnswer, durationMs: Date.now() - runStartedAt, actor, groundedness }, req);
 
   yield { type: "done" };
 }
