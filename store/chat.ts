@@ -23,6 +23,10 @@ export interface ChatMessage {
   vizType?: VizType;
   sqlError?: string | null;
   relatedCases?: RelatedCase[];
+  /** Tool names that ran for this answer, captured when it completed. */
+  tools?: string[];
+  /** This officer's vote on this answer. Client-only — never sent to /api/chats. */
+  feedback?: "up" | "down";
   loading?: boolean;
 }
 

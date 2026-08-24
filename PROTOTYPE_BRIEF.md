@@ -68,6 +68,8 @@ cosine distance over narrative embeddings stored on `CaseMaster.BriefFactsEmbedd
 | **Modus-operandi linking** | pgvector nearest-narrative search: "which cases, anywhere in the state, describe the same method?" — from a case, a CrimeNo, or a free-text description; cross-district links flagged |
 | **Crew dossier** | Walks outward from one FIR or one person along co-accused links and matching narratives: members, case timeline, districts crossed, recurring signature phrases — and how each case was reached |
 | **Proactive alerts** | The detectors run on a schedule, not on a page view: spikes, repeat accused, weekly surges, forecasts and cross-district MO matches are written as per-officer alerts and surfaced in a header bell; clicking one puts the investigating question in the chat |
+| **Answer feedback → few-shot learning** | Thumbs-up/down on every answer; a thumbs-down carries the question, the SQL and the tools that ran. An HQ reviewer writes the query it should have used, and once that passes the SELECT-only validator *and* executes, the pair becomes a few-shot example the next similar question retrieves — no redeploy. The holdout eval deliberately ignores learned examples |
+| **Audit trail** | Every tool call and every completed question written with the officer, the scope it ran under, the arguments, the row count and the latency — to Postgres, an off-box Catalyst table and a local JSONL file. Readable at `/admin/audit`, grouped by question, filterable by officer, tool, scope and failure |
 | Kannada localization | Full nav/chat UI in Kannada, questions accepted in either language |
 | Voice + export | Speech in/out, conversation PDF export, CSV result export |
 | Auth & history | Neon Auth (Google via shared OAuth, email one-time codes) bridged to an HMAC-signed app session; password accounts for scripts; per-user chat threads in Neon |
@@ -154,6 +156,47 @@ Top priority was Crimes Against Women in Chikkaballapura — 1 case in the last 
 projected, +0.91/month, medium confidence, with 77% of the last 90 days at Chikkaballapura City PS
 (44%), North PS (22%) and Market PS (11%). The highest-confidence cell was Crimes Against Body in
 Dakshina Kannada, 7 → 11 at +1.23/month, fit 0.68. That is one run on seeded data, not an evaluation.
+
+## Answer feedback — a correction becomes a few-shot example
+
+Every answer carries a thumbs-up / thumbs-down, and a thumbs-down opens a *what was wrong* box. The
+vote is not the point; what travels with it is — the question, the SQL that was generated for it, and
+the tools that ran. That is everything a reviewer needs to decide whether the pipeline asked the
+database the right thing. At `/admin/feedback` an HQ reviewer writes the query the answer should have
+used, and approving it does two things before anything is stored: the SQL goes through the same
+SELECT-only validator the model's own output does, and it is **executed once** against the real
+schema under the standard row cap and statement timeout. An example that does not run would teach the
+wrong shape to every question that later retrieves it.
+
+Approved pairs are stored in Postgres, embedded on approval, and merged into few-shot retrieval at
+query time — so a correction changes the next officer's answer without a redeploy, which the seeded
+example file cannot do once the app is packaged. The evaluation number is deliberately walled off
+from this: when the harness runs its holdout, learned examples are skipped entirely, so accuracy keeps
+measuring generalisation rather than how much the system has been corrected. One run on the synthetic
+corpus (`npm run feedback`): a thumbs-down recorded, the corrected SQL validated and executed (5 rows),
+embedded, and the same question then retrieving that example at 1.000 — above the seeded examples that
+had scored 0.867 / 0.863 / 0.854.
+
+## Audit trail — who asked, what ran, under what scope
+
+Every tool call the agent made was already being written down. The problem was where: a file next to
+the process and a Catalyst table, neither queryable from the app, and neither recording who asked or
+how far their posting let them see. An audit trail nobody can read is not an audit trail.
+
+Each tool call and each completed question is now written to Postgres as well, with the officer's
+identity, the district scope the query actually ran under, the arguments, a truncated result that
+states that it was truncated, the row count, and the latency. Two other sinks are kept on purpose:
+the Catalyst table because it is off-box — an operator with database access cannot quietly edit it —
+and a local JSONL file because it still works when the database is the thing that broke. All three
+writes are fire-and-forget; an audit write must never fail a query an officer is waiting on. The audit
+row deliberately holds no foreign key to the user table: deleting an account must not erase the record
+of what was asked under it.
+
+`/admin/audit` reads it back grouped by **run** — one question — because that is the unit a reviewer is
+accountable for; filtering to a tool still returns the question that produced the call. District-bound
+scope is rendered distinctly from statewide, since what the officer was *allowed* to see is the point.
+One run on the synthetic corpus (`npm run audit`): 4 runs, 4 tool calls, 0 failures, median run
+6,621 ms, `queryDatabase` 3 calls at a 3,603 ms median. Nothing prunes the table yet.
 
 ## Handling real questions, not benchmark questions
 

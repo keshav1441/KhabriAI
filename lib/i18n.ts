@@ -246,6 +246,15 @@ export const STRINGS = {
                             kn: "ಠಾಣೆಗಳ ಪಾಲು ಜಿಲ್ಲೆಯ ಕಳೆದ 90 ದಿನಗಳ ದಾಖಲೆ — ಮುನ್ಸೂಚನೆ ಅಲ್ಲ." },
   "hotspot.reason":       { en: "Why", kn: "ಏಕೆ" },
   "hotspot.close":        { en: "Close", kn: "ಮುಚ್ಚಿ" },
+
+  // Answer feedback — sits under every answer, so the labels stay short
+  "feedback.up":          { en: "Helpful", kn: "ಸಹಾಯಕ" },
+  "feedback.down":        { en: "Not helpful", kn: "ಸಹಾಯಕವಲ್ಲ" },
+  "feedback.recorded":    { en: "Thanks — recorded", kn: "ಧನ್ಯವಾದ — ದಾಖಲಾಗಿದೆ" },
+  "feedback.prompt":      { en: "What was wrong?", kn: "ಏನು ತಪ್ಪಾಗಿತ್ತು?" },
+  "feedback.send":        { en: "Send", kn: "ಕಳುಹಿಸಿ" },
+  "feedback.skip":        { en: "Skip", kn: "ಬಿಟ್ಟುಬಿಡಿ" },
+  "feedback.failed":      { en: "Could not record that", kn: "ಅದನ್ನು ದಾಖಲಿಸಲಾಗಲಿಲ್ಲ" },
 } as const;
 
 export type StringKey = keyof typeof STRINGS;

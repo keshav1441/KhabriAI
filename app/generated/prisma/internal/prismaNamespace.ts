@@ -411,6 +411,9 @@ export const ModelName = {
   ArrestSurrender: 'ArrestSurrender',
   ChargesheetDetails: 'ChargesheetDetails',
   KhabriUser: 'KhabriUser',
+  AnswerFeedback: 'AnswerFeedback',
+  AgentAuditLog: 'AgentAuditLog',
+  LearnedExample: 'LearnedExample',
   Alert: 'Alert',
   ChatSession: 'ChatSession',
   ChatMessage: 'ChatMessage'
@@ -429,7 +432,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "state" | "district" | "unitType" | "unit" | "rank" | "designation" | "employee" | "caseCategory" | "gravityOffence" | "crimeHead" | "crimeSubHead" | "caseStatusMaster" | "court" | "caseMaster" | "victim" | "accused" | "act" | "section" | "crimeHeadActSection" | "actSectionAssociation" | "occupationMaster" | "religionMaster" | "casteMaster" | "complainantDetails" | "arrestSurrender" | "chargesheetDetails" | "khabriUser" | "alert" | "chatSession" | "chatMessage"
+    modelProps: "state" | "district" | "unitType" | "unit" | "rank" | "designation" | "employee" | "caseCategory" | "gravityOffence" | "crimeHead" | "crimeSubHead" | "caseStatusMaster" | "court" | "caseMaster" | "victim" | "accused" | "act" | "section" | "crimeHeadActSection" | "actSectionAssociation" | "occupationMaster" | "religionMaster" | "casteMaster" | "complainantDetails" | "arrestSurrender" | "chargesheetDetails" | "khabriUser" | "answerFeedback" | "agentAuditLog" | "learnedExample" | "alert" | "chatSession" | "chatMessage"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2431,6 +2434,228 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    AnswerFeedback: {
+      payload: Prisma.$AnswerFeedbackPayload<ExtArgs>
+      fields: Prisma.AnswerFeedbackFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.AnswerFeedbackFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerFeedbackPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.AnswerFeedbackFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerFeedbackPayload>
+        }
+        findFirst: {
+          args: Prisma.AnswerFeedbackFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerFeedbackPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.AnswerFeedbackFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerFeedbackPayload>
+        }
+        findMany: {
+          args: Prisma.AnswerFeedbackFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerFeedbackPayload>[]
+        }
+        create: {
+          args: Prisma.AnswerFeedbackCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerFeedbackPayload>
+        }
+        createMany: {
+          args: Prisma.AnswerFeedbackCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.AnswerFeedbackCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerFeedbackPayload>[]
+        }
+        delete: {
+          args: Prisma.AnswerFeedbackDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerFeedbackPayload>
+        }
+        update: {
+          args: Prisma.AnswerFeedbackUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerFeedbackPayload>
+        }
+        deleteMany: {
+          args: Prisma.AnswerFeedbackDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.AnswerFeedbackUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.AnswerFeedbackUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerFeedbackPayload>[]
+        }
+        upsert: {
+          args: Prisma.AnswerFeedbackUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AnswerFeedbackPayload>
+        }
+        aggregate: {
+          args: Prisma.AnswerFeedbackAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateAnswerFeedback>
+        }
+        groupBy: {
+          args: Prisma.AnswerFeedbackGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AnswerFeedbackGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.AnswerFeedbackCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AnswerFeedbackCountAggregateOutputType> | number
+        }
+      }
+    }
+    AgentAuditLog: {
+      payload: Prisma.$AgentAuditLogPayload<ExtArgs>
+      fields: Prisma.AgentAuditLogFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.AgentAuditLogFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentAuditLogPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.AgentAuditLogFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentAuditLogPayload>
+        }
+        findFirst: {
+          args: Prisma.AgentAuditLogFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentAuditLogPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.AgentAuditLogFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentAuditLogPayload>
+        }
+        findMany: {
+          args: Prisma.AgentAuditLogFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentAuditLogPayload>[]
+        }
+        create: {
+          args: Prisma.AgentAuditLogCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentAuditLogPayload>
+        }
+        createMany: {
+          args: Prisma.AgentAuditLogCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.AgentAuditLogCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentAuditLogPayload>[]
+        }
+        delete: {
+          args: Prisma.AgentAuditLogDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentAuditLogPayload>
+        }
+        update: {
+          args: Prisma.AgentAuditLogUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentAuditLogPayload>
+        }
+        deleteMany: {
+          args: Prisma.AgentAuditLogDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.AgentAuditLogUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.AgentAuditLogUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentAuditLogPayload>[]
+        }
+        upsert: {
+          args: Prisma.AgentAuditLogUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentAuditLogPayload>
+        }
+        aggregate: {
+          args: Prisma.AgentAuditLogAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateAgentAuditLog>
+        }
+        groupBy: {
+          args: Prisma.AgentAuditLogGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AgentAuditLogGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.AgentAuditLogCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AgentAuditLogCountAggregateOutputType> | number
+        }
+      }
+    }
+    LearnedExample: {
+      payload: Prisma.$LearnedExamplePayload<ExtArgs>
+      fields: Prisma.LearnedExampleFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.LearnedExampleFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LearnedExamplePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.LearnedExampleFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LearnedExamplePayload>
+        }
+        findFirst: {
+          args: Prisma.LearnedExampleFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LearnedExamplePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.LearnedExampleFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LearnedExamplePayload>
+        }
+        findMany: {
+          args: Prisma.LearnedExampleFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LearnedExamplePayload>[]
+        }
+        create: {
+          args: Prisma.LearnedExampleCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LearnedExamplePayload>
+        }
+        createMany: {
+          args: Prisma.LearnedExampleCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.LearnedExampleCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LearnedExamplePayload>[]
+        }
+        delete: {
+          args: Prisma.LearnedExampleDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LearnedExamplePayload>
+        }
+        update: {
+          args: Prisma.LearnedExampleUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LearnedExamplePayload>
+        }
+        deleteMany: {
+          args: Prisma.LearnedExampleDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.LearnedExampleUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.LearnedExampleUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LearnedExamplePayload>[]
+        }
+        upsert: {
+          args: Prisma.LearnedExampleUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$LearnedExamplePayload>
+        }
+        aggregate: {
+          args: Prisma.LearnedExampleAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateLearnedExample>
+        }
+        groupBy: {
+          args: Prisma.LearnedExampleGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.LearnedExampleGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.LearnedExampleCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.LearnedExampleCountAggregateOutputType> | number
+        }
+      }
+    }
     Alert: {
       payload: Prisma.$AlertPayload<ExtArgs>
       fields: Prisma.AlertFieldRefs
@@ -2999,6 +3224,65 @@ export const KhabriUserScalarFieldEnum = {
 export type KhabriUserScalarFieldEnum = (typeof KhabriUserScalarFieldEnum)[keyof typeof KhabriUserScalarFieldEnum]
 
 
+export const AnswerFeedbackScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  sessionId: 'sessionId',
+  messageId: 'messageId',
+  question: 'question',
+  answer: 'answer',
+  sql: 'sql',
+  tools: 'tools',
+  vote: 'vote',
+  comment: 'comment',
+  status: 'status',
+  correctedSql: 'correctedSql',
+  reviewedById: 'reviewedById',
+  reviewedAt: 'reviewedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type AnswerFeedbackScalarFieldEnum = (typeof AnswerFeedbackScalarFieldEnum)[keyof typeof AnswerFeedbackScalarFieldEnum]
+
+
+export const AgentAuditLogScalarFieldEnum = {
+  id: 'id',
+  runId: 'runId',
+  eventType: 'eventType',
+  userId: 'userId',
+  userEmail: 'userEmail',
+  userRole: 'userRole',
+  districtId: 'districtId',
+  districtName: 'districtName',
+  question: 'question',
+  tool: 'tool',
+  args: 'args',
+  result: 'result',
+  status: 'status',
+  rowCount: 'rowCount',
+  durationMs: 'durationMs',
+  toolCallCount: 'toolCallCount',
+  finalAnswer: 'finalAnswer',
+  createdAt: 'createdAt'
+} as const
+
+export type AgentAuditLogScalarFieldEnum = (typeof AgentAuditLogScalarFieldEnum)[keyof typeof AgentAuditLogScalarFieldEnum]
+
+
+export const LearnedExampleScalarFieldEnum = {
+  id: 'id',
+  question: 'question',
+  sql: 'sql',
+  source: 'source',
+  feedbackId: 'feedbackId',
+  embedding: 'embedding',
+  active: 'active',
+  createdAt: 'createdAt'
+} as const
+
+export type LearnedExampleScalarFieldEnum = (typeof LearnedExampleScalarFieldEnum)[keyof typeof LearnedExampleScalarFieldEnum]
+
+
 export const AlertScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -3318,6 +3602,9 @@ export type GlobalOmitConfig = {
   arrestSurrender?: Prisma.ArrestSurrenderOmit
   chargesheetDetails?: Prisma.ChargesheetDetailsOmit
   khabriUser?: Prisma.KhabriUserOmit
+  answerFeedback?: Prisma.AnswerFeedbackOmit
+  agentAuditLog?: Prisma.AgentAuditLogOmit
+  learnedExample?: Prisma.LearnedExampleOmit
   alert?: Prisma.AlertOmit
   chatSession?: Prisma.ChatSessionOmit
   chatMessage?: Prisma.ChatMessageOmit

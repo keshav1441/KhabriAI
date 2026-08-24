@@ -17,11 +17,14 @@ Conversational AI for investigators to query crime data in plain English. Sign i
 | Agent | Mistral `mistral-small-latest` orchestrator + 5 tools (see below) |
 | LLM | Mistral (OpenAI-compatible API via the `openai` SDK) — `mistral-small-latest` for SQL, summary and narrative |
 | Catalyst services | Cache (insights TTL) · Data Store (`AgentAuditLog`) · QuickML (chargesheet risk) — all optional, local fallbacks outside AppSail |
-| Embeddings | Gemini API (`gemini-embedding-2`) · LLM fallback for example selection |
+| Embeddings | Mistral (`mistral-embed`, 1024-dim) · LLM fallback for example selection |
 | Case retrieval | Postgres full-text search (`tsvector`/`ts_rank`) over `CaseMaster.BriefFacts` |
 | Proactive alerts | Scheduled detectors → per-officer `Alert` rows (Postgres unique dedupe) · header bell, 60s poll |
 | Crew dossier | Two-hop walk over co-accused + pgvector MO edges (`lib/crew.ts`) · browser-print PDF briefing |
 | Predictive hotspots | Least-squares trend per district × crime group over 6 complete months (`lib/hotspot-forecast.ts`) · patrol priorities · Catalyst Cache 180 min |
+| Answer feedback | Thumbs-up/down per answer → reviewed correction becomes a few-shot example in Postgres (`LearnedExample`), merged into retrieval at query time (`lib/rag.ts`) |
+| Audit trail | Every tool call and run to Postgres + Catalyst Data Store + local JSONL, with the officer and the scope it ran under (`lib/agent/audit-log.ts`) |
+| Reviewer consoles | `/admin/feedback` and `/admin/audit` — HQ role required, narrowed by `ADMIN_EMAILS` (`lib/admin-auth.ts`) |
 | Maps | Leaflet + react-leaflet — 30 hardcoded district centroids, not per-incident coordinates |
 | Network graph | Cytoscape.js + cose-bilkent |
 | Charts | Recharts |
@@ -57,7 +60,7 @@ Persist to ChatSession / ChatMessage · audit trail to Catalyst Data Store (Agen
 
 Each tool call is fire-and-forget audited to a Catalyst Data Store table (`AgentAuditLog`) when running on AppSail — locally the writes are skipped and chat works without it.
 
-Few-shot **example** retrieval (picking which Q→SQL pairs to show the SQL generator) runs on hosted APIs only (no local ONNX/HuggingFace). On startup the app probes the Gemini embeddings API; if available it uses `gemini-embedding-2` with cached example vectors in `lib/rag-embeddings-cache.json`. If embeddings are unavailable, it falls back to `mistral-small-latest` picking the best matching examples.
+Few-shot **example** retrieval (picking which Q→SQL pairs to show the SQL generator) runs on hosted APIs only (no local ONNX/HuggingFace). If `MISTRAL_API_KEY` is set it uses `mistral-embed` (1024-dim) with cached example vectors in `lib/rag-embeddings-cache.json`; otherwise it falls back to `mistral-small-latest` picking the best matching examples.
 
 Force a mode with `RAG_MODE=embed` or `RAG_MODE=llm` in `.env`.
 
@@ -90,7 +93,7 @@ Alongside the structured SQL answer, every question also runs a second, independ
   npx tsx scripts/enrich-briefs.ts                # full corpus (~20,000 cases)
   ```
   It's idempotent (only touches rows still matching the seed template) and safe to interrupt/rerun. Until it's run, the Related Cases panel will rarely show anything.
-- **Upgrade path**: if you add a real embedding-capable API key later (Gemini, OpenAI), only `lib/case-retrieval.ts` needs to change — swap the SQL for a pgvector `<=>` search. The chat route, SSE payload, frontend panel, and chat-history persistence are already provider-agnostic.
+- **Why still full-text**: the same file already does pgvector `<=>` search for modus-operandi linking (`similarCasesTo`, `similarCasesToText`). Citations stay on full-text on purpose — the ≥2 content-word overlap gate is what stops an aggregate question ("how many FIRs last month") from surfacing spurious "related" cases, and a nearest-neighbour search always returns its five nearest, relevant or not. Swapping the citation path to embeddings is a change in `lib/case-retrieval.ts` alone; the chat route, SSE payload, frontend panel and chat-history persistence are already provider-agnostic.
 
 ---
 
@@ -221,6 +224,87 @@ npm run hotspots     # scripts/hotspot-check.ts — districts, months fitted, to
 One run on the synthetic corpus: 30 districts and 12 patrol priorities in ~1.3 s. Top priority was Crimes Against Women in Chikkaballapura — 1 case in the last 30 days against 7 projected, +0.91/month, **medium** confidence, with 77% of the last 90 days sitting at Chikkaballapura City PS (44%), North PS (22%) and Market PS (11%). The highest-confidence cell was Crimes Against Body in Dakshina Kannada, 7 → 11 at +1.23/month with a fit of 0.68. That is one run on seeded data, not an evaluation.
 
 `npm test` covers the estimator itself (`test/hotspot-forecast.test.ts`): exact slope/intercept recovery on a straight line, a flat series reporting no trend and nothing explained, a falling trend kept negative, a zig-zag scoring a poor fit, and the one-step projection.
+
+---
+
+## Answer feedback and self-improving retrieval
+
+The weakest joint in the pipeline is the few-shot bank behind SQL generation — 25 seeded question → SQL pairs in `lib/rag-examples.json`. When it got a question wrong, fixing it meant editing that file and redeploying. Now it means a review.
+
+**Capturing the verdict.** A thumbs-up / thumbs-down pair sits under every assistant answer (`components/chat/MessageBubble.tsx`), and a thumbs-down opens a short *what was wrong* box. The client posts the whole exchange — the question read back out of the transcript, the answer, the SQL that was generated, and the tool names snapshotted off the Case Board when the run finished (`components/chat/ChatWindow.tsx`) — because a vote on its own is a number nobody can act on. The client sends it rather than the server joining it back: chat messages are re-keyed when they are persisted (`createMany` in `app/api/chats/[id]/route.ts`), so the id the browser holds is not a database id. It survives only as a dedupe key — `AnswerFeedback` is unique on `(userId, messageId)` and a repeat vote upserts, so changing your mind replaces the verdict instead of adding a second one. The vote and the tool list are deliberately client-only state (`store/chat.ts`); neither is written to chat history.
+
+**The review gate.** The queue at `/admin/feedback` shows unreviewed first, each row carrying the question, what the pipeline replied, which tools ran, the SQL it generated and the officer's comment — because the decision is "was this the right query", and that cannot be made from a vote. Approving requires the SQL the answer *should* have used. That SQL goes through the same SELECT-only AST validator the model's own output does (`lib/sql-validator.ts`) **and is executed once** under the standard `LIMIT 500` and 8 s `statement_timeout`; if it does not run, the approval is refused with the database's error. A few-shot example is model input, and one that does not execute would teach the wrong shape to every question that later retrieves it.
+
+**Where a correction lives.** Approved pairs become `LearnedExample` rows in Postgres rather than being written back into `lib/rag-examples.json` — that file is read-only once the app is packaged for AppSail. The question is embedded with `mistral-embed` at approval time, and the active bank (200 most recent) is cached for 60 s, so retrieval never pays for an embedding call it can avoid. An approved correction therefore changes the next answer without a redeploy.
+
+**Merging into retrieval.** `findSimilar` (`lib/rag.ts`) scores both banks and hands them to the pure, unit-tested `mergeExamples`:
+
+- when the seeded side came from embeddings, both sides are cosine over the same model — so they are one ranking, deduplicated by question and cut to top-K;
+- when embeddings are unavailable and the seeded side came from the LLM picker, the two scales are not comparable. Rather than pretend they are, exactly one learned example is admitted — the best — and only above a word-overlap floor of **0.3**. Otherwise an overlap score would either never survive next to the picker's near-1.0 ranks, or would gatecrash on a weak match.
+
+**The eval number is insulated from all of this.** When `findSimilar` is called with `excludeIndex`, the evaluation harness is running a holdout: it is measuring the seeded bank against its own gold SQL. Learned examples are skipped entirely on that path, so the accuracy figure keeps measuring how well the system generalises rather than how much it has been corrected.
+
+**API.**
+
+| Route | Purpose |
+|---|---|
+| `POST /api/feedback` | One officer's verdict on one answer, with the exchange attached. Session-guarded |
+| `GET /api/admin/feedback` | The review queue — `?status=new\|approved\|rejected\|all`, `?vote=up\|down` |
+| `PATCH /api/admin/feedback` | `{ id, action: "approve" \| "reject", correctedSql }` — validates, executes, then stores the example |
+| `GET /api/admin/feedback/stats?days=30` | Totals, the daily satisfaction line, the cumulative learned-example count, and which tools appear most often on a thumbs-down |
+
+**Console.** `/admin/feedback`, reached from the **profile popover on the dashboard** — reviewing answers is a governance job, not an investigator one, so it stays out of the nav. `components/admin/AccuracyChart.tsx` plots satisfaction % against the cumulative learned bank on a second axis (the noisy line and the monotonic one need separate axes to share a frame); `components/admin/ReviewQueue.tsx` is the queue itself. Both consoles are gated by `lib/admin-auth.ts`: HQ role required — an SHO gets a 403 — optionally narrowed further by `ADMIN_EMAILS`. The same 403 comes back whether the caller is signed out or merely not a reviewer, so probing the URL tells you nothing.
+
+**Run it without the UI:**
+```bash
+npm run feedback     # scripts/feedback-check.ts — vote → review → retrieval, end to end
+```
+One run on the synthetic corpus: a thumbs-down was recorded, the reviewer's corrected SQL passed the validator and executed (5 rows), was embedded, and the same question then retrieved that corrected example at score **1.000** — above the seeded examples that had previously scored 0.867 / 0.863 / 0.854. That is one run on seeded data, not an evaluation.
+
+`npm test` covers the merge rule itself (`test/rag-merge.test.ts`): an empty learned bank leaving the seeded ranking untouched, a stronger correction taking the top slot, a weaker one ranking where it belongs, no question appearing twice, and — on incomparable scales — one clearly relevant example admitted while a weak overlap is ignored entirely.
+
+---
+
+## Audit trail
+
+Every tool call the agent makes was already being written down. The problem was where: a JSONL file next to the process and a Catalyst Data Store table — neither queryable from the app, and neither recording **who** asked or **under what scope** their query ran. An audit trail nobody can read is not an audit trail.
+
+**Three sinks, three readers** (`lib/agent/audit-log.ts`):
+
+| Sink | Why it exists |
+|---|---|
+| Postgres (`AgentAuditLog`) | The one the app can query — what `/admin/audit` reads. Records the officer and the scope the query actually ran under |
+| Catalyst Data Store | Off-box copy: an operator who can edit the application database cannot quietly edit this one. Needs a manually created `AgentAuditLog` table in the Catalyst console |
+| Local JSONL (`.audit/agent-audit.jsonl`) | Works on a laptop with no Catalyst, and — more usefully — still works when the database is the thing that broke |
+
+All three are fire-and-forget (`Promise.allSettled`, failures logged and swallowed): an audit write must never fail a query an officer is waiting on, and must never throw into the streaming response.
+
+**What a row holds.** Two event types share the table. A `step` row is one tool call — tool name, arguments, result, `ok`/`error`, the row count it returned and its duration. A `run` row closes the question — tool-call count, the final narrative, and the wall-clock time of the whole run (`lib/agent/orchestrator.ts` times both). Arguments are truncated at 2,000 characters, results at 4,000 and the final answer at 8,000, and the stored string **says so** (`… [truncated N chars]`) — enough to audit, not a second copy of the case database, and never a truncated result a reviewer could mistake for a whole one.
+
+**Who asked.** `Scope` (`lib/chat-auth.ts`) now carries `userId` and `email` alongside the role and district, and the orchestrator attaches that actor to every audit write. `AgentAuditLog` has **no foreign key to `KhabriUser`, on purpose**: deleting an account must not erase the record of what was asked under it, so the email and role are copied onto the row instead.
+
+**Reading it back** (`lib/audit.ts`). `listAuditRuns` groups by run, not by tool call — the unit a reviewer is accountable for is one question, so matching runs are found first and their steps fetched by `runId`. A filter on a tool therefore still returns the whole run it belonged to, including the question that produced the call. The filters are the ones a real review starts from: officer, tool, scope, `ok`/`error`, free text over the question, and a day window. `auditSummary` gives volume, failures, distinct officers, median run latency, per-tool median latency, and the distinct scopes seen.
+
+**API.**
+
+| Route | Purpose |
+|---|---|
+| `GET /api/admin/audit` | Runs with their steps attached — `?officer=`, `?tool=`, `?scope=` (a district name, or `statewide`), `?status=ok\|error`, `?q=`, `?days=`, `?limit=` |
+| `GET /api/admin/audit/summary?days=30` | Volume, failures, officers, median run latency, per-tool latency, and the filter vocabulary |
+
+Both are reviewer-gated the same way the feedback console is — these rows carry other officers' questions, which can name real people.
+
+**Console.** `/admin/audit`, also reached from the profile popover on the dashboard. Runs expand to their tool calls with per-call status, row counts and timings; `components/admin/ToolLatencyTable.tsx` ranks tools by median latency and flags a *rate* of failures rather than a count (two errors in three calls is a broken tool; two in two thousand is a bad afternoon). A district-bound scope is rendered visually distinct from Statewide — dashed khaki against solid blue (`ScopeBadge` in `components/admin/AuditRunList.tsx`) — because what the officer was *allowed* to see is the accountability point, not a footnote.
+
+**Run it without the UI:**
+```bash
+npm run audit -- "how many FIRs were filed in Mysuru last month?"
+```
+It asks a real agent question, waits for the fire-and-forget writes to land, then prints the trail back the way the console reads it. One run on the synthetic corpus captured 4 real agent runs: 4 runs / 4 tool calls / 0 failures / median run 6,621 ms, with `queryDatabase` at 3 calls, median 3,603 ms, and `findSimilarCases` at 1 call, 1,226 ms. That is one run on seeded data, not an evaluation.
+
+`npm test` covers the truncation and row-count helpers (`test/audit-log.test.ts`).
+
+**Growth.** Nothing prunes `AgentAuditLog` yet. It gains one row per tool call plus one per question and grows monotonically; the indexes on `createdAt`, `runId`, `(userId, createdAt)` and `(tool, createdAt)` keep the console fast, but a retention job or a partition strategy is still owed before sustained real-world use.
 
 ---
 
@@ -357,6 +441,8 @@ app/
   (auth)/login/     Login page
   (auth)/signup/    Sign up page
   dashboard/        Main app shell (sidebar, chat, map, network, crew, reports, about)
+  admin/feedback/   Reviewer console — accuracy chart + review queue
+  admin/audit/      Audit viewer — runs, tool calls, scope badges, tool latency
   api/
     auth/login/       Credential check → sets session cookie
     auth/google/      Google ID-token check → find-or-create user, sets session cookie
@@ -376,8 +462,14 @@ app/
     map-data/         Per-district case counts (plotted against hardcoded district centroids)
     network-data/     Accused co-occurrence graph
     reports/          Pre-aggregated insight cards
+    feedback/         Records one officer's thumbs-up/down on one answer (session-guarded)
+    admin/feedback/   Review queue (GET) + approve/reject a correction (PATCH) — reviewer-gated
+    admin/feedback/stats/  Satisfaction line, learned-example count, thumbs-down weak spots
+    admin/audit/      Audit trail grouped by run, with filters
+    admin/audit/summary/   Volume, failures, officers, per-tool median latency
 components/
-  chat/             ChatWindow, MessageBubble, CaseBoard (live tool steps), RelatedCases, ChatHistory
+  chat/             ChatWindow, MessageBubble (answer feedback), CaseBoard (live tool steps), RelatedCases, ChatHistory
+  admin/            AccuracyChart, ReviewQueue, AuditRunList, ToolLatencyTable
   views/            Map, Network, Crew, Reports, About panels
     MapView.tsx         District-centroid hotspot map + Observed | Predicted layer toggle
     PatrolPriorities.tsx  Ranked patrol priorities panel — fit, confidence, station shares, method
@@ -387,8 +479,12 @@ lib/
   agent/
     orchestrator.ts   Agent loop — Mistral planner, tool execution, SSE event stream
     tools.ts          5 tool implementations + JSON schemas
-    audit-log.ts      Fire-and-forget audit trail to Catalyst Data Store
-  rag.ts                RAG router (embeddings → LLM fallback) — few-shot SQL examples only
+    audit-log.ts      Fire-and-forget audit trail — Postgres + Catalyst Data Store + local JSONL, with actor and scope
+  rag.ts                RAG router (embeddings → LLM fallback) — few-shot SQL examples only, seeded + learned merged
+  feedback.ts           Vote capture, review queue, the approval gate (validate + execute), stats
+  learned-examples.ts   Approved corrections as few-shot examples — embedded, cached 60s
+  audit.ts              Reading the audit trail — runs with their steps, and the summary
+  admin-auth.ts         Reviewer gate for both consoles (HQ role + ADMIN_EMAILS)
   embeddings.ts         Mistral embeddings (mistral-embed, 1024-dim) + on-disk cache
   rag-llm.ts            LLM example-selection fallback
   mistral-client.ts     Shared Mistral client (openai SDK, Mistral base URL)
@@ -413,11 +509,13 @@ lib/
 store/
   chat.ts           Zustand — messages, Case Board steps, active session, session list
 prisma/
-  schema.prisma     KSP FIR schema + KhabriUser + ChatSession + ChatMessage
+  schema.prisma     KSP FIR schema + KhabriUser + ChatSession + ChatMessage + AnswerFeedback + LearnedExample + AgentAuditLog
   seed.ts           20,000 synthetic KSP-calibrated FIR records
   migrations/       …_add_case_fts — GIN full-text index on BriefFacts + ChatMessage.relatedCases
 test/
   crew.test.ts      Signature extractor — recurrence, longest form, clause boundaries
+  rag-merge.test.ts  mergeExamples — seeded vs learned ranking, dedupe, the overlap floor
+  audit-log.test.ts  Truncation that states itself, and the row count taken from a result
   hotspot-forecast.test.ts  fitTrend — slope/intercept recovery, R² behaviour, projection
 eval/
   run.ts            Offline accuracy harness
@@ -426,6 +524,8 @@ scripts/
   enrich-briefs.ts        LLM-expands templated BriefFacts into real FIR narratives
   crew-check.ts           Prints a dossier for a seed without the UI (`npm run crew`)
   hotspot-check.ts        Prints the forecast and patrol priorities without the map (`npm run hotspots`)
+  feedback-check.ts       Vote → review → retrieval, end to end (`npm run feedback`)
+  audit-check.ts          Runs one real agent question and reads the trail back (`npm run audit`)
 ```
 
 ---
@@ -454,6 +554,7 @@ scripts/
 | `CATALYST_CRON_TARGET` | No | `webhook` (default) or `appsail` — how the job pool reaches the app |
 | `CATALYST_APPSAIL_NAME` | No | AppSail service name when `CATALYST_CRON_TARGET=appsail` (default `khabriai`) |
 | `CATALYST_APP_URL` | No | Public origin the job pool calls; derived from the request when unset |
+| `ADMIN_EMAILS` | No | Comma-separated allow-list for the two reviewer consoles (`/admin/feedback`, `/admin/audit`). Unset means any HQ account gets in — and every account created from `/login` defaults to HQ, so on a real deployment this list is the gate |
 
 ---
 

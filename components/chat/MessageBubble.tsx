@@ -1,11 +1,13 @@
 "use client";
+import { useState } from "react";
 import { StreamingText } from "./StreamingText";
 import { ResultsTable } from "../viz/ResultsTable";
 import { CrimeChart } from "../viz/CrimeChart";
 import { NetworkGraph } from "../viz/NetworkGraph";
 import { RelatedCases } from "./RelatedCases";
 import { useChatStore, type ChatMessage } from "@/store/chat";
-import { speechLocale } from "@/lib/i18n";
+import { chatHeaders } from "@/lib/chat-api";
+import { t, speechLocale } from "@/lib/i18n";
 
 // ponytail: native SpeechSynthesis TTS; no cloud voice.
 function speak(text: string, locale: string) {
@@ -27,6 +29,138 @@ function exportCSV(rows: Record<string, unknown>[], filename = "khabri-export.cs
   const a = document.createElement("a");
   a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
+}
+
+/**
+ * The answer's own question, read back out of the transcript: feedback is only
+ * useful paired with what was asked, and the API rejects an empty question.
+ */
+function useQuestionFor(messageId: string): string | null {
+  return useChatStore((s) => {
+    const idx = s.messages.findIndex((m) => m.id === messageId);
+    for (let i = idx - 1; i >= 0; i--) {
+      if (s.messages[i].role === "user") return s.messages[i].content;
+    }
+    return null;
+  });
+}
+
+function AnswerFeedback({ message }: { message: ChatMessage }) {
+  const lang = useChatStore((s) => s.lang);
+  const sessionId = useChatStore((s) => s.activeSessionId);
+  const updateMessage = useChatStore((s) => s.updateMessage);
+  const question = useQuestionFor(message.id);
+  const [commenting, setCommenting] = useState(false);
+  const [comment, setComment] = useState("");
+  const [failed, setFailed] = useState(false);
+
+  // History that lost its question would post something the API refuses, so
+  // show nothing rather than a button that cannot work.
+  if (!question) return null;
+
+  const vote = message.feedback;
+
+  const post = async (next: "up" | "down", note?: string) => {
+    const previous = vote;
+    // Optimistic: the verdict lands in the transcript before the network does,
+    // and quietly rolls back if the post fails. Never blocks the chat.
+    updateMessage(message.id, { feedback: next });
+    setCommenting(false);
+    setComment("");
+    setFailed(false);
+    try {
+      const res = await fetch("/api/feedback", {
+        method: "POST",
+        headers: chatHeaders(),
+        body: JSON.stringify({
+          vote: next,
+          question,
+          answer: message.content,
+          sql: message.sql,
+          tools: message.tools ?? [],
+          messageId: message.id,
+          sessionId,
+          comment: note?.trim() || undefined,
+        }),
+      });
+      if (!res.ok) throw new Error("rejected");
+    } catch {
+      updateMessage(message.id, { feedback: previous });
+      setFailed(true);
+    }
+  };
+
+  const btn = (active: boolean, accent: string) => ({
+    color: active ? accent : "var(--text-muted)",
+    borderColor: active ? accent : "var(--border)",
+  });
+
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => post("up")}
+          title={t("feedback.up", lang)}
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-data transition-colors"
+          style={{ border: "1px solid", ...btn(vote === "up", "var(--green)") }}
+        >
+          👍 {t("feedback.up", lang)}
+        </button>
+        <button
+          onClick={() => setCommenting((c) => !c)}
+          title={t("feedback.down", lang)}
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-data transition-colors"
+          style={{ border: "1px solid", ...btn(vote === "down", "var(--red)") }}
+        >
+          👎 {t("feedback.down", lang)}
+        </button>
+        {vote && !commenting && (
+          <span className="text-xs font-data" style={{ color: "var(--text-muted)" }}>
+            {t("feedback.recorded", lang)}
+          </span>
+        )}
+        {failed && (
+          <span className="text-xs font-data" style={{ color: "var(--red)" }}>
+            {t("feedback.failed", lang)}
+          </span>
+        )}
+      </div>
+
+      {commenting && (
+        <div className="space-y-1.5 max-w-md">
+          <textarea
+            rows={2}
+            autoFocus
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder={t("feedback.prompt", lang)}
+            className="block w-full resize-none rounded px-2 py-1.5 text-xs outline-none"
+            style={{
+              background: "var(--bg-input)",
+              border: "1px solid var(--border)",
+              color: "var(--text-primary)",
+            }}
+          />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => post("down", comment)}
+              className="px-2 py-0.5 rounded text-xs font-data text-white"
+              style={{ background: "var(--red)" }}
+            >
+              {t("feedback.send", lang)}
+            </button>
+            <button
+              onClick={() => post("down")}
+              className="px-2 py-0.5 rounded text-xs font-data"
+              style={{ border: "1px solid var(--border)", color: "var(--text-muted)" }}
+            >
+              {t("feedback.skip", lang)}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function MessageBubble({ message }: { message: ChatMessage }) {
@@ -96,6 +230,8 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
             </button>
           )}
         </div>
+
+        {!message.loading && message.content && <AnswerFeedback message={message} />}
 
         {!message.loading && <RelatedCases cases={message.relatedCases} />}
 

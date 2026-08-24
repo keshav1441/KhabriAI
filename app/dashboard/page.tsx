@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { CaseBoard } from "@/components/chat/CaseBoard";
 import { ChatHistory } from "@/components/chat/ChatHistory";
@@ -333,6 +334,25 @@ export default function DashboardPage() {
             <div className="pt-2 space-y-1.5" style={{ borderTop: "1px solid var(--border-subtle)" }}>
               <ProfileRow label={t("user.role", lang)} value={t("user.roleValue", lang)} />
               <ProfileRow label={t("user.access", lang)} value={t("user.accessValue", lang)} />
+            </div>
+            {/* Reviewing answers is a governance job, not an investigator one —
+                it lives here rather than in the nav, and the page itself is the
+                gate: everyone else gets a 403. */}
+            <div className="pt-2 flex items-center gap-4" style={{ borderTop: "1px solid var(--border-subtle)" }}>
+              <Link
+                href="/admin/feedback"
+                className="text-xs font-data"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Answer review →
+              </Link>
+              <Link
+                href="/admin/audit"
+                className="text-xs font-data"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Audit trail →
+              </Link>
             </div>
           </div>
           <div className="px-5 py-3 flex justify-end" style={{ borderTop: "1px solid var(--border)" }}>

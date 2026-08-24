@@ -254,6 +254,7 @@ export type KhabriUserWhereInput = {
   createdAt?: Prisma.DateTimeFilter<"KhabriUser"> | Date | string
   chatSessions?: Prisma.ChatSessionListRelationFilter
   alerts?: Prisma.AlertListRelationFilter
+  feedback?: Prisma.AnswerFeedbackListRelationFilter
 }
 
 export type KhabriUserOrderByWithRelationInput = {
@@ -268,6 +269,7 @@ export type KhabriUserOrderByWithRelationInput = {
   createdAt?: Prisma.SortOrder
   chatSessions?: Prisma.ChatSessionOrderByRelationAggregateInput
   alerts?: Prisma.AlertOrderByRelationAggregateInput
+  feedback?: Prisma.AnswerFeedbackOrderByRelationAggregateInput
 }
 
 export type KhabriUserWhereUniqueInput = Prisma.AtLeast<{
@@ -285,6 +287,7 @@ export type KhabriUserWhereUniqueInput = Prisma.AtLeast<{
   createdAt?: Prisma.DateTimeFilter<"KhabriUser"> | Date | string
   chatSessions?: Prisma.ChatSessionListRelationFilter
   alerts?: Prisma.AlertListRelationFilter
+  feedback?: Prisma.AnswerFeedbackListRelationFilter
 }, "id" | "email">
 
 export type KhabriUserOrderByWithAggregationInput = {
@@ -330,6 +333,7 @@ export type KhabriUserCreateInput = {
   createdAt?: Date | string
   chatSessions?: Prisma.ChatSessionCreateNestedManyWithoutUserInput
   alerts?: Prisma.AlertCreateNestedManyWithoutUserInput
+  feedback?: Prisma.AnswerFeedbackCreateNestedManyWithoutUserInput
 }
 
 export type KhabriUserUncheckedCreateInput = {
@@ -344,6 +348,7 @@ export type KhabriUserUncheckedCreateInput = {
   createdAt?: Date | string
   chatSessions?: Prisma.ChatSessionUncheckedCreateNestedManyWithoutUserInput
   alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutUserInput
+  feedback?: Prisma.AnswerFeedbackUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type KhabriUserUpdateInput = {
@@ -357,6 +362,7 @@ export type KhabriUserUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   chatSessions?: Prisma.ChatSessionUpdateManyWithoutUserNestedInput
   alerts?: Prisma.AlertUpdateManyWithoutUserNestedInput
+  feedback?: Prisma.AnswerFeedbackUpdateManyWithoutUserNestedInput
 }
 
 export type KhabriUserUncheckedUpdateInput = {
@@ -371,6 +377,7 @@ export type KhabriUserUncheckedUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   chatSessions?: Prisma.ChatSessionUncheckedUpdateManyWithoutUserNestedInput
   alerts?: Prisma.AlertUncheckedUpdateManyWithoutUserNestedInput
+  feedback?: Prisma.AnswerFeedbackUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type KhabriUserCreateManyInput = {
@@ -463,6 +470,20 @@ export type DateTimeFieldUpdateOperationsInput = {
   set?: Date | string
 }
 
+export type KhabriUserCreateNestedOneWithoutFeedbackInput = {
+  create?: Prisma.XOR<Prisma.KhabriUserCreateWithoutFeedbackInput, Prisma.KhabriUserUncheckedCreateWithoutFeedbackInput>
+  connectOrCreate?: Prisma.KhabriUserCreateOrConnectWithoutFeedbackInput
+  connect?: Prisma.KhabriUserWhereUniqueInput
+}
+
+export type KhabriUserUpdateOneRequiredWithoutFeedbackNestedInput = {
+  create?: Prisma.XOR<Prisma.KhabriUserCreateWithoutFeedbackInput, Prisma.KhabriUserUncheckedCreateWithoutFeedbackInput>
+  connectOrCreate?: Prisma.KhabriUserCreateOrConnectWithoutFeedbackInput
+  upsert?: Prisma.KhabriUserUpsertWithoutFeedbackInput
+  connect?: Prisma.KhabriUserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.KhabriUserUpdateToOneWithWhereWithoutFeedbackInput, Prisma.KhabriUserUpdateWithoutFeedbackInput>, Prisma.KhabriUserUncheckedUpdateWithoutFeedbackInput>
+}
+
 export type KhabriUserCreateNestedOneWithoutAlertsInput = {
   create?: Prisma.XOR<Prisma.KhabriUserCreateWithoutAlertsInput, Prisma.KhabriUserUncheckedCreateWithoutAlertsInput>
   connectOrCreate?: Prisma.KhabriUserCreateOrConnectWithoutAlertsInput
@@ -491,6 +512,76 @@ export type KhabriUserUpdateOneRequiredWithoutChatSessionsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.KhabriUserUpdateToOneWithWhereWithoutChatSessionsInput, Prisma.KhabriUserUpdateWithoutChatSessionsInput>, Prisma.KhabriUserUncheckedUpdateWithoutChatSessionsInput>
 }
 
+export type KhabriUserCreateWithoutFeedbackInput = {
+  firstName: string
+  lastName: string
+  email: string
+  passwordHash?: string | null
+  salt?: string | null
+  role?: string
+  districtId?: number | null
+  createdAt?: Date | string
+  chatSessions?: Prisma.ChatSessionCreateNestedManyWithoutUserInput
+  alerts?: Prisma.AlertCreateNestedManyWithoutUserInput
+}
+
+export type KhabriUserUncheckedCreateWithoutFeedbackInput = {
+  id?: number
+  firstName: string
+  lastName: string
+  email: string
+  passwordHash?: string | null
+  salt?: string | null
+  role?: string
+  districtId?: number | null
+  createdAt?: Date | string
+  chatSessions?: Prisma.ChatSessionUncheckedCreateNestedManyWithoutUserInput
+  alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type KhabriUserCreateOrConnectWithoutFeedbackInput = {
+  where: Prisma.KhabriUserWhereUniqueInput
+  create: Prisma.XOR<Prisma.KhabriUserCreateWithoutFeedbackInput, Prisma.KhabriUserUncheckedCreateWithoutFeedbackInput>
+}
+
+export type KhabriUserUpsertWithoutFeedbackInput = {
+  update: Prisma.XOR<Prisma.KhabriUserUpdateWithoutFeedbackInput, Prisma.KhabriUserUncheckedUpdateWithoutFeedbackInput>
+  create: Prisma.XOR<Prisma.KhabriUserCreateWithoutFeedbackInput, Prisma.KhabriUserUncheckedCreateWithoutFeedbackInput>
+  where?: Prisma.KhabriUserWhereInput
+}
+
+export type KhabriUserUpdateToOneWithWhereWithoutFeedbackInput = {
+  where?: Prisma.KhabriUserWhereInput
+  data: Prisma.XOR<Prisma.KhabriUserUpdateWithoutFeedbackInput, Prisma.KhabriUserUncheckedUpdateWithoutFeedbackInput>
+}
+
+export type KhabriUserUpdateWithoutFeedbackInput = {
+  firstName?: Prisma.StringFieldUpdateOperationsInput | string
+  lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  salt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.StringFieldUpdateOperationsInput | string
+  districtId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  chatSessions?: Prisma.ChatSessionUpdateManyWithoutUserNestedInput
+  alerts?: Prisma.AlertUpdateManyWithoutUserNestedInput
+}
+
+export type KhabriUserUncheckedUpdateWithoutFeedbackInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  firstName?: Prisma.StringFieldUpdateOperationsInput | string
+  lastName?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  salt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.StringFieldUpdateOperationsInput | string
+  districtId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  chatSessions?: Prisma.ChatSessionUncheckedUpdateManyWithoutUserNestedInput
+  alerts?: Prisma.AlertUncheckedUpdateManyWithoutUserNestedInput
+}
+
 export type KhabriUserCreateWithoutAlertsInput = {
   firstName: string
   lastName: string
@@ -501,6 +592,7 @@ export type KhabriUserCreateWithoutAlertsInput = {
   districtId?: number | null
   createdAt?: Date | string
   chatSessions?: Prisma.ChatSessionCreateNestedManyWithoutUserInput
+  feedback?: Prisma.AnswerFeedbackCreateNestedManyWithoutUserInput
 }
 
 export type KhabriUserUncheckedCreateWithoutAlertsInput = {
@@ -514,6 +606,7 @@ export type KhabriUserUncheckedCreateWithoutAlertsInput = {
   districtId?: number | null
   createdAt?: Date | string
   chatSessions?: Prisma.ChatSessionUncheckedCreateNestedManyWithoutUserInput
+  feedback?: Prisma.AnswerFeedbackUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type KhabriUserCreateOrConnectWithoutAlertsInput = {
@@ -542,6 +635,7 @@ export type KhabriUserUpdateWithoutAlertsInput = {
   districtId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   chatSessions?: Prisma.ChatSessionUpdateManyWithoutUserNestedInput
+  feedback?: Prisma.AnswerFeedbackUpdateManyWithoutUserNestedInput
 }
 
 export type KhabriUserUncheckedUpdateWithoutAlertsInput = {
@@ -555,6 +649,7 @@ export type KhabriUserUncheckedUpdateWithoutAlertsInput = {
   districtId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   chatSessions?: Prisma.ChatSessionUncheckedUpdateManyWithoutUserNestedInput
+  feedback?: Prisma.AnswerFeedbackUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type KhabriUserCreateWithoutChatSessionsInput = {
@@ -567,6 +662,7 @@ export type KhabriUserCreateWithoutChatSessionsInput = {
   districtId?: number | null
   createdAt?: Date | string
   alerts?: Prisma.AlertCreateNestedManyWithoutUserInput
+  feedback?: Prisma.AnswerFeedbackCreateNestedManyWithoutUserInput
 }
 
 export type KhabriUserUncheckedCreateWithoutChatSessionsInput = {
@@ -580,6 +676,7 @@ export type KhabriUserUncheckedCreateWithoutChatSessionsInput = {
   districtId?: number | null
   createdAt?: Date | string
   alerts?: Prisma.AlertUncheckedCreateNestedManyWithoutUserInput
+  feedback?: Prisma.AnswerFeedbackUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type KhabriUserCreateOrConnectWithoutChatSessionsInput = {
@@ -608,6 +705,7 @@ export type KhabriUserUpdateWithoutChatSessionsInput = {
   districtId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   alerts?: Prisma.AlertUpdateManyWithoutUserNestedInput
+  feedback?: Prisma.AnswerFeedbackUpdateManyWithoutUserNestedInput
 }
 
 export type KhabriUserUncheckedUpdateWithoutChatSessionsInput = {
@@ -621,6 +719,7 @@ export type KhabriUserUncheckedUpdateWithoutChatSessionsInput = {
   districtId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   alerts?: Prisma.AlertUncheckedUpdateManyWithoutUserNestedInput
+  feedback?: Prisma.AnswerFeedbackUncheckedUpdateManyWithoutUserNestedInput
 }
 
 
@@ -631,11 +730,13 @@ export type KhabriUserUncheckedUpdateWithoutChatSessionsInput = {
 export type KhabriUserCountOutputType = {
   chatSessions: number
   alerts: number
+  feedback: number
 }
 
 export type KhabriUserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   chatSessions?: boolean | KhabriUserCountOutputTypeCountChatSessionsArgs
   alerts?: boolean | KhabriUserCountOutputTypeCountAlertsArgs
+  feedback?: boolean | KhabriUserCountOutputTypeCountFeedbackArgs
 }
 
 /**
@@ -662,6 +763,13 @@ export type KhabriUserCountOutputTypeCountAlertsArgs<ExtArgs extends runtime.Typ
   where?: Prisma.AlertWhereInput
 }
 
+/**
+ * KhabriUserCountOutputType without action
+ */
+export type KhabriUserCountOutputTypeCountFeedbackArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.AnswerFeedbackWhereInput
+}
+
 
 export type KhabriUserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -675,6 +783,7 @@ export type KhabriUserSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   createdAt?: boolean
   chatSessions?: boolean | Prisma.KhabriUser$chatSessionsArgs<ExtArgs>
   alerts?: boolean | Prisma.KhabriUser$alertsArgs<ExtArgs>
+  feedback?: boolean | Prisma.KhabriUser$feedbackArgs<ExtArgs>
   _count?: boolean | Prisma.KhabriUserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["khabriUser"]>
 
@@ -718,6 +827,7 @@ export type KhabriUserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs
 export type KhabriUserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   chatSessions?: boolean | Prisma.KhabriUser$chatSessionsArgs<ExtArgs>
   alerts?: boolean | Prisma.KhabriUser$alertsArgs<ExtArgs>
+  feedback?: boolean | Prisma.KhabriUser$feedbackArgs<ExtArgs>
   _count?: boolean | Prisma.KhabriUserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type KhabriUserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -728,6 +838,7 @@ export type $KhabriUserPayload<ExtArgs extends runtime.Types.Extensions.Internal
   objects: {
     chatSessions: Prisma.$ChatSessionPayload<ExtArgs>[]
     alerts: Prisma.$AlertPayload<ExtArgs>[]
+    feedback: Prisma.$AnswerFeedbackPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: number
@@ -1135,6 +1246,7 @@ export interface Prisma__KhabriUserClient<T, Null = never, ExtArgs extends runti
   readonly [Symbol.toStringTag]: "PrismaPromise"
   chatSessions<T extends Prisma.KhabriUser$chatSessionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.KhabriUser$chatSessionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ChatSessionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   alerts<T extends Prisma.KhabriUser$alertsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.KhabriUser$alertsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AlertPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  feedback<T extends Prisma.KhabriUser$feedbackArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.KhabriUser$feedbackArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AnswerFeedbackPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1611,6 +1723,30 @@ export type KhabriUser$alertsArgs<ExtArgs extends runtime.Types.Extensions.Inter
   take?: number
   skip?: number
   distinct?: Prisma.AlertScalarFieldEnum | Prisma.AlertScalarFieldEnum[]
+}
+
+/**
+ * KhabriUser.feedback
+ */
+export type KhabriUser$feedbackArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the AnswerFeedback
+   */
+  select?: Prisma.AnswerFeedbackSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the AnswerFeedback
+   */
+  omit?: Prisma.AnswerFeedbackOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AnswerFeedbackInclude<ExtArgs> | null
+  where?: Prisma.AnswerFeedbackWhereInput
+  orderBy?: Prisma.AnswerFeedbackOrderByWithRelationInput | Prisma.AnswerFeedbackOrderByWithRelationInput[]
+  cursor?: Prisma.AnswerFeedbackWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.AnswerFeedbackScalarFieldEnum | Prisma.AnswerFeedbackScalarFieldEnum[]
 }
 
 /**

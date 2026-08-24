@@ -78,6 +78,9 @@ export const ModelName = {
   ArrestSurrender: 'ArrestSurrender',
   ChargesheetDetails: 'ChargesheetDetails',
   KhabriUser: 'KhabriUser',
+  AnswerFeedback: 'AnswerFeedback',
+  AgentAuditLog: 'AgentAuditLog',
+  LearnedExample: 'LearnedExample',
   Alert: 'Alert',
   ChatSession: 'ChatSession',
   ChatMessage: 'ChatMessage'
@@ -404,6 +407,65 @@ export const KhabriUserScalarFieldEnum = {
 } as const
 
 export type KhabriUserScalarFieldEnum = (typeof KhabriUserScalarFieldEnum)[keyof typeof KhabriUserScalarFieldEnum]
+
+
+export const AnswerFeedbackScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  sessionId: 'sessionId',
+  messageId: 'messageId',
+  question: 'question',
+  answer: 'answer',
+  sql: 'sql',
+  tools: 'tools',
+  vote: 'vote',
+  comment: 'comment',
+  status: 'status',
+  correctedSql: 'correctedSql',
+  reviewedById: 'reviewedById',
+  reviewedAt: 'reviewedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type AnswerFeedbackScalarFieldEnum = (typeof AnswerFeedbackScalarFieldEnum)[keyof typeof AnswerFeedbackScalarFieldEnum]
+
+
+export const AgentAuditLogScalarFieldEnum = {
+  id: 'id',
+  runId: 'runId',
+  eventType: 'eventType',
+  userId: 'userId',
+  userEmail: 'userEmail',
+  userRole: 'userRole',
+  districtId: 'districtId',
+  districtName: 'districtName',
+  question: 'question',
+  tool: 'tool',
+  args: 'args',
+  result: 'result',
+  status: 'status',
+  rowCount: 'rowCount',
+  durationMs: 'durationMs',
+  toolCallCount: 'toolCallCount',
+  finalAnswer: 'finalAnswer',
+  createdAt: 'createdAt'
+} as const
+
+export type AgentAuditLogScalarFieldEnum = (typeof AgentAuditLogScalarFieldEnum)[keyof typeof AgentAuditLogScalarFieldEnum]
+
+
+export const LearnedExampleScalarFieldEnum = {
+  id: 'id',
+  question: 'question',
+  sql: 'sql',
+  source: 'source',
+  feedbackId: 'feedbackId',
+  embedding: 'embedding',
+  active: 'active',
+  createdAt: 'createdAt'
+} as const
+
+export type LearnedExampleScalarFieldEnum = (typeof LearnedExampleScalarFieldEnum)[keyof typeof LearnedExampleScalarFieldEnum]
 
 
 export const AlertScalarFieldEnum = {

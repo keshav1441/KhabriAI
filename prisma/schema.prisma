@@ -337,6 +337,85 @@ model KhabriUser {
   createdAt    DateTime      @default(now())
   chatSessions ChatSession[]
   alerts       Alert[]
+  feedback     AnswerFeedback[]
+}
+
+// An officer's verdict on one answer. The point is not the score: a thumbs-down
+// carries the question, the SQL that was generated for it and the tools that
+// ran, which is everything a reviewer needs to decide whether the pipeline was
+// wrong and what the right answer would have been.
+model AnswerFeedback {
+  id           String     @id @default(cuid())
+  userId       Int
+  sessionId    String?
+  messageId    String?
+  question     String     @db.Text
+  answer       String?    @db.Text
+  sql          String?    @db.Text
+  tools        String[]   @default([])
+  vote         String     // up | down
+  comment      String?    @db.Text
+  // new -> approved (a correction was accepted and became an example) | rejected
+  status       String     @default("new")
+  correctedSql String?    @db.Text
+  reviewedById Int?
+  reviewedAt   DateTime?
+  createdAt    DateTime   @default(now())
+  user         KhabriUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, messageId])
+  @@index([status, createdAt])
+  @@index([vote, createdAt])
+}
+
+// Every tool call the agent makes, with who asked and what scope they held.
+// The audit trail existed before this table, but only as a JSONL file locally
+// and a Catalyst Data Store table in production - neither queryable from the
+// app, and neither recording the officer or their scope. An audit trail nobody
+// can read is not an audit trail.
+model AgentAuditLog {
+  id           String   @id @default(cuid())
+  runId        String
+  eventType    String   // step | run
+  userId       Int?
+  userEmail    String?
+  userRole     String?
+  districtId   Int?
+  districtName String?  // the scope the query actually ran under
+  question     String   @db.Text
+  tool         String?
+  args         String?  @db.Text
+  result       String?  @db.Text // truncated: enough to audit, not a second copy of the data
+  status       String?
+  rowCount     Int?
+  durationMs   Int?
+  toolCallCount Int?
+  finalAnswer  String?  @db.Text
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([runId])
+  @@index([userId, createdAt])
+  @@index([tool, createdAt])
+}
+
+// A question -> SQL pair that came out of review rather than out of the seeded
+// bank. Retrieval merges these with lib/rag-examples.json, so an approved
+// correction changes the next answer without a redeploy - the file is read-only
+// once the app is packaged for AppSail.
+model LearnedExample {
+  id         String   @id @default(cuid())
+  question   String   @db.Text
+  sql        String   @db.Text
+  source     String   @default("feedback") // feedback | manual
+  feedbackId String?  @unique
+  // Cached question embedding, so a learned example can be scored the same way
+  // the seeded ones are without re-embedding on every lookup.
+  embedding  Json?
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@index([active, createdAt])
 }
 
 // Proactive early-warning delivered to an officer, rather than waiting to be

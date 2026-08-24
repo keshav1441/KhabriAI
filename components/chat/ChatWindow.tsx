@@ -12,6 +12,12 @@ function sessionTitle(text: string): string {
   return t.length > 50 ? `${t.slice(0, 50)}…` : t;
 }
 
+/** Distinct tool names on the board right now, read straight from the store so
+ *  the value is the one at call time rather than a stale render's copy. */
+function toolsRan(): string[] {
+  return Array.from(new Set(useChatStore.getState().caseBoardSteps.map((s) => s.tool)));
+}
+
 const QUERY_POOL = [
   "Which district had the most FIRs last month?",
   "List top 5 repeat accused by number of cases",
@@ -216,12 +222,16 @@ export function ChatWindow() {
               summary += parsed.token;
               updateMessage(asstMsgId, { content: summary });
             } else if (parsed.type === "done") {
-              updateMessage(asstMsgId, { loading: false, content: summary });
+              // Snapshot the board now — it is cleared by the next question, and
+              // feedback on this answer needs the tools that produced it.
+              const tools = toolsRan();
+              updateMessage(asstMsgId, { loading: false, content: summary, tools });
               finalAsst = {
                 id: asstMsgId,
                 role: "assistant",
                 content: summary,
                 ...meta,
+                tools,
                 loading: false,
               };
             }
@@ -230,14 +240,16 @@ export function ChatWindow() {
       }
 
       if (!finalAsst) {
+        const tools = toolsRan();
         finalAsst = {
           id: asstMsgId,
           role: "assistant",
           content: summary || "No response.",
           ...meta,
+          tools,
           loading: false,
         };
-        updateMessage(asstMsgId, { loading: false, content: finalAsst.content });
+        updateMessage(asstMsgId, { loading: false, content: finalAsst.content, tools });
       }
     } catch {
       updateMessage(asstMsgId, { content: "Connection error. Please try again.", loading: false });

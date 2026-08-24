@@ -153,6 +153,21 @@ export type ChargesheetDetails = Prisma.ChargesheetDetailsModel
  */
 export type KhabriUser = Prisma.KhabriUserModel
 /**
+ * Model AnswerFeedback
+ * 
+ */
+export type AnswerFeedback = Prisma.AnswerFeedbackModel
+/**
+ * Model AgentAuditLog
+ * 
+ */
+export type AgentAuditLog = Prisma.AgentAuditLogModel
+/**
+ * Model LearnedExample
+ * 
+ */
+export type LearnedExample = Prisma.LearnedExampleModel
+/**
  * Model Alert
  * 
  */
