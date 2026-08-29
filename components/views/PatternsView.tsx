@@ -314,7 +314,7 @@ export function PatternsView() {
               <div className="mt-3"><PeakLine axis={data.weekday} axisKey="patterns.axis.week" /></div>
             </Panel>
 
-            <Panel title="Month of year">
+            <Panel title={t("patterns.monthOfYear", lang)}>
               <CountBars axis={data.month} height={130} />
               <div className="mt-3"><PeakLine axis={data.month} axisKey="patterns.axis.year" /></div>
               <p className="text-xs mt-2" style={{ color: "var(--text-muted)" }}>
