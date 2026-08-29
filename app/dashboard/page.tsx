@@ -129,26 +129,19 @@ export default function DashboardPage() {
             return (
               <button
                 key={item.view}
-                className="w-full flex items-center gap-3 py-2 pr-2 rounded-md transition-all text-left"
+                // ponytail: :hover via CSS, not mouse handlers — imperative style writes
+                // survive re-render and strand the hover background on the old tab.
+                className={`w-full flex items-center gap-3 py-2 pr-2 rounded-md transition-all text-left ${
+                  isActive
+                    ? "text-(--text-primary)"
+                    : "text-(--text-muted) hover:bg-(--bg-raised) hover:text-(--text-primary)"
+                }`}
                 style={{
-                  background: "transparent",
-                  color: isActive ? "var(--text-primary)" : "var(--text-muted)",
                   borderLeft: `3px solid ${isActive ? "var(--red)" : "transparent"}`,
                   paddingLeft: "5px",
                 }}
+                aria-current={isActive ? "page" : undefined}
                 onClick={() => setActiveView(item.view)}
-                onMouseEnter={(e) => {
-                  if (!isActive) {
-                    (e.currentTarget as HTMLElement).style.background = "var(--bg-raised)";
-                    (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) {
-                    (e.currentTarget as HTMLElement).style.background = "transparent";
-                    (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
-                  }
-                }}
               >
                 <span className="shrink-0">{item.icon}</span>
                 {sidebarOpen && (
