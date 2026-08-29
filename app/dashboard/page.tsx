@@ -122,8 +122,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 flex flex-col min-h-0 py-3 px-2">
-          <div className="shrink-0 space-y-0.5">
+        <nav className="flex-1 flex flex-col min-h-0 overflow-hidden py-3 px-2">
+          <div className="min-h-0 overflow-y-auto space-y-0.5">
           {NAV_ITEMS.map((item) => {
             const isActive = item.view === activeView;
             return (

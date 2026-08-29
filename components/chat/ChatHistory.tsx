@@ -66,7 +66,7 @@ export function ChatHistory() {
   };
 
   return (
-    <div className="pt-4 flex flex-col min-h-0 flex-1">
+    <div className="pt-4 flex flex-col min-h-0 flex-1 overflow-hidden">
       <div className="px-2 mb-2 shrink-0">
         <button
           onClick={handleNewChat}

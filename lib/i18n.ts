@@ -416,8 +416,8 @@ export const STRINGS = {
   "finding.repeat_suspect.title":  { en: "Possible repeat accused: {name}",
                                      kn: "ಸಂಭಾವ್ಯ ಪುನರಾವರ್ತಿತ ಆರೋಪಿ: {name}" },
   "finding.repeat_suspect.detail": {
-    en: "{caseCount} cases in the last 30 days name someone who scores as the same person (confidence {confidence} on the weakest link in the cluster; matched on {why}). {crimeTypes}. Identity is inferred from the name, age and gender on each FIR, not from a shared record — verify before treating these as one offender.",
-    kn: "ಕಳೆದ 30 ದಿನಗಳಲ್ಲಿ {caseCount} ಪ್ರಕರಣಗಳು ಒಬ್ಬರೇ ವ್ಯಕ್ತಿ ಎಂದು ಅಂಕ ಪಡೆಯುವವರನ್ನು ಹೆಸರಿಸುತ್ತವೆ (ಗುಂಪಿನ ದುರ್ಬಲ ಕೊಂಡಿಯಲ್ಲಿ ವಿಶ್ವಾಸ {confidence}; {why} ಆಧಾರದ ಮೇಲೆ ಹೊಂದಾಣಿಕೆ). {crimeTypes}. ಗುರುತನ್ನು ಪ್ರತಿ ಎಫ್‌ಐಆರ್‌ನ ಹೆಸರು, ವಯಸ್ಸು ಮತ್ತು ಲಿಂಗದಿಂದ ಊಹಿಸಲಾಗಿದೆ, ಸಾಮಾನ್ಯ ದಾಖಲೆಯಿಂದ ಅಲ್ಲ — ಇವರನ್ನು ಒಬ್ಬನೇ ಅಪರಾಧಿ ಎಂದು ಪರಿಗಣಿಸುವ ಮೊದಲು ಪರಿಶೀಲಿಸಿ." },
+    en: "{caseCount} cases in 30 days name what scores as the same person ({confidence} confidence, matched on {why}). {crimeTypes}. Identity is inferred from name, age and gender — verify before treating these as one offender.",
+    kn: "30 ದಿನಗಳಲ್ಲಿ {caseCount} ಪ್ರಕರಣಗಳು ಒಬ್ಬರೇ ವ್ಯಕ್ತಿ ಎಂದು ಅಂಕ ಪಡೆಯುವವರನ್ನು ಹೆಸರಿಸುತ್ತವೆ ({confidence} ವಿಶ್ವಾಸ, {why} ಆಧಾರದ ಮೇಲೆ). {crimeTypes}. ಗುರುತನ್ನು ಹೆಸರು, ವಯಸ್ಸು ಮತ್ತು ಲಿಂಗದಿಂದ ಊಹಿಸಲಾಗಿದೆ — ಒಬ್ಬನೇ ಅಪರಾಧಿ ಎಂದು ಪರಿಗಣಿಸುವ ಮೊದಲು ಪರಿಶೀಲಿಸಿ." },
 
   "finding.weekly_surge.title":  { en: "{crime} surging statewide",
                                    kn: "ರಾಜ್ಯಾದ್ಯಂತ {crime} ಹೆಚ್ಚಳ" },
@@ -432,8 +432,8 @@ export const STRINGS = {
   "finding.mo_link.title":  { en: "Cross-district MO lead: {label}",
                               kn: "ಅಂತರ-ಜಿಲ್ಲಾ ವಿಧಾನ ಸುಳಿವು: {label}" },
   "finding.mo_link.detail": {
-    en: "{crimeGroup} in {district} ({registered}) is the closest narrative match to {matchLabel} in {matchDistrict}, and closer than 99% of cross-district nearest matches in the corpus. Same offence sub-head. Narratives never name the accused, so this is a method lead to check, not a link between people — neither station can see the other's file.",
-    kn: "{district} ಜಿಲ್ಲೆಯ {crimeGroup} ({registered}) ಪ್ರಕರಣವು {matchDistrict} ಜಿಲ್ಲೆಯ {matchLabel} ಪ್ರಕರಣಕ್ಕೆ ಅತ್ಯಂತ ಹತ್ತಿರದ ವಿವರಣಾತ್ಮಕ ಹೊಂದಾಣಿಕೆಯಾಗಿದೆ — ಸಂಗ್ರಹದ 99% ಅಂತರ-ಜಿಲ್ಲಾ ಹೊಂದಾಣಿಕೆಗಳಿಗಿಂತ ಹತ್ತಿರ. ಒಂದೇ ಅಪರಾಧ ಉಪ-ಶೀರ್ಷಿಕೆ. ವಿವರಣೆಗಳು ಆರೋಪಿಯನ್ನು ಎಂದೂ ಹೆಸರಿಸುವುದಿಲ್ಲ, ಆದ್ದರಿಂದ ಇದು ಪರಿಶೀಲಿಸಬೇಕಾದ ವಿಧಾನದ ಸುಳಿವು, ವ್ಯಕ್ತಿಗಳ ನಡುವಿನ ಕೊಂಡಿಯಲ್ಲ — ಯಾವ ಠಾಣೆಯೂ ಇನ್ನೊಂದರ ಕಡತವನ್ನು ನೋಡಲಾಗದು." },
+    en: "{crimeGroup} in {district} ({registered}) is the closest narrative match to {matchLabel} in {matchDistrict} — closer than 99% of cross-district matches, same offence sub-head. Narratives never name the accused, so this is a method lead, not a link between people.",
+    kn: "{district} ಜಿಲ್ಲೆಯ {crimeGroup} ({registered}) ಪ್ರಕರಣವು {matchDistrict} ಜಿಲ್ಲೆಯ {matchLabel} ಪ್ರಕರಣಕ್ಕೆ ಅತ್ಯಂತ ಹತ್ತಿರದ ವಿವರಣಾತ್ಮಕ ಹೊಂದಾಣಿಕೆ — 99% ಅಂತರ-ಜಿಲ್ಲಾ ಹೊಂದಾಣಿಕೆಗಳಿಗಿಂತ ಹತ್ತಿರ, ಒಂದೇ ಅಪರಾಧ ಉಪ-ಶೀರ್ಷಿಕೆ. ವಿವರಣೆಗಳು ಆರೋಪಿಯನ್ನು ಹೆಸರಿಸುವುದಿಲ್ಲ, ಆದ್ದರಿಂದ ಇದು ವಿಧಾನದ ಸುಳಿವು, ವ್ಯಕ್ತಿಗಳ ನಡುವಿನ ಕೊಂಡಿಯಲ್ಲ." },
 
   "finding.duplicate.title":  { en: "Possible duplicate FIR: {label}",
                                 kn: "ಸಂಭಾವ್ಯ ನಕಲಿ ಎಫ್‌ಐಆರ್: {label}" },

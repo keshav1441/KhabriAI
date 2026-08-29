@@ -87,7 +87,7 @@ export function InsightPanel({ onQuerySelect }: { onQuerySelect: (q: string) => 
             return (
               <button
                 key={i}
-                className="text-left rounded-md p-3 transition-all"
+                className="flex flex-col text-left rounded-md p-3 transition-all"
                 style={{
                   background: "var(--bg-surface)",
                   border: "1px solid var(--border)",
@@ -110,10 +110,10 @@ export function InsightPanel({ onQuerySelect }: { onQuerySelect: (q: string) => 
                 <p className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
                   {title}
                 </p>
-                <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+                <p className="text-xs mt-0.5 leading-relaxed line-clamp-3" title={detail} style={{ color: "var(--text-secondary)" }}>
                   {detail}
                 </p>
-                <p className="font-data text-xs mt-1.5" style={{ color: cfg.color }}>
+                <p className="font-data text-xs mt-auto pt-2" style={{ color: cfg.color }}>
                   {t("insight.investigate", lang)}
                 </p>
               </button>
