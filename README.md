@@ -30,7 +30,7 @@ Conversational AI for investigators to query crime data in plain English. Sign i
 | Pendency (My Desk) | Statutory chargesheet clock 60/90 days over open cases, ranked by days remaining (`lib/pendency.ts`) |
 | Data quality | 13 read-only checks over the case tables, severity-weighted score (`lib/data-quality.ts`) · Catalyst Cache 60 min |
 | Reviewer consoles | `/admin/feedback`, `/admin/audit` and `/admin/data-quality` — HQ role required, narrowed by `ADMIN_EMAILS` (`lib/admin-auth.ts`) |
-| Maps | Leaflet + react-leaflet — 30 hardcoded district centroids, not per-incident coordinates |
+| Maps | Leaflet + react-leaflet — three layers: **observed** and **predicted** drop one pin per district on a hardcoded centroid, **incidents** draws one marker per FIR from `CaseMaster` `latitude`/`longitude`, capped and gridded client-side, with cases missing coordinates counted rather than dropped (`lib/map-points.ts`) |
 | Network graph | Cytoscape.js + cose-bilkent |
 | Charts | Recharts |
 | State | Zustand |
