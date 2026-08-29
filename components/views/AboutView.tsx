@@ -61,6 +61,15 @@ const FEATURES: { color: string; bg: string; title: StringKey; desc: StringKey }
   { color: "var(--green)", bg: "var(--green-dim)", title: "about.feature.briefing.title",    desc: "about.feature.briefing.desc" },
   { color: "var(--amber)", bg: "var(--amber-dim)", title: "about.feature.viz.title",         desc: "about.feature.viz.desc" },
   { color: "var(--red)",   bg: "var(--red-dim)",   title: "about.feature.casefile.title",    desc: "about.feature.casefile.desc" },
+  { color: "var(--green)", bg: "var(--green-dim)", title: "about.feature.map.title",         desc: "about.feature.map.desc" },
+  { color: "var(--amber)", bg: "var(--amber-dim)", title: "about.feature.patterns.title",    desc: "about.feature.patterns.desc" },
+  { color: "var(--blue)",  bg: "var(--blue-dim)",  title: "about.feature.network.title",     desc: "about.feature.network.desc" },
+  { color: "var(--red)",   bg: "var(--red-dim)",   title: "about.feature.pipeline.title",    desc: "about.feature.pipeline.desc" },
+  { color: "var(--green)", bg: "var(--green-dim)", title: "about.feature.victims.title",     desc: "about.feature.victims.desc" },
+  { color: "var(--amber)", bg: "var(--amber-dim)", title: "about.feature.desk.title",        desc: "about.feature.desk.desc" },
+  { color: "var(--blue)",  bg: "var(--blue-dim)",  title: "about.feature.fir.title",         desc: "about.feature.fir.desc" },
+  { color: "var(--red)",   bg: "var(--red-dim)",   title: "about.feature.alerts.title",      desc: "about.feature.alerts.desc" },
+  { color: "var(--green)", bg: "var(--green-dim)", title: "about.feature.bilingual.title",   desc: "about.feature.bilingual.desc" },
   { color: "var(--blue)",  bg: "var(--blue-dim)",  title: "about.feature.responsible.title", desc: "about.feature.responsible.desc" },
 ];
 

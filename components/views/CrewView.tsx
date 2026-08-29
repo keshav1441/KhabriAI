@@ -23,7 +23,7 @@ export function CrewView() {
     <div className="flex flex-col h-full">
       <div className="shrink-0 px-6 py-4" style={{ borderBottom: "1px solid var(--border)" }}>
         <h2 className="font-display font-bold tracking-tight" style={{ color: "var(--text-primary)", fontSize: "1.05rem" }}>
-          ತಂಡದ ಕಡತ · CREW DOSSIER
+          {t("crew.title", lang)}
         </h2>
         <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
           {t("crew.subtitle", lang)}

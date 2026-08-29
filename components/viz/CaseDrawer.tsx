@@ -116,7 +116,7 @@ export function CaseDrawer({ caseId: requestedId, onClose }: { caseId: number | 
         >
           <div>
             <div className="flex items-center gap-2 mb-0.5">
-              <span className="badge-classified">CASE FILE</span>
+              <span className="badge-classified">{t("case.badge", lang)}</span>
               <span className="font-data text-xs" style={{ color: "var(--text-muted)" }}>
                 #{caseId}
               </span>

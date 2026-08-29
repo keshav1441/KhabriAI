@@ -162,7 +162,7 @@ async function findSimilarCasesFTS(query: string, topK: number, districtId?: num
     .slice(0, topK));
 }
 
-/** Semantic similarity via pgvector cosine distance on Gemini embeddings — catches paraphrases FTS misses. */
+/** Semantic similarity via pgvector cosine distance on Mistral embeddings — catches paraphrases FTS misses. */
 async function findSimilarCasesVector(query: string, topK: number, districtId?: number | null): Promise<RelatedCase[]> {
   const embedding = await embedText(query);
   const vectorLiteral = `[${embedding.join(",")}]`;

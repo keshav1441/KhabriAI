@@ -156,6 +156,7 @@ export const STRINGS = {
   // Crew dossier — the multi-hop MO/co-accused walk
   "nav.crew":             { en: "Crew Dossier", kn: "ತಂಡದ ಕಡತ" },
   "crew.tag":             { en: "CREW DOSSIER", kn: "ತಂಡದ ಕಡತ" },
+  "crew.title":           { en: "Crew dossier", kn: "ತಂಡದ ಕಡತ" },
   "crew.subtitle":        { en: "Walk outward from one FIR or one person along co-accused links and repeated modus operandi — and see the series, not the single case.",
                             kn: "ಒಂದು ಎಫ್‌ಐಆರ್ ಅಥವಾ ಒಬ್ಬ ವ್ಯಕ್ತಿಯಿಂದ ಸಹ-ಆರೋಪಿ ಸಂಪರ್ಕ ಮತ್ತು ಪುನರಾವರ್ತಿತ ಅಪರಾಧ ವಿಧಾನದ ಮೂಲಕ ಹೊರಕ್ಕೆ ನಡೆದು — ಒಂದೇ ಪ್ರಕರಣವಲ್ಲ, ಇಡೀ ಸರಣಿಯನ್ನು ನೋಡಿ." },
   "crew.build":           { en: "Build crew dossier", kn: "ತಂಡದ ಕಡತ ಸಿದ್ಧಪಡಿಸಿ" },
@@ -323,6 +324,9 @@ export const STRINGS = {
   "pipeline.medianDays":  { en: "median days", kn: "ಸರಾಸರಿ ದಿನಗಳು" },
   "pipeline.bottleneck":  { en: "Slowest step", kn: "ಅತ್ಯಂತ ನಿಧಾನ ಹಂತ" },
   "pipeline.dropoff":     { en: "Cases that never reach this step", kn: "ಈ ಹಂತ ತಲುಪದ ಪ್ರಕರಣಗಳು" },
+  "pipeline.cases":       { en: "Cases", kn: "ಪ್ರಕರಣಗಳು" },
+  "pipeline.firToArrest": { en: "FIR→arrest", kn: "ಎಫ್‌ಐಆರ್→ಬಂಧನ" },
+  "pipeline.firToChargesheet": { en: "FIR→chargesheet", kn: "ಎಫ್‌ಐಆರ್→ಆರೋಪಪಟ್ಟಿ" },
   "pipeline.empty":       { en: "Not enough completed cases to measure", kn: "ಅಳೆಯಲು ಸಾಕಷ್ಟು ಪೂರ್ಣ ಪ್ರಕರಣಗಳಿಲ್ಲ" },
 
   // Incident-level map
@@ -510,9 +514,45 @@ export const STRINGS = {
   "about.feature.casefile.title": { en: "Full Case File Modal", kn: "ಸಂಪೂರ್ಣ ಪ್ರಕರಣ ಕಡತ" },
   "about.feature.casefile.desc":  { en: "Every case row opens a rich modal: accused, victims, arrests, chargesheet, act sections, court — sourced from 8 joined tables.",
                                     kn: "ಪ್ರತಿ ಪ್ರಕರಣದ ಸಾಲು ವಿವರವಾದ ಕಿಟಕಿಯನ್ನು ತೆರೆಯುತ್ತದೆ: ಆರೋಪಿಗಳು, ಸಂತ್ರಸ್ತರು, ಬಂಧನಗಳು, ಆರೋಪಪಟ್ಟಿ, ಕಾಯ್ದೆ ಕಲಂಗಳು, ನ್ಯಾಯಾಲಯ — 8 ಜೋಡಿಸಿದ ಕೋಷ್ಟಕಗಳಿಂದ." },
+  "about.feature.map.title": { en: "Crime Map & Hotspot Forecast", kn: "ಅಪರಾಧ ನಕ್ಷೆ ಮತ್ತು ಹಾಟ್‌ಸ್ಪಾಟ್ ಮುನ್ಸೂಚನೆ" },
+  "about.feature.map.desc":  { en: "Incidents plotted on OpenStreetMap at case level, with a forecast layer ranking which areas are trending up — so a patrol plan starts from where, not from a table.",
+                               kn: "ಪ್ರಕರಣ ಮಟ್ಟದಲ್ಲಿ ಘಟನೆಗಳನ್ನು OpenStreetMap ಮೇಲೆ ಗುರುತಿಸಲಾಗುತ್ತದೆ, ಮತ್ತು ಯಾವ ಪ್ರದೇಶಗಳು ಏರುತ್ತಿವೆ ಎಂದು ಶ್ರೇಣೀಕರಿಸುವ ಮುನ್ಸೂಚನೆ ಪದರದೊಂದಿಗೆ — ಗಸ್ತು ಯೋಜನೆ ಕೋಷ್ಟಕದಿಂದಲ್ಲ, ಎಲ್ಲಿ ಎಂಬುದರಿಂದ ಆರಂಭವಾಗುತ್ತದೆ." },
+
+  "about.feature.patterns.title": { en: "When Crime Happens", kn: "ಅಪರಾಧ ಯಾವಾಗ ನಡೆಯುತ್ತದೆ" },
+  "about.feature.patterns.desc":  { en: "Hour-of-day and day-of-week patterns per district and crime type. The hotspot map answers where; this answers when — the other half of a shift plan.",
+                                    kn: "ಪ್ರತಿ ಜಿಲ್ಲೆ ಮತ್ತು ಅಪರಾಧ ಪ್ರಕಾರಕ್ಕೆ ದಿನದ ಗಂಟೆ ಮತ್ತು ವಾರದ ದಿನದ ಮಾದರಿಗಳು. ಹಾಟ್‌ಸ್ಪಾಟ್ ನಕ್ಷೆ ಎಲ್ಲಿ ಎಂದು ಉತ್ತರಿಸುತ್ತದೆ; ಇದು ಯಾವಾಗ ಎಂದು ಉತ್ತರಿಸುತ್ತದೆ — ಪಾಳಿ ಯೋಜನೆಯ ಇನ್ನೊಂದು ಅರ್ಧ." },
+
+  "about.feature.network.title": { en: "Criminal Network & Crew Dossier", kn: "ಅಪರಾಧಿ ಜಾಲ ಮತ್ತು ತಂಡದ ಕಡತ" },
+  "about.feature.network.desc":  { en: "Persons linked by shared cases in an interactive Cytoscape graph. Walk outward from one FIR along co-accused links and repeated modus operandi to see the series, not the single case.",
+                                   kn: "ಹಂಚಿಕೊಂಡ ಪ್ರಕರಣಗಳಿಂದ ಜೋಡಿಸಲಾದ ವ್ಯಕ್ತಿಗಳು ಸಂವಾದಾತ್ಮಕ Cytoscape ಗ್ರಾಫ್‌ನಲ್ಲಿ. ಒಂದು ಎಫ್‌ಐಆರ್‌ನಿಂದ ಸಹ-ಆರೋಪಿ ಸಂಪರ್ಕಗಳು ಮತ್ತು ಪುನರಾವರ್ತಿತ ಕಾರ್ಯವಿಧಾನದ ಮೂಲಕ ಹೊರಕ್ಕೆ ಸಾಗಿ ಸರಣಿಯನ್ನು ನೋಡಿ, ಒಂದೇ ಪ್ರಕರಣವಲ್ಲ." },
+
+  "about.feature.pipeline.title": { en: "Case Pipeline", kn: "ಪ್ರಕರಣ ಹರಿವು" },
+  "about.feature.pipeline.desc":  { en: "The funnel from FIR to court — registered, arrested, chargesheeted — with the slowest step named, median days per stage, and the share of cases that never reach it.",
+                                    kn: "ಎಫ್‌ಐಆರ್‌ನಿಂದ ನ್ಯಾಯಾಲಯದವರೆಗಿನ ಹರಿವು — ದಾಖಲು, ಬಂಧನ, ಆರೋಪಪಟ್ಟಿ — ಅತ್ಯಂತ ನಿಧಾನ ಹಂತವನ್ನು ಹೆಸರಿಸಿ, ಪ್ರತಿ ಹಂತಕ್ಕೆ ಸರಾಸರಿ ದಿನಗಳು, ಮತ್ತು ಆ ಹಂತ ತಲುಪದ ಪ್ರಕರಣಗಳ ಪಾಲು." },
+
+  "about.feature.victims.title": { en: "Repeat Victims", kn: "ಪುನರಾವರ್ತಿತ ಸಂತ್ರಸ್ತರು" },
+  "about.feature.victims.desc":  { en: "A small number of people absorb a large share of crime. Identity resolution clusters records across spelling drift and ageing to surface the ones this data can see.",
+                                   kn: "ಕೆಲವೇ ಜನರು ಅಪರಾಧದ ದೊಡ್ಡ ಪಾಲನ್ನು ಹೊರುತ್ತಾರೆ. ಗುರುತು ಪರಿಹಾರವು ಕಾಗುಣಿತ ವ್ಯತ್ಯಾಸ ಮತ್ತು ವಯಸ್ಸಿನ ಬದಲಾವಣೆಯ ನಡುವೆಯೂ ದಾಖಲೆಗಳನ್ನು ಗುಂಪು ಮಾಡಿ ಈ ದತ್ತಾಂಶ ಕಾಣುವವರನ್ನು ಮುಂದಿಡುತ್ತದೆ." },
+
+  "about.feature.desk.title": { en: "My Desk & Command Centre", kn: "ನನ್ನ ಮೇಜು ಮತ್ತು ಕಮಾಂಡ್ ಕೇಂದ್ರ" },
+  "about.feature.desk.desc":  { en: "An officer's own workload — what is open, what is overdue, and what is closest to slipping — beside a station-wide roll-up of custody clocks, pendency and handover notes.",
+                                kn: "ಅಧಿಕಾರಿಯ ಸ್ವಂತ ಕೆಲಸದ ಹೊರೆ — ಏನು ತೆರೆದಿದೆ, ಏನು ಕಾಲಮಿತಿ ಮೀರಿದೆ, ಮತ್ತು ಯಾವುದು ಜಾರುವ ಹಂತದಲ್ಲಿದೆ — ಜೊತೆಗೆ ವಶದ ಗಡುವು, ಬಾಕಿ ಮತ್ತು ಹಸ್ತಾಂತರ ಟಿಪ್ಪಣಿಗಳ ಠಾಣೆ-ವ್ಯಾಪಿ ಸಾರಾಂಶ." },
+
+  "about.feature.fir.title": { en: "Assisted FIR Registration", kn: "ಸಹಾಯದೊಂದಿಗೆ ಎಫ್‌ಐಆರ್ ದಾಖಲಾತಿ" },
+  "about.feature.fir.desc":  { en: "Register a new crime from typed text or an uploaded document — fields are extracted, act sections suggested, and likely duplicates flagged before it is filed. It becomes queryable by the assistant immediately.",
+                               kn: "ಟೈಪ್ ಮಾಡಿದ ಪಠ್ಯ ಅಥವಾ ಅಪ್‌ಲೋಡ್ ಮಾಡಿದ ದಾಖಲೆಯಿಂದ ಹೊಸ ಅಪರಾಧವನ್ನು ದಾಖಲಿಸಿ — ಕ್ಷೇತ್ರಗಳನ್ನು ಹೊರತೆಗೆಯಲಾಗುತ್ತದೆ, ಕಾಯ್ದೆ ಕಲಮುಗಳನ್ನು ಸೂಚಿಸಲಾಗುತ್ತದೆ, ಮತ್ತು ಸಲ್ಲಿಕೆಗೂ ಮುನ್ನ ಸಂಭಾವ್ಯ ನಕಲುಗಳನ್ನು ಗುರುತಿಸಲಾಗುತ್ತದೆ. ಅದು ತಕ್ಷಣವೇ ಸಹಾಯಕನಿಗೆ ಪ್ರಶ್ನಿಸಬಹುದಾಗುತ್ತದೆ." },
+
+  "about.feature.alerts.title": { en: "Scoped Alerts", kn: "ವ್ಯಾಪ್ತಿಯ ಎಚ್ಚರಿಕೆಗಳು" },
+  "about.feature.alerts.desc":  { en: "Findings an officer should not have to go looking for — spikes, repeat accuseds, custody deadlines — raised as one event per finding, only for the districts that officer may see.",
+                                  kn: "ಅಧಿಕಾರಿ ಹುಡುಕಿಕೊಂಡು ಹೋಗಬೇಕಾಗಿಲ್ಲದ ಸಂಗತಿಗಳು — ಏರಿಕೆಗಳು, ಪುನರಾವರ್ತಿತ ಆರೋಪಿಗಳು, ವಶದ ಗಡುವುಗಳು — ಪ್ರತಿ ಸಂಗತಿಗೆ ಒಂದು ಘಟನೆಯಾಗಿ, ಆ ಅಧಿಕಾರಿ ನೋಡಬಹುದಾದ ಜಿಲ್ಲೆಗಳಿಗೆ ಮಾತ್ರ." },
+
+  "about.feature.bilingual.title": { en: "Bilingual, End to End", kn: "ಆದ್ಯಂತ ದ್ವಿಭಾಷಿಕ" },
+  "about.feature.bilingual.desc":  { en: "Every screen, finding and narrative renders in English or Kannada — the language the officer thinks in at 2 am — with the numbers left in digits.",
+                                     kn: "ಪ್ರತಿ ಪರದೆ, ಸಂಗತಿ ಮತ್ತು ನಿರೂಪಣೆ ಇಂಗ್ಲಿಷ್ ಅಥವಾ ಕನ್ನಡದಲ್ಲಿ ಮೂಡುತ್ತದೆ — ರಾತ್ರಿ 2 ಗಂಟೆಗೆ ಅಧಿಕಾರಿ ಯೋಚಿಸುವ ಭಾಷೆಯಲ್ಲಿ — ಸಂಖ್ಯೆಗಳನ್ನು ಅಂಕಿಗಳಲ್ಲಿಯೇ ಉಳಿಸಿ." },
+
   "about.feature.responsible.title": { en: "Responsible AI", kn: "ಜವಾಬ್ದಾರಿಯುತ AI" },
-  "about.feature.responsible.desc":  { en: "Read-only database role. Generated SQL is parsed into an AST and rejected unless it's a single SELECT statement — no regex blocklist to evade. Sessions are HMAC-signed httpOnly cookies, not a spoofable header.",
-                                       kn: "ಓದಲು-ಮಾತ್ರ ಡೇಟಾಬೇಸ್ ಪಾತ್ರ. ರಚಿಸಲಾದ SQL ಅನ್ನು AST ಆಗಿ ವಿಶ್ಲೇಷಿಸಲಾಗುತ್ತದೆ ಮತ್ತು ಅದು ಒಂದೇ SELECT ಹೇಳಿಕೆಯಾಗಿರದಿದ್ದರೆ ತಿರಸ್ಕರಿಸಲಾಗುತ್ತದೆ — ತಪ್ಪಿಸಿಕೊಳ್ಳಬಹುದಾದ ರೆಜೆಕ್ಸ್ ಪಟ್ಟಿ ಇಲ್ಲ. ಸೆಷನ್‌ಗಳು HMAC-ಸಹಿ ಮಾಡಿದ httpOnly ಕುಕೀಗಳು, ನಕಲಿ ಮಾಡಬಹುದಾದ ಹೆಡರ್ ಅಲ್ಲ." },
+  "about.feature.responsible.desc":  { en: "Read-only database role. Generated SQL is parsed into an AST and rejected unless it's a single SELECT statement — no regex blocklist to evade. Sessions are HMAC-signed httpOnly cookies, not a spoofable header. An officer's district scope is enforced on the query itself, and every tool call is written to an audit log.",
+                                       kn: "ಓದಲು-ಮಾತ್ರ ಡೇಟಾಬೇಸ್ ಪಾತ್ರ. ರಚಿಸಲಾದ SQL ಅನ್ನು AST ಆಗಿ ವಿಶ್ಲೇಷಿಸಲಾಗುತ್ತದೆ ಮತ್ತು ಅದು ಒಂದೇ SELECT ಹೇಳಿಕೆಯಾಗಿರದಿದ್ದರೆ ತಿರಸ್ಕರಿಸಲಾಗುತ್ತದೆ — ತಪ್ಪಿಸಿಕೊಳ್ಳಬಹುದಾದ ರೆಜೆಕ್ಸ್ ಪಟ್ಟಿ ಇಲ್ಲ. ಸೆಷನ್‌ಗಳು HMAC-ಸಹಿ ಮಾಡಿದ httpOnly ಕುಕೀಗಳು, ನಕಲಿ ಮಾಡಬಹುದಾದ ಹೆಡರ್ ಅಲ್ಲ. ಅಧಿಕಾರಿಯ ಜಿಲ್ಲಾ ವ್ಯಾಪ್ತಿಯನ್ನು ಪ್ರಶ್ನೆಯ ಮೇಲೆಯೇ ಜಾರಿಗೊಳಿಸಲಾಗುತ್ತದೆ, ಮತ್ತು ಪ್ರತಿ ಟೂಲ್ ಕರೆಯನ್ನು ಲೆಕ್ಕಪರಿಶೋಧನಾ ದಾಖಲೆಗೆ ಬರೆಯಲಾಗುತ್ತದೆ." },
 
   "about.tech.frontend":      { en: "Frontend", kn: "ಮುಂಭಾಗ" },
   "about.tech.agentic":       { en: "Agentic AI", kn: "ಏಜೆಂಟಿಕ್ AI" },
@@ -560,6 +600,7 @@ export const STRINGS = {
   "reports.open":       { en: "OPEN", kn: "ತೆರೆಯಿರಿ" },
 
   // ── Criminal network ────────────────────────────────────────────────────
+  "network.title":       { en: "Criminal network", kn: "ಅಪರಾಧಿ ಜಾಲ" },
   "network.subtitle":    { en: "Persons linked by shared cases. Crews cluster together; click a node to isolate its associates.",
                            kn: "ಹಂಚಿಕೊಂಡ ಪ್ರಕರಣಗಳಿಂದ ಜೋಡಿಸಲ್ಪಟ್ಟ ವ್ಯಕ್ತಿಗಳು. ತಂಡಗಳು ಒಟ್ಟಿಗೆ ಗುಂಪಾಗುತ್ತವೆ; ಸಹಚರರನ್ನು ಪ್ರತ್ಯೇಕಿಸಲು ಒಂದು ಬಿಂದುವನ್ನು ಕ್ಲಿಕ್ ಮಾಡಿ." },
   "network.persons":     { en: "PERSONS", kn: "ವ್ಯಕ್ತಿಗಳು" },
@@ -580,6 +621,7 @@ export const STRINGS = {
                            kn: "ಪ್ರತ್ಯೇಕಿಸಲು ಕ್ಲಿಕ್ ಮಾಡಿ · ಸರಿಸಲು ಎಳೆಯಿರಿ" },
 
   // ── Socio-demographic profiling ─────────────────────────────────────────
+  "profiling.title":      { en: "Socio-demographic profiling", kn: "ಸಾಮಾಜಿಕ ವಿಶ್ಲೇಷಣೆ" },
   "profiling.subtitle":   { en: "Who offends, who is victimised, who reports — and the typical offender behind each crime type.",
                             kn: "ಯಾರು ಅಪರಾಧ ಮಾಡುತ್ತಾರೆ, ಯಾರು ಸಂತ್ರಸ್ತರಾಗುತ್ತಾರೆ, ಯಾರು ದೂರು ನೀಡುತ್ತಾರೆ — ಮತ್ತು ಪ್ರತಿ ಅಪರಾಧದ ಹಿಂದಿನ ವಿಶಿಷ್ಟ ಅಪರಾಧಿ." },
   "profiling.loading":    { en: "Loading profiling…", kn: "ವಿಶ್ಲೇಷಣೆ ಲೋಡ್ ಆಗುತ್ತಿದೆ…" },
@@ -609,6 +651,7 @@ export const STRINGS = {
   "pipeline.byDistrict":     { en: "By district", kn: "ಜಿಲ್ಲೆಯಂತೆ" },
   "pipeline.byCrimeGroup":   { en: "By crime group", kn: "ಅಪರಾಧ ಗುಂಪಿನಂತೆ" },
   // ── Case file drawer ────────────────────────────────────────────────────
+  "case.badge":         { en: "Case file", kn: "ಪ್ರಕರಣ ಕಡತ" },
   "case.loading":       { en: "Retrieving case file…", kn: "ಪ್ರಕರಣ ಕಡತವನ್ನು ತರಲಾಗುತ್ತಿದೆ…" },
   "case.notFound":      { en: "Case not found", kn: "ಪ್ರಕರಣ ಸಿಗಲಿಲ್ಲ" },
   "case.section.info":  { en: "Case Information", kn: "ಪ್ರಕರಣದ ಮಾಹಿತಿ" },

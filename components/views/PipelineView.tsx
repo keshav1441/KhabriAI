@@ -131,7 +131,7 @@ export function PipelineView() {
       </div>
 
       {loading && !data ? (
-        <div className="px-6 py-6 flex flex-col gap-3">
+        <div className="shrink-0 px-6 py-6 flex flex-col gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
             <span key={i} className="h-10 rounded animate-pulse" style={{ background: "var(--bg-raised)", animationDelay: `${i * 60}ms` }} />
           ))}
@@ -144,7 +144,7 @@ export function PipelineView() {
         <>
           {/* The finding, before the chart that supports it */}
           {data?.bottleneck && (
-            <div className="mx-6 mt-4 px-4 py-3 rounded-md" style={{ background: "var(--red-dim)", border: "1px solid var(--red)" }}>
+            <div className="shrink-0 mx-6 mt-4 px-4 py-3 rounded-md" style={{ background: "var(--red-dim)", border: "1px solid var(--red)" }}>
               <div className="font-data text-[10px] font-bold tracking-widest uppercase" style={{ color: "var(--red)" }}>
                 {t("pipeline.bottleneck", lang)}
               </div>
@@ -162,14 +162,14 @@ export function PipelineView() {
           )}
 
           {/* Funnel */}
-          <div className="px-6 py-5 flex flex-col">
+          <div className="shrink-0 px-6 py-5 flex flex-col">
             {stages.map((s, i) => (
               <StageRow key={s.id} stage={s} total={total} lang={lang} isLast={i === stages.length - 1} />
             ))}
           </div>
 
           {/* Breakdown */}
-          <div className="px-6 pb-2 flex items-center gap-2" style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
+          <div className="shrink-0 px-6 pb-2 flex items-center gap-2" style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
             {(["district", "crimeGroup"] as Dimension[]).map((d) => {
               const on = dimension === d;
               return (
@@ -190,7 +190,7 @@ export function PipelineView() {
           </div>
 
           {chartData.length > 1 && (
-            <div className="px-4 pb-2" style={{ height: 240 }}>
+            <div className="shrink-0 px-4 pb-2" style={{ height: 240 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} margin={{ top: 8, right: 16, bottom: 40, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -222,7 +222,7 @@ export function PipelineView() {
           ) : null}
 
           {data?.method && (
-            <p className="px-6 py-4 text-xs leading-relaxed" style={{ color: "var(--text-muted)", borderTop: "1px solid var(--border)" }}>
+            <p className="shrink-0 px-6 py-4 text-xs leading-relaxed" style={{ color: "var(--text-muted)", borderTop: "1px solid var(--border)" }}>
               {tf(methodKey(data.methodParams.negatives), lang, data.methodParams)}
             </p>
           )}
@@ -300,10 +300,10 @@ function StageRow({ stage, total, lang, isLast }: { stage: PipelineStage; total:
 
 function BreakdownTable({ rows, lang }: { rows: PipelineBreakdown[]; lang: "en" | "kn" }) {
   if (rows.length === 0) return null;
-  const headers = ["", "Cases", t("pipeline.arrested", lang), t("pipeline.chargesheet", lang), "FIR→arrest", "FIR→chargesheet", t("pipeline.dropoff", lang)];
+  const headers = ["", t("pipeline.cases", lang), t("pipeline.arrested", lang), t("pipeline.chargesheet", lang), t("pipeline.firToArrest", lang), t("pipeline.firToChargesheet", lang), t("pipeline.dropoff", lang)];
 
   return (
-    <div className="px-2 pb-4 overflow-x-auto">
+    <div className="shrink-0 px-2 pb-4 overflow-x-auto">
       <table className="w-full text-xs border-collapse">
         <thead>
           <tr style={{ background: "var(--bg-raised)" }}>
@@ -341,7 +341,7 @@ function BreakdownTable({ rows, lang }: { rows: PipelineBreakdown[]; lang: "en" 
 function SlowestList({ rows, onSelect }: { rows: SlowCase[]; onSelect: (id: number) => void }) {
   const lang = useChatStore((s) => s.lang);
   return (
-    <div className="px-6 pb-5">
+    <div className="shrink-0 px-6 pb-5">
       <div className="font-data text-[10px] font-bold tracking-widest uppercase mb-2" style={{ color: "var(--text-muted)" }}>
         {t("pipeline.longest", lang)}
       </div>

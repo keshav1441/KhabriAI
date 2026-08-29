@@ -67,7 +67,7 @@ export function NetworkView() {
       >
         <div>
           <h2 className="font-display font-bold tracking-tight" style={{ color: "var(--text-primary)", fontSize: "1.05rem" }}>
-            ಅಪರಾಧಿ ಜಾಲ · CRIMINAL NETWORK
+            {t("network.title", lang)}
           </h2>
           <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
             {t("network.subtitle", lang)}
