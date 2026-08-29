@@ -6,9 +6,11 @@ export const dynamic = "force-dynamic";
 
 /** The officer's alert feed: unread first, newest first, plus the counts the bell badge needs. */
 export async function GET(req: NextRequest) {
-  const user = await getUserFromRequest(req);
-  if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
+    // Inside the try: the bell polls, so a transient Neon blip during the auth
+    // lookup would otherwise 500 on every tick instead of degrading to no badge.
+    const user = await getUserFromRequest(req);
+    if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
     const { alerts, unread, last24h } = await listAlerts(user.id);
     return Response.json({ alerts, unread, last24h });
   } catch (e) {

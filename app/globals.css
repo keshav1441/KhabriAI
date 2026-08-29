@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/* Tailwind v4's Preflight sets `cursor: default` on buttons (v3 set pointer).
+   Restore the hand cursor app-wide rather than per-component.
+   https://tailwindcss.com/docs/upgrade-guide#buttons-use-the-default-cursor */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
 /* ── Design tokens ────────────────────────────────────────
    Switched from .dark class to [data-theme] attribute so
    JavaScript can freely toggle without React fighting us

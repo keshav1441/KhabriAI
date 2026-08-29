@@ -107,10 +107,16 @@ export function AlertBell({ onInvestigate }: { onInvestigate: (query: string) =>
     <div className="relative" ref={boxRef}>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-8 h-8 flex items-center justify-center rounded-md transition-all relative"
-        style={{ color: unread ? "var(--red)" : "var(--text-secondary)", border: `1px solid ${unread ? "var(--red)" : "var(--border)"}` }}
+        className="w-8 h-8 flex items-center justify-center rounded-md transition-all relative hover:bg-(--bg-raised) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--khaki)"
+        style={{
+          color: unread ? "var(--red)" : "var(--text-secondary)",
+          border: `1px solid ${unread ? "var(--red)" : "var(--border)"}`,
+          background: open ? "var(--bg-raised)" : undefined,
+        }}
         title={t("alerts.title", lang)}
         aria-label={t("alerts.title", lang)}
+        aria-haspopup="menu"
+        aria-expanded={open}
       >
         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
