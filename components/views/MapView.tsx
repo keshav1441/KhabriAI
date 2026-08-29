@@ -2,7 +2,7 @@
 import "leaflet/dist/leaflet.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChatStore } from "@/store/chat";
-import { t, type StringKey } from "@/lib/i18n";
+import { t, tv, type StringKey } from "@/lib/i18n";
 import { PatrolPriorities } from "./PatrolPriorities";
 import { CaseDrawer } from "../viz/CaseDrawer";
 // Type-only: hotspot-forecast imports Prisma, which must never reach the bundle.
@@ -238,14 +238,14 @@ export function MapView() {
              ${f.drivers.length ? `
                <div style="margin-top:5px;font-size:11px">
                  <div style="color:#999;font-size:10px;font-family:monospace;text-transform:uppercase;letter-spacing:.08em">${esc(t("hotspot.drivers", lang))}</div>
-                 ${f.drivers.map((d) => `<div>${esc(d.crimeGroup)} <b style="color:#9A6410">+${d.slopePerMonth}</b>${esc(t("hotspot.perMonth", lang))}</div>`).join("")}
+                 ${f.drivers.map((d) => `<div>${esc(tv(d.crimeGroup, lang))} <b style="color:#9A6410">+${d.slopePerMonth}</b>${esc(t("hotspot.perMonth", lang))}</div>`).join("")}
                </div>` : ""}`
           : `<span style="font-size:12px;color:#E63946;font-weight:600">${dist.count.toLocaleString()} ${esc(t("map.cases", lang))}</span><br/>`;
 
         L.marker([lat, lng], { icon }).addTo(group!).bindPopup(`
           <div style="font-family:system-ui,sans-serif;min-width:180px;padding:2px">
             <div style="font-size:10px;color:#999;font-family:monospace;text-transform:uppercase;letter-spacing:.08em">${esc(t("map.rank", lang))} #${rank}</div>
-            <b style="font-size:13px;display:block;margin:2px 0">${esc(dist.name)}</b>
+            <b style="font-size:13px;display:block;margin:2px 0">${esc(tv(dist.name, lang))}</b>
             ${body}
             <a href="${mapsUrl}" target="_blank" rel="noopener noreferrer"
                style="color:#1D4ED8;font-size:11px;text-decoration:none;margin-top:6px;display:inline-flex;align-items:center;gap:3px">
@@ -316,7 +316,7 @@ export function MapView() {
         if (single) {
           const s = c.sample;
           marker.bindTooltip(
-            `<b>${esc(s.crimeNo ?? "—")}</b><br/>${esc(s.crimeType ?? s.crimeGroup ?? "")}<br/>` +
+            `<b>${esc(s.crimeNo ?? "—")}</b><br/>${esc(tv(s.crimeType ?? s.crimeGroup ?? "", lang))}<br/>` +
             `<span style="color:#666">${esc(s.station ?? "")}${s.date ? ` · ${esc(s.date)}` : ""}</span>`,
             { direction: "top", offset: [0, -8] }
           );
@@ -511,7 +511,7 @@ export function MapView() {
                 </span>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium truncate" style={{ color: "var(--text-primary)" }}>
-                    {d.name}
+                    {tv(d.name, lang)}
                   </p>
                   {/* mini bar */}
                   <div className="mt-1 h-1 rounded-full" style={{ background: "var(--border)", width: "100%" }}>

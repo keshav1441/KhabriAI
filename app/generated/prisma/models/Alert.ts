@@ -75,6 +75,7 @@ export type AlertCountAggregateOutputType = {
   severity: number
   title: number
   detail: number
+  params: number
   query: number
   districtId: number
   caseId: number
@@ -134,6 +135,7 @@ export type AlertCountAggregateInputType = {
   severity?: true
   title?: true
   detail?: true
+  params?: true
   query?: true
   districtId?: true
   caseId?: true
@@ -236,6 +238,7 @@ export type AlertGroupByOutputType = {
   severity: string
   title: string
   detail: string
+  params: runtime.JsonValue | null
   query: string
   districtId: number | null
   caseId: number | null
@@ -274,6 +277,7 @@ export type AlertWhereInput = {
   severity?: Prisma.StringFilter<"Alert"> | string
   title?: Prisma.StringFilter<"Alert"> | string
   detail?: Prisma.StringFilter<"Alert"> | string
+  params?: Prisma.JsonNullableFilter<"Alert">
   query?: Prisma.StringFilter<"Alert"> | string
   districtId?: Prisma.IntNullableFilter<"Alert"> | number | null
   caseId?: Prisma.IntNullableFilter<"Alert"> | number | null
@@ -290,6 +294,7 @@ export type AlertOrderByWithRelationInput = {
   severity?: Prisma.SortOrder
   title?: Prisma.SortOrder
   detail?: Prisma.SortOrder
+  params?: Prisma.SortOrderInput | Prisma.SortOrder
   query?: Prisma.SortOrder
   districtId?: Prisma.SortOrderInput | Prisma.SortOrder
   caseId?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -310,6 +315,7 @@ export type AlertWhereUniqueInput = Prisma.AtLeast<{
   severity?: Prisma.StringFilter<"Alert"> | string
   title?: Prisma.StringFilter<"Alert"> | string
   detail?: Prisma.StringFilter<"Alert"> | string
+  params?: Prisma.JsonNullableFilter<"Alert">
   query?: Prisma.StringFilter<"Alert"> | string
   districtId?: Prisma.IntNullableFilter<"Alert"> | number | null
   caseId?: Prisma.IntNullableFilter<"Alert"> | number | null
@@ -326,6 +332,7 @@ export type AlertOrderByWithAggregationInput = {
   severity?: Prisma.SortOrder
   title?: Prisma.SortOrder
   detail?: Prisma.SortOrder
+  params?: Prisma.SortOrderInput | Prisma.SortOrder
   query?: Prisma.SortOrder
   districtId?: Prisma.SortOrderInput | Prisma.SortOrder
   caseId?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -349,6 +356,7 @@ export type AlertScalarWhereWithAggregatesInput = {
   severity?: Prisma.StringWithAggregatesFilter<"Alert"> | string
   title?: Prisma.StringWithAggregatesFilter<"Alert"> | string
   detail?: Prisma.StringWithAggregatesFilter<"Alert"> | string
+  params?: Prisma.JsonNullableWithAggregatesFilter<"Alert">
   query?: Prisma.StringWithAggregatesFilter<"Alert"> | string
   districtId?: Prisma.IntNullableWithAggregatesFilter<"Alert"> | number | null
   caseId?: Prisma.IntNullableWithAggregatesFilter<"Alert"> | number | null
@@ -363,6 +371,7 @@ export type AlertCreateInput = {
   severity?: string
   title: string
   detail: string
+  params?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   query?: string
   districtId?: number | null
   caseId?: number | null
@@ -379,6 +388,7 @@ export type AlertUncheckedCreateInput = {
   severity?: string
   title: string
   detail: string
+  params?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   query?: string
   districtId?: number | null
   caseId?: number | null
@@ -393,6 +403,7 @@ export type AlertUpdateInput = {
   severity?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.StringFieldUpdateOperationsInput | string
   detail?: Prisma.StringFieldUpdateOperationsInput | string
+  params?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   query?: Prisma.StringFieldUpdateOperationsInput | string
   districtId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   caseId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
@@ -409,6 +420,7 @@ export type AlertUncheckedUpdateInput = {
   severity?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.StringFieldUpdateOperationsInput | string
   detail?: Prisma.StringFieldUpdateOperationsInput | string
+  params?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   query?: Prisma.StringFieldUpdateOperationsInput | string
   districtId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   caseId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
@@ -424,6 +436,7 @@ export type AlertCreateManyInput = {
   severity?: string
   title: string
   detail: string
+  params?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   query?: string
   districtId?: number | null
   caseId?: number | null
@@ -438,6 +451,7 @@ export type AlertUpdateManyMutationInput = {
   severity?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.StringFieldUpdateOperationsInput | string
   detail?: Prisma.StringFieldUpdateOperationsInput | string
+  params?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   query?: Prisma.StringFieldUpdateOperationsInput | string
   districtId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   caseId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
@@ -453,6 +467,7 @@ export type AlertUncheckedUpdateManyInput = {
   severity?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.StringFieldUpdateOperationsInput | string
   detail?: Prisma.StringFieldUpdateOperationsInput | string
+  params?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   query?: Prisma.StringFieldUpdateOperationsInput | string
   districtId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   caseId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
@@ -483,6 +498,7 @@ export type AlertCountOrderByAggregateInput = {
   severity?: Prisma.SortOrder
   title?: Prisma.SortOrder
   detail?: Prisma.SortOrder
+  params?: Prisma.SortOrder
   query?: Prisma.SortOrder
   districtId?: Prisma.SortOrder
   caseId?: Prisma.SortOrder
@@ -581,6 +597,7 @@ export type AlertCreateWithoutUserInput = {
   severity?: string
   title: string
   detail: string
+  params?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   query?: string
   districtId?: number | null
   caseId?: number | null
@@ -595,6 +612,7 @@ export type AlertUncheckedCreateWithoutUserInput = {
   severity?: string
   title: string
   detail: string
+  params?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   query?: string
   districtId?: number | null
   caseId?: number | null
@@ -639,6 +657,7 @@ export type AlertScalarWhereInput = {
   severity?: Prisma.StringFilter<"Alert"> | string
   title?: Prisma.StringFilter<"Alert"> | string
   detail?: Prisma.StringFilter<"Alert"> | string
+  params?: Prisma.JsonNullableFilter<"Alert">
   query?: Prisma.StringFilter<"Alert"> | string
   districtId?: Prisma.IntNullableFilter<"Alert"> | number | null
   caseId?: Prisma.IntNullableFilter<"Alert"> | number | null
@@ -653,6 +672,7 @@ export type AlertCreateManyUserInput = {
   severity?: string
   title: string
   detail: string
+  params?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   query?: string
   districtId?: number | null
   caseId?: number | null
@@ -667,6 +687,7 @@ export type AlertUpdateWithoutUserInput = {
   severity?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.StringFieldUpdateOperationsInput | string
   detail?: Prisma.StringFieldUpdateOperationsInput | string
+  params?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   query?: Prisma.StringFieldUpdateOperationsInput | string
   districtId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   caseId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
@@ -681,6 +702,7 @@ export type AlertUncheckedUpdateWithoutUserInput = {
   severity?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.StringFieldUpdateOperationsInput | string
   detail?: Prisma.StringFieldUpdateOperationsInput | string
+  params?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   query?: Prisma.StringFieldUpdateOperationsInput | string
   districtId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   caseId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
@@ -695,6 +717,7 @@ export type AlertUncheckedUpdateManyWithoutUserInput = {
   severity?: Prisma.StringFieldUpdateOperationsInput | string
   title?: Prisma.StringFieldUpdateOperationsInput | string
   detail?: Prisma.StringFieldUpdateOperationsInput | string
+  params?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   query?: Prisma.StringFieldUpdateOperationsInput | string
   districtId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   caseId?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
@@ -712,6 +735,7 @@ export type AlertSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   severity?: boolean
   title?: boolean
   detail?: boolean
+  params?: boolean
   query?: boolean
   districtId?: boolean
   caseId?: boolean
@@ -728,6 +752,7 @@ export type AlertSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   severity?: boolean
   title?: boolean
   detail?: boolean
+  params?: boolean
   query?: boolean
   districtId?: boolean
   caseId?: boolean
@@ -744,6 +769,7 @@ export type AlertSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   severity?: boolean
   title?: boolean
   detail?: boolean
+  params?: boolean
   query?: boolean
   districtId?: boolean
   caseId?: boolean
@@ -760,6 +786,7 @@ export type AlertSelectScalar = {
   severity?: boolean
   title?: boolean
   detail?: boolean
+  params?: boolean
   query?: boolean
   districtId?: boolean
   caseId?: boolean
@@ -768,7 +795,7 @@ export type AlertSelectScalar = {
   readAt?: boolean
 }
 
-export type AlertOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "kind" | "severity" | "title" | "detail" | "query" | "districtId" | "caseId" | "dedupeKey" | "createdAt" | "readAt", ExtArgs["result"]["alert"]>
+export type AlertOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "kind" | "severity" | "title" | "detail" | "params" | "query" | "districtId" | "caseId" | "dedupeKey" | "createdAt" | "readAt", ExtArgs["result"]["alert"]>
 export type AlertInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.KhabriUserDefaultArgs<ExtArgs>
 }
@@ -791,6 +818,11 @@ export type $AlertPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     severity: string
     title: string
     detail: string
+    /**
+     * * The values behind the finding, so lib/alertText.ts can rebuild the
+     *    *  sentence in Kannada at read time. Null on rows written before i18n.
+     */
+    params: runtime.JsonValue | null
     query: string
     districtId: number | null
     caseId: number | null
@@ -1227,6 +1259,7 @@ export interface AlertFieldRefs {
   readonly severity: Prisma.FieldRef<"Alert", 'String'>
   readonly title: Prisma.FieldRef<"Alert", 'String'>
   readonly detail: Prisma.FieldRef<"Alert", 'String'>
+  readonly params: Prisma.FieldRef<"Alert", 'Json'>
   readonly query: Prisma.FieldRef<"Alert", 'String'>
   readonly districtId: Prisma.FieldRef<"Alert", 'Int'>
   readonly caseId: Prisma.FieldRef<"Alert", 'Int'>

@@ -1,5 +1,6 @@
 import { prisma } from "./db";
 import type { InsightItem } from "./insights-cache";
+import { english } from "./alertText";
 
 // Predictive early-warning: per district × crime group, fit a transparent
 // linear trend over the last 6 months and project next month. No black-box ML
@@ -60,10 +61,11 @@ export async function computeForecasts(topN = 4): Promise<InsightItem[]> {
 
     if (slope <= 0.5 || projected <= recent) continue; // only rising cells
 
+    const params = { crime: s.crime, district: s.district, slope: slope.toFixed(1), projected, recent };
     forecasts.push({
       type: "forecast",
-      title: `${s.crime} rising in ${s.district}`,
-      detail: `Trending up ~${slope.toFixed(1)}/month · projected ${projected} next month (vs ${recent} this month)`,
+      ...english("forecast", params),
+      params,
       query: `Show monthly trend of ${s.crime} in ${s.district}`,
       districtId: s.districtId,
       districtName: s.district,

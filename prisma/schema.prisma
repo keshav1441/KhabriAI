@@ -427,8 +427,11 @@ model Alert {
   userId     Int
   kind       String     // spike | repeat_suspect | weekly_surge | forecast | mo_link
   severity   String     @default("info") // critical | warning | info
-  title      String
+  title      String     // English rendering, kept for PDF export and old rows
   detail     String
+  /** The values behind the finding, so lib/alertText.ts can rebuild the
+   *  sentence in Kannada at read time. Null on rows written before i18n. */
+  params     Json?
   query      String     @default("")
   districtId Int?       // null = statewide finding
   caseId     Int?       // the case an mo_link alert starts from

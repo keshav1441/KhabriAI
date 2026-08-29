@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { CrimeChart } from "../viz/CrimeChart";
 import { useChatStore } from "@/store/chat";
-import { t } from "@/lib/i18n";
+import { t, tf, tv } from "@/lib/i18n";
 
 type Rows = Record<string, unknown>[];
 interface Profiling {
@@ -13,13 +13,14 @@ interface Profiling {
 
 export function ProfilingView() {
   const [data, setData] = useState<Profiling | null>(null);
-  const [error, setError] = useState("");
+  const [failed, setFailed] = useState(false);
+  const lang = useChatStore((s) => s.lang);
 
   useEffect(() => {
     fetch("/api/profiling")
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then(setData)
-      .catch(() => setError("Failed to load profiling data"));
+      .catch(() => setFailed(true));
   }, []);
 
   return (
@@ -29,25 +30,25 @@ export function ProfilingView() {
           ಸಾಮಾಜಿಕ ವಿಶ್ಲೇಷಣೆ · SOCIO-DEMOGRAPHIC PROFILING
         </h2>
         <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-          Who offends, who is victimised, who reports — and the typical offender behind each crime type.
+          {t("profiling.subtitle", lang)}
         </p>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
-        {error && <p className="text-sm" style={{ color: "var(--red)" }}>{error}</p>}
-        {!error && !data && (
-          <p className="font-data text-sm px-2" style={{ color: "var(--text-muted)" }}>Loading profiling…</p>
+        {failed && <p className="text-sm" style={{ color: "var(--red)" }}>{t("profiling.loadFailed", lang)}</p>}
+        {!failed && !data && (
+          <p className="font-data text-sm px-2" style={{ color: "var(--text-muted)" }}>{t("profiling.loading", lang)}</p>
         )}
         {data && (
           <div className="grid gap-4 lg:grid-cols-2 max-w-6xl mx-auto">
-            <Card title="Accused · age distribution"><CrimeChart rows={data.accusedAge} /></Card>
-            <Card title="Accused · gender"><CrimeChart rows={data.accusedGender} /></Card>
-            <Card title="Victims · gender"><CrimeChart rows={data.victimGender} /></Card>
-            <Card title="Complainants · occupation"><CrimeChart rows={data.occupation} /></Card>
-            <Card title="Complainants · religion"><CrimeChart rows={data.religion} /></Card>
-            <Card title="Complainants · caste"><CrimeChart rows={data.caste} /></Card>
+            <Card title={t("profiling.accusedAge", lang)}><CrimeChart rows={data.accusedAge} /></Card>
+            <Card title={t("profiling.accusedGender", lang)}><CrimeChart rows={data.accusedGender} /></Card>
+            <Card title={t("profiling.victimGender", lang)}><CrimeChart rows={data.victimGender} /></Card>
+            <Card title={t("profiling.occupation", lang)}><CrimeChart rows={data.occupation} /></Card>
+            <Card title={t("profiling.religion", lang)}><CrimeChart rows={data.religion} /></Card>
+            <Card title={t("profiling.caste", lang)}><CrimeChart rows={data.caste} /></Card>
             <div className="lg:col-span-2">
-              <Card title="Behavioural profile · typical offender by crime type">
+              <Card title={t("profiling.behavioural", lang)}>
                 <OffenderTable rows={data.offenderProfile} />
               </Card>
             </div>
@@ -74,21 +75,22 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 }
 
 function OffenderTable({ rows }: { rows: Profiling["offenderProfile"] }) {
+  const lang = useChatStore((s) => s.lang);
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
         <thead>
           <tr style={{ color: "var(--text-muted)" }} className="font-data text-xs uppercase tracking-wider">
-            <th className="text-left px-4 py-2">Crime group</th>
-            <th className="text-right px-4 py-2">Avg age</th>
-            <th className="text-right px-4 py-2">% male</th>
-            <th className="text-right px-4 py-2">% repeat offender</th>
+            <th className="text-left px-4 py-2">{t("profiling.col.crimeGroup", lang)}</th>
+            <th className="text-right px-4 py-2">{t("profiling.col.avgAge", lang)}</th>
+            <th className="text-right px-4 py-2">{t("profiling.col.malePct", lang)}</th>
+            <th className="text-right px-4 py-2">{t("profiling.col.repeatPct", lang)}</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.crime_group} style={{ borderTop: "1px solid var(--border)", color: "var(--text-primary)" }}>
-              <td className="px-4 py-2">{r.crime_group}</td>
+              <td className="px-4 py-2">{tv(r.crime_group, lang)}</td>
               <td className="px-4 py-2 text-right font-data">{r.avg_age}</td>
               <td className="px-4 py-2 text-right font-data">{r.male_pct}%</td>
               <td className="px-4 py-2 text-right font-data" style={{ color: r.repeat_pct >= 50 ? "var(--red)" : "var(--text-primary)" }}>
@@ -128,7 +130,7 @@ function IdentityPanel() {
     fetch(`/api/identity?${q}`)
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data: IdentityResponse) => setState({ loading: false, error: "", data }))
-      .catch(() => setState({ loading: false, error: "Failed to resolve identity", data: null }));
+      .catch(() => setState({ loading: false, error: t("identity.failed", lang), data: null }));
   };
 
   const d = state.data;
@@ -140,7 +142,7 @@ function IdentityPanel() {
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Accused record id, or a PersonID"
+            placeholder={t("identity.placeholder", lang)}
             className="flex-1 min-w-0 text-sm font-data px-3 py-1.5 rounded-md outline-none"
             style={{ background: "var(--bg-raised)", border: "1px solid var(--border)", color: "var(--text-primary)" }}
           />
@@ -149,7 +151,7 @@ function IdentityPanel() {
             className="shrink-0 text-xs font-bold px-3 py-1.5 rounded-md transition-all"
             style={{ color: "var(--red)", border: "1px solid var(--red)", background: "var(--red-dim)" }}
           >
-            MATCH
+            {t("identity.match", lang)}
           </button>
         </form>
 
@@ -169,7 +171,7 @@ function IdentityPanel() {
             ) : (
               <>
                 <div className="font-data text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                  {d.candidates.length + 1} {t("identity.cases", lang)} · {d.considered} record(s) checked
+                  {d.candidates.length + 1} {t("identity.cases", lang)} · {tf("identity.checked", lang, { n: d.considered })}
                 </div>
                 <ul className="mt-3 flex flex-col gap-2">
                   {d.candidates.map((c) => (

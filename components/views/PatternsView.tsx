@@ -4,7 +4,7 @@ import {
   BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import { useChatStore } from "@/store/chat";
-import { t } from "@/lib/i18n";
+import { t, tf, tv, type StringKey } from "@/lib/i18n";
 // Type-only: lib/time-patterns imports Prisma types, which must never reach the bundle.
 import type { TimePatterns, PatternAxis } from "@/lib/time-patterns";
 
@@ -31,7 +31,7 @@ const TIP_STYLE = {
  * otherwise this says so in words, because "the tallest bar" and "a pattern" are
  * not the same claim and an officer should not have to know that.
  */
-function PeakLine({ axis, label }: { axis: PatternAxis; label: string }) {
+function PeakLine({ axis, axisKey }: { axis: PatternAxis; axisKey: StringKey }) {
   const lang = useChatStore((s) => s.lang);
   const { peak } = axis;
 
@@ -44,8 +44,13 @@ function PeakLine({ axis, label }: { axis: PatternAxis; label: string }) {
         </span>
         <span className="font-data text-sm font-bold" style={{ color: "var(--red)" }}>{axis.peakLabel}</span>
         <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
-          {peak.observed.toLocaleString()} cases against {Math.round(peak.expected).toLocaleString()} expected —{" "}
-          {pct > 0 ? "+" : ""}{pct}% on the {label.toLowerCase()} baseline
+          {tf("patterns.peakLift", lang, {
+            observed: peak.observed.toLocaleString(),
+            expected: Math.round(peak.expected).toLocaleString(),
+            sign: pct > 0 ? "+" : "",
+            pct,
+            axis: t(axisKey, lang),
+          })}
         </span>
         <span className="font-data text-[10px]" style={{ color: "var(--text-muted)" }}>
           χ²={peak.chi2.toFixed(1)} · df={peak.df} · p&lt;0.05
@@ -56,8 +61,13 @@ function PeakLine({ axis, label }: { axis: PatternAxis; label: string }) {
 
   const reason =
     peak.verdict === "insufficient"
-      ? "Too few cases in this selection to test — no window is claimed."
-      : `No window stands out: the spread across the ${label.toLowerCase()} is within what ordinary variation produces (χ²=${peak.chi2.toFixed(1)}, df=${peak.df}, p=${peak.p.toFixed(2)}). The tallest bar is not a pattern.`;
+      ? t("patterns.insufficient", lang)
+      : tf("patterns.flat", lang, {
+          axis: t(axisKey, lang),
+          chi2: peak.chi2.toFixed(1),
+          df: peak.df,
+          p: peak.p.toFixed(2),
+        });
 
   return (
     <div className="flex items-baseline flex-wrap gap-x-2">
@@ -94,6 +104,7 @@ function CountBars({ axis, height = 150 }: { axis: PatternAxis; height?: number 
 
 /** Day × hour, both axes read off the same instant so a cell means one thing. */
 function HeatGrid({ grid, hourLabels, weekdayLabels }: { grid: number[][]; hourLabels: string[]; weekdayLabels: string[] }) {
+  const lang = useChatStore((s) => s.lang);
   const max = Math.max(1, ...grid.flat());
 
   return (
@@ -121,7 +132,7 @@ function HeatGrid({ grid, hourLabels, weekdayLabels }: { grid: number[][]; hourL
             {row.map((n, h) => (
               <div
                 key={h}
-                title={`${weekdayLabels[d]} ${hourLabels[h]} — ${n.toLocaleString()} cases`}
+                title={tf("patterns.cellTitle", lang, { weekday: weekdayLabels[d], hour: hourLabels[h], n: n.toLocaleString() })}
                 className="rounded-[2px] relative shrink-0"
                 style={{ width: 22, height: 20, background: "var(--bg-raised)" }}
               >
@@ -240,13 +251,13 @@ export function PatternsView() {
                   border: `1px solid ${on ? "var(--khaki)" : "var(--border)"}`,
                 }}
               >
-                {g === "all" ? t("patterns.allCrime", lang) : g}
+                {g === "all" ? t("patterns.allCrime", lang) : tv(g, lang)}
               </button>
             );
           })}
           {data && (
             <span className="font-data text-[10px] ml-1" style={{ color: "var(--text-muted)" }}>
-              {data.total.toLocaleString()} cases{data.scope ? ` · ${data.scope}` : ""}
+              {tf("patterns.cases", lang, { n: data.total.toLocaleString() })}{data.scope ? ` · ${data.scope}` : ""}
             </span>
           )}
         </div>
@@ -266,7 +277,7 @@ export function PatternsView() {
         )}
 
         {!loading && failed && (
-          <p className="font-data text-sm" style={{ color: "var(--red)" }}>Could not load patterns.</p>
+          <p className="font-data text-sm" style={{ color: "var(--red)" }}>{t("patterns.loadFailed", lang)}</p>
         )}
 
         {!loading && data && data.total === 0 && (
@@ -280,14 +291,11 @@ export function PatternsView() {
               {data.hourSupported ? (
                 <>
                   <CountBars axis={data.hour} />
-                  <div className="mt-3"><PeakLine axis={data.hour} label="hour" /></div>
+                  <div className="mt-3"><PeakLine axis={data.hour} axisKey="patterns.axis.hour" /></div>
                 </>
               ) : (
                 <p className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-                  Hour of day is unavailable in this corpus. <b>CrimeRegisteredDate</b> is a DATE column — it stores no
-                  time — and every value in <b>{data.hourSource}</b>, the one timestamp column that could carry a clock,
-                  falls at midnight. An hour chart drawn on that would be a single bar dressed up as a finding, so it is
-                  withheld. Day of week and month below are unaffected.
+                  {tf("patterns.noHour", lang, { source: data.hourSource })}
                 </p>
               )}
             </Panel>
@@ -296,19 +304,19 @@ export function PatternsView() {
               <Panel title={`${t("patterns.weekday", lang)} × ${t("patterns.hour", lang)}`}>
                 <HeatGrid grid={data.grid} hourLabels={data.hour.labels} weekdayLabels={data.weekday.labels} />
                 <p className="text-xs mt-3" style={{ color: "var(--text-muted)" }}>
-                  Darker is busier. Both axes are read off the same instant, so one cell is one claim.
+                  {t("patterns.heatNote", lang)}
                 </p>
               </Panel>
             )}
 
             <Panel title={t("patterns.weekday", lang)}>
               <CountBars axis={data.weekday} height={130} />
-              <div className="mt-3"><PeakLine axis={data.weekday} label="week" /></div>
+              <div className="mt-3"><PeakLine axis={data.weekday} axisKey="patterns.axis.week" /></div>
             </Panel>
 
             <Panel title="Month of year">
               <CountBars axis={data.month} height={130} />
-              <div className="mt-3"><PeakLine axis={data.month} label="year" /></div>
+              <div className="mt-3"><PeakLine axis={data.month} axisKey="patterns.axis.year" /></div>
               <p className="text-xs mt-2" style={{ color: "var(--text-muted)" }}>
                 Months pool every year in the window. A month the window covered for fewer days is expected to be
                 shorter, so the test compares each bar against the days it actually got — a 90-day window cannot

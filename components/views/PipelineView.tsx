@@ -4,10 +4,10 @@ import {
   Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { useChatStore } from "@/store/chat";
-import { t, type StringKey } from "@/lib/i18n";
+import { t, tf, tv, type StringKey } from "@/lib/i18n";
 import { CaseDrawer } from "../viz/CaseDrawer";
 // Type-only: lib/pipeline imports the Prisma Db type, which must never reach the bundle.
-import type { Pipeline, PipelineBreakdown, PipelineStage, SlowCase } from "@/lib/pipeline";
+import { methodKey, type Pipeline, type PipelineBreakdown, type PipelineStage, type SlowCase } from "@/lib/pipeline";
 
 type Dimension = "district" | "crimeGroup";
 
@@ -93,7 +93,7 @@ export function PipelineView() {
       breakdown
         .filter((b) => b.medianToChargesheet !== null)
         .slice(0, 12)
-        .map((b) => ({ name: b.key.length > 14 ? `${b.key.slice(0, 13)}…` : b.key, value: b.medianToChargesheet as number, drop: b.chargesheetDropOffPct })),
+        .map((b) => ({ name: tv(b.key, lang), value: b.medianToChargesheet as number, drop: b.chargesheetDropOffPct })),
     [breakdown]
   );
 
@@ -122,8 +122,8 @@ export function PipelineView() {
               </button>
             );
           })}
-          <Select value={district} onChange={setDistrict} placeholder="All districts" options={options.districts} />
-          <Select value={crimeGroup} onChange={setCrimeGroup} placeholder="All crime groups" options={options.crimeGroups} />
+          <Select value={district} onChange={setDistrict} placeholder={t("pipeline.allDistricts", lang)} options={options.districts} />
+          <Select value={crimeGroup} onChange={setCrimeGroup} placeholder={t("pipeline.allCrimeGroups", lang)} options={options.crimeGroups} />
           <span className="font-data text-xs ml-auto" style={{ color: "var(--text-muted)" }}>
             {loading ? "…" : `${total.toLocaleString()} cases`}
           </span>
@@ -183,7 +183,7 @@ export function PipelineView() {
                     border: `1px solid ${on ? "var(--red)" : "var(--border)"}`,
                   }}
                 >
-                  {d === "district" ? "By district" : "By crime group"}
+                  {t(d === "district" ? "pipeline.byDistrict" : "pipeline.byCrimeGroup", lang)}
                 </button>
               );
             })}
@@ -223,7 +223,7 @@ export function PipelineView() {
 
           {data?.method && (
             <p className="px-6 py-4 text-xs leading-relaxed" style={{ color: "var(--text-muted)", borderTop: "1px solid var(--border)" }}>
-              {data.method}
+              {tf(methodKey(data.methodParams.negatives), lang, data.methodParams)}
             </p>
           )}
         </>
@@ -256,7 +256,7 @@ function StageRow({ stage, total, lang, isLast }: { stage: PipelineStage; total:
             <span className="font-data text-[10px]" style={{ color: "var(--text-muted)" }}>{`p90 ${stage.p90TransitionDays}d`}</span>
           )}
           {stage.excludedNegative > 0 && (
-            <span className="font-data text-[10px]" style={{ color: "var(--amber)" }} title="Milestone dated before the one it follows — excluded from the median rather than clamped to zero.">
+            <span className="font-data text-[10px]" style={{ color: "var(--amber)" }} title={t("pipeline.negativeHint", lang)}>
               {`${stage.excludedNegative} bad dates excluded`}
             </span>
           )}
@@ -289,7 +289,7 @@ function StageRow({ stage, total, lang, isLast }: { stage: PipelineStage; total:
           />
         </div>
         {!stage.measured && stage.note && (
-          <p className="text-[11px] mt-1 leading-relaxed" style={{ color: "var(--text-muted)" }}>{stage.note}</p>
+          <p className="text-[11px] mt-1 leading-relaxed" style={{ color: "var(--text-muted)" }}>{stage.noteKey ? t(stage.noteKey, lang) : stage.note}</p>
         )}
       </div>
 
@@ -321,7 +321,7 @@ function BreakdownTable({ rows, lang }: { rows: PipelineBreakdown[]; lang: "en" 
         <tbody>
           {rows.map((r, i) => (
             <tr key={r.key} style={{ borderBottom: "1px solid var(--border-subtle)", background: i % 2 === 0 ? "transparent" : "var(--bg-surface)" }}>
-              <td className="px-4 py-2 truncate" style={{ color: "var(--text-primary)", maxWidth: 200 }}>{r.key}</td>
+              <td className="px-4 py-2 truncate" style={{ color: "var(--text-primary)", maxWidth: 200 }}>{tv(r.key, lang)}</td>
               <td className="px-4 py-2 text-right font-data" style={{ color: "var(--text-secondary)" }}>{r.total.toLocaleString()}</td>
               <td className="px-4 py-2 text-right font-data" style={{ color: "var(--text-secondary)" }}>{r.reachedArrest.toLocaleString()}</td>
               <td className="px-4 py-2 text-right font-data" style={{ color: "var(--text-secondary)" }}>{r.reachedChargesheet.toLocaleString()}</td>
@@ -339,10 +339,11 @@ function BreakdownTable({ rows, lang }: { rows: PipelineBreakdown[]; lang: "en" 
 }
 
 function SlowestList({ rows, onSelect }: { rows: SlowCase[]; onSelect: (id: number) => void }) {
+  const lang = useChatStore((s) => s.lang);
   return (
     <div className="px-6 pb-5">
       <div className="font-data text-[10px] font-bold tracking-widest uppercase mb-2" style={{ color: "var(--text-muted)" }}>
-        Longest at the slowest step
+        {t("pipeline.longest", lang)}
       </div>
       <div className="flex flex-col gap-px">
         {rows.map((c) => (
@@ -355,8 +356,8 @@ function SlowestList({ rows, onSelect }: { rows: SlowCase[]; onSelect: (id: numb
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--bg-surface)"; }}
           >
             <span className="font-data font-bold" style={{ color: "var(--red)", minWidth: 56 }}>{`${c.days}d`}</span>
-            <span className="truncate" style={{ color: "var(--text-primary)", maxWidth: 200 }}>{c.crimeGroup}</span>
-            <span style={{ color: "var(--text-secondary)" }}>{c.district}</span>
+            <span className="truncate" style={{ color: "var(--text-primary)", maxWidth: 200 }}>{tv(c.crimeGroup, lang)}</span>
+            <span style={{ color: "var(--text-secondary)" }}>{tv(c.district, lang)}</span>
             <span className="font-data ml-auto" style={{ color: "var(--text-muted)" }}>{c.firDate}</span>
           </button>
         ))}

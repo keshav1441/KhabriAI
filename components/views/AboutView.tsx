@@ -1,8 +1,12 @@
 "use client";
+import { useChatStore } from "@/store/chat";
+import { t, tk, type StringKey } from "@/lib/i18n";
 
+// `name` is a product name and is never translated. `desc` goes through tk():
+// a key where the line is prose, a literal where it is a list of product names.
 const TECH_STACK = [
   {
-    category: "Frontend",
+    category: "about.tech.frontend" as StringKey,
     color: "var(--blue)",
     bg: "var(--blue-dim)",
     items: [
@@ -13,103 +17,62 @@ const TECH_STACK = [
     ],
   },
   {
-    category: "Agentic AI",
+    category: "about.tech.agentic" as StringKey,
     color: "var(--red)",
     bg: "var(--red-dim)",
     items: [
       { name: "Mistral AI", desc: "mistral-large orchestrator + SQL · mistral-small narrator" },
-      { name: "Tool-Calling Orchestrator", desc: "Bounded agent loop (max 4 iterations), tools run in parallel" },
-      { name: "9 Investigation Tools", desc: "SQL query · related-case search · insights · hotspot forecast · network/map data · risk prediction · similar cases · crew dossier · clarification" },
-      { name: "RAG Retrieval", desc: "Mistral embeddings (mistral-embed, 1024-dim) — few-shot SQL grounding + pgvector case-narrative search, FTS/LLM fallback" },
-      { name: "Catalyst QuickML", desc: "AutoML classifier — charge-sheet likelihood, trained on arrest + gravity + elapsed time" },
-      { name: "SSE Streaming", desc: "Live reasoning steps + token-by-token narrative over one connection" },
+      { name: "Tool-Calling Orchestrator", desc: "about.tech.orchestrator" },
+      { name: "9 Investigation Tools", desc: "about.tech.tools" },
+      { name: "RAG Retrieval", desc: "about.tech.rag" },
+      { name: "Catalyst QuickML", desc: "about.tech.quickml" },
+      { name: "SSE Streaming", desc: "about.tech.sse" },
     ],
   },
   {
-    category: "Data & Backend",
+    category: "about.tech.data" as StringKey,
     color: "var(--green)",
     bg: "var(--green-dim)",
     items: [
       { name: "Neon PostgreSQL", desc: "Serverless · Connection pooling · PgBouncer" },
       { name: "Prisma v7", desc: "Driver adapter · Raw SQL · Type-safe ORM" },
-      { name: "KSP Crime DB", desc: "Real Karnataka Police data schema" },
-      { name: "Zoho Catalyst", desc: "Cache (embeddings + insights) · Cron precompute · Data Store audit log" },
+      { name: "KSP Crime DB", desc: "about.tech.kspdb" },
+      { name: "Zoho Catalyst", desc: "about.tech.catalyst" },
       { name: "Signed Session Auth", desc: "HMAC-SHA256 cookie · PBKDF2-SHA512 password hashing" },
     ],
   },
   {
-    category: "Visualisation",
+    category: "about.tech.visualisation" as StringKey,
     color: "var(--amber)",
     bg: "var(--amber-dim)",
     items: [
-      { name: "Recharts", desc: "Bar · Pie · Line charts — auto-selected" },
-      { name: "Leaflet + OSM", desc: "Crime heatmap · Google Maps deep-links" },
-      { name: "Cytoscape.js", desc: "Criminal network graph · cose-bilkent layout" },
-      { name: "Custom Drawer", desc: "Full case file modal with all linked data" },
+      { name: "Recharts", desc: "about.tech.recharts" },
+      { name: "Leaflet + OSM", desc: "about.tech.leaflet" },
+      { name: "Cytoscape.js", desc: "about.tech.cytoscape" },
+      { name: "Custom Drawer", desc: "about.tech.drawer" },
     ],
   },
 ];
 
-const FEATURES = [
-  {
-    icon: "◈",
-    color: "var(--red)",
-    bg: "var(--red-dim)",
-    title: "Agentic Investigation Copilot",
-    desc: "Ask a question in plain English. Mistral plans which tools to call — SQL query, related-case search, insights, network/map data — then synthesizes a grounded narrative.",
-  },
-  {
-    icon: "📌",
-    color: "var(--amber)",
-    bg: "var(--amber-dim)",
-    title: "Live Case Board",
-    desc: "Every tool call the agent makes pins to a reasoning-trace panel in real time — pending, done, or failed — so investigators see exactly how an answer was derived.",
-  },
-  {
-    icon: "⚡",
-    color: "var(--blue)",
-    bg: "var(--blue-dim)",
-    title: "Streaming Intelligence",
-    desc: "Reasoning steps and the AI narrative both stream over one Server-Sent Events connection — no waiting for the full response.",
-  },
-  {
-    icon: "◉",
-    color: "var(--green)",
-    bg: "var(--green-dim)",
-    title: "Proactive Briefings",
-    desc: "Crime spikes, repeat accuseds, and weekly surges are precomputed on a Zoho Catalyst Cron schedule and served from Catalyst Cache.",
-  },
-  {
-    icon: "▦",
-    color: "var(--amber)",
-    bg: "var(--amber-dim)",
-    title: "Smart Visualisation",
-    desc: "Query classifier auto-selects bar, pie, line, or network-graph rendering. District queries open on OpenStreetMap with Google Maps deep-links.",
-  },
-  {
-    icon: "⬡",
-    color: "var(--red)",
-    bg: "var(--red-dim)",
-    title: "Full Case File Modal",
-    desc: "Every case row opens a rich modal: accused, victims, arrests, chargesheet, act sections, court — sourced from 8 joined tables.",
-  },
-  {
-    icon: "◎",
-    color: "var(--blue)",
-    bg: "var(--blue-dim)",
-    title: "Responsible AI",
-    desc: "Read-only database role. Generated SQL is parsed into an AST and rejected unless it's a single SELECT statement — no regex blocklist to evade. Sessions are HMAC-signed httpOnly cookies, not a spoofable header.",
-  },
+const FEATURES: { color: string; bg: string; title: StringKey; desc: StringKey }[] = [
+  { color: "var(--red)",   bg: "var(--red-dim)",   title: "about.feature.copilot.title",     desc: "about.feature.copilot.desc" },
+  { color: "var(--amber)", bg: "var(--amber-dim)", title: "about.feature.board.title",       desc: "about.feature.board.desc" },
+  { color: "var(--blue)",  bg: "var(--blue-dim)",  title: "about.feature.stream.title",      desc: "about.feature.stream.desc" },
+  { color: "var(--green)", bg: "var(--green-dim)", title: "about.feature.briefing.title",    desc: "about.feature.briefing.desc" },
+  { color: "var(--amber)", bg: "var(--amber-dim)", title: "about.feature.viz.title",         desc: "about.feature.viz.desc" },
+  { color: "var(--red)",   bg: "var(--red-dim)",   title: "about.feature.casefile.title",    desc: "about.feature.casefile.desc" },
+  { color: "var(--blue)",  bg: "var(--blue-dim)",  title: "about.feature.responsible.title", desc: "about.feature.responsible.desc" },
 ];
 
-const FLOW = [
-  { step: "01", title: "You ask", desc: "Type a question in plain English about Karnataka crime data" },
-  { step: "02", title: "Agent plans", desc: "Mistral decides which tools to call — SQL, related cases, insights, network/map, risk prediction — and calls them in parallel" },
-  { step: "03", title: "Tools ground it", desc: "RAG retrieves similar past questions + case narratives to steer the SQL; query runs read-only via an AST-validated statement; results, cases, and insights come back live" },
-  { step: "04", title: "AI synthesizes", desc: "Mistral streams a narrative citing the real numbers, while each step pins to the live Case Board" },
+const FLOW: { step: string; title: StringKey; desc: StringKey }[] = [
+  { step: "01", title: "about.flow.1.title", desc: "about.flow.1.desc" },
+  { step: "02", title: "about.flow.2.title", desc: "about.flow.2.desc" },
+  { step: "03", title: "about.flow.3.title", desc: "about.flow.3.desc" },
+  { step: "04", title: "about.flow.4.title", desc: "about.flow.4.desc" },
 ];
 
 export function AboutView() {
+  const lang = useChatStore((s) => s.lang);
   return (
     <div className="flex-1 overflow-y-auto" style={{ background: "var(--bg-base)" }}>
       <div className="max-w-5xl mx-auto px-6 py-8 space-y-10">
@@ -124,21 +87,21 @@ export function AboutView() {
             Khabri<span style={{ color: "var(--red)" }}> AI</span>
           </h1>
           <p className="text-base max-w-xl mx-auto" style={{ color: "var(--text-secondary)" }}>
-            Conversational crime intelligence for Karnataka Police — an agentic copilot that plans across SQL, RAG-grounded case retrieval, insights, network/map data, and risk prediction, streamed in real time.
+            {t("about.tagline", lang)}
           </p>
 
           {/* Stat pills */}
           <div className="flex flex-wrap justify-center gap-3 pt-2">
-            {[
-              { label: "LLM Inference", value: "Mistral AI" },
-              { label: "DB Engine", value: "Neon PostgreSQL" },
-              { label: "Response time", value: "< 2s avg" },
-              { label: "DB Access", value: "Read-only" },
-            ].map((s) => (
+            {([
+              { label: "about.stat.llm", value: "Mistral AI" },
+              { label: "about.stat.db", value: "Neon PostgreSQL" },
+              { label: "about.stat.latency", value: t("about.stat.latencyValue", lang) },
+              { label: "about.stat.access", value: t("about.stat.accessValue", lang) },
+            ] as const).map((s) => (
               <div key={s.label} className="px-4 py-2 rounded-md text-center"
                    style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
                 <p className="font-data text-xs font-bold" style={{ color: "var(--text-primary)" }}>{s.value}</p>
-                <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{s.label}</p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{t(s.label, lang)}</p>
               </div>
             ))}
           </div>
@@ -146,7 +109,7 @@ export function AboutView() {
 
         {/* How it works */}
         <section>
-          <SectionHeader title="HOW IT WORKS" />
+          <SectionHeader title={t("about.section.how", lang)} />
           <div className="grid sm:grid-cols-4 gap-3">
             {FLOW.map((f) => (
               <div key={f.step} className="rounded-lg p-4 relative overflow-hidden"
@@ -158,8 +121,8 @@ export function AboutView() {
                 </span>
                 <div className="relative z-10">
                   <span className="font-data text-xs font-bold" style={{ color: "var(--red)" }}>{f.step}</span>
-                  <p className="font-semibold text-sm mt-1" style={{ color: "var(--text-primary)" }}>{f.title}</p>
-                  <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--text-secondary)" }}>{f.desc}</p>
+                  <p className="font-semibold text-sm mt-1" style={{ color: "var(--text-primary)" }}>{t(f.title, lang)}</p>
+                  <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--text-secondary)" }}>{t(f.desc, lang)}</p>
                 </div>
               </div>
             ))}
@@ -168,7 +131,7 @@ export function AboutView() {
 
         {/* Features */}
         <section>
-          <SectionHeader title="KEY FEATURES" />
+          <SectionHeader title={t("about.section.features", lang)} />
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {FEATURES.map((f, i) => (
               <div key={f.title} className="rounded-lg p-4 transition-all"
@@ -181,8 +144,8 @@ export function AboutView() {
                     {String(i + 1).padStart(2, "0")}
                   </span>
                   <div>
-                    <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{f.title}</p>
-                    <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--text-secondary)" }}>{f.desc}</p>
+                    <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{t(f.title, lang)}</p>
+                    <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--text-secondary)" }}>{t(f.desc, lang)}</p>
                   </div>
                 </div>
               </div>
@@ -192,21 +155,21 @@ export function AboutView() {
 
         {/* Tech Stack */}
         <section>
-          <SectionHeader title="TECH STACK" />
+          <SectionHeader title={t("about.section.tech", lang)} />
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {TECH_STACK.map((cat) => (
               <div key={cat.category} className="rounded-lg overflow-hidden"
                    style={{ border: "1px solid var(--border)" }}>
                 <div className="px-4 py-2.5" style={{ background: cat.bg, borderBottom: `1px solid ${cat.color}` }}>
                   <p className="font-data text-xs font-bold tracking-widest uppercase" style={{ color: cat.color }}>
-                    {cat.category}
+                    {t(cat.category, lang)}
                   </p>
                 </div>
                 <div className="divide-y" style={{ background: "var(--bg-surface)" }}>
                   {cat.items.map((item) => (
                     <div key={item.name} className="px-4 py-3">
                       <p className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>{item.name}</p>
-                      <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{item.desc}</p>
+                      <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>{tk(item.desc, lang)}</p>
                     </div>
                   ))}
                 </div>
@@ -224,12 +187,9 @@ export function AboutView() {
                 ⚖
               </span>
               <div>
-                <p className="font-bold text-sm" style={{ color: "var(--text-primary)" }}>Responsible AI Design</p>
+                <p className="font-bold text-sm" style={{ color: "var(--text-primary)" }}>{t("about.responsible.title", lang)}</p>
                 <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-                  Khabri AI operates on a <strong>read-only database role</strong> — no query can modify, insert, or delete data.
-                  Generated SQL is parsed into an AST (node-sql-parser) and rejected unless it resolves to a single SELECT statement,
-                  closing the gaps a regex blocklist can miss. Sessions are HMAC-SHA256-signed httpOnly cookies verified server-side —
-                  not a client-supplied header. Passwords use PBKDF2-SHA512 (100k iterations) stored in Neon — no third-party auth services.
+                  {t("about.responsible.body", lang)}
                 </p>
               </div>
             </div>
@@ -239,7 +199,7 @@ export function AboutView() {
         {/* Footer */}
         <div className="text-center pb-4">
           <p className="font-data text-xs" style={{ color: "var(--text-muted)" }}>
-            Built for Datathon 2026 · KSP × Hack2Skill Challenge 1 · Karnataka State Police Crime Intelligence
+            {t("about.footer", lang)}
           </p>
         </div>
 

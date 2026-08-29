@@ -400,12 +400,513 @@ export const STRINGS = {
   "custody.stale":        { en: "No custody action since", kn: "ಇಂದಿನಿಂದ ವಶದ ಕ್ರಮವಿಲ್ಲ" },
   "custody.caveat":       { en: "The record shows arrest and surrender only — it carries no bail or custody status.",
                             kn: "ದಾಖಲೆಯಲ್ಲಿ ಬಂಧನ ಮತ್ತು ಶರಣಾಗತಿ ಮಾತ್ರ — ಜಾಮೀನು ಅಥವಾ ವಶದ ಸ್ಥಿತಿ ಇಲ್ಲ." },
+
+  // ── Detector findings ───────────────────────────────────────────────────
+  // Rendered from Alert.params / InsightItem.params by lib/alertText.ts, not
+  // written as prose by the detectors. `{name}` placeholders are filled by tf().
+  "finding.spike.title":  { en: "Crime spike in {district}",
+                            kn: "{district} ಜಿಲ್ಲೆಯಲ್ಲಿ ಅಪರಾಧ ಏರಿಕೆ" },
+  "finding.spike.detail": { en: "{pct}% jump last month ({thisMonth} vs {lastMonth} the month before)",
+                            kn: "ಕಳೆದ ತಿಂಗಳು {pct}% ಏರಿಕೆ ({thisMonth}, ಹಿಂದಿನ ತಿಂಗಳು {lastMonth})" },
+
+  "finding.repeat_suspect.title":  { en: "Possible repeat accused: {name}",
+                                     kn: "ಸಂಭಾವ್ಯ ಪುನರಾವರ್ತಿತ ಆರೋಪಿ: {name}" },
+  "finding.repeat_suspect.detail": {
+    en: "{caseCount} cases in the last 30 days name someone who scores as the same person (confidence {confidence} on the weakest link in the cluster; matched on {why}). {crimeTypes}. Identity is inferred from the name, age and gender on each FIR, not from a shared record — verify before treating these as one offender.",
+    kn: "ಕಳೆದ 30 ದಿನಗಳಲ್ಲಿ {caseCount} ಪ್ರಕರಣಗಳು ಒಬ್ಬರೇ ವ್ಯಕ್ತಿ ಎಂದು ಅಂಕ ಪಡೆಯುವವರನ್ನು ಹೆಸರಿಸುತ್ತವೆ (ಗುಂಪಿನ ದುರ್ಬಲ ಕೊಂಡಿಯಲ್ಲಿ ವಿಶ್ವಾಸ {confidence}; {why} ಆಧಾರದ ಮೇಲೆ ಹೊಂದಾಣಿಕೆ). {crimeTypes}. ಗುರುತನ್ನು ಪ್ರತಿ ಎಫ್‌ಐಆರ್‌ನ ಹೆಸರು, ವಯಸ್ಸು ಮತ್ತು ಲಿಂಗದಿಂದ ಊಹಿಸಲಾಗಿದೆ, ಸಾಮಾನ್ಯ ದಾಖಲೆಯಿಂದ ಅಲ್ಲ — ಇವರನ್ನು ಒಬ್ಬನೇ ಅಪರಾಧಿ ಎಂದು ಪರಿಗಣಿಸುವ ಮೊದಲು ಪರಿಶೀಲಿಸಿ." },
+
+  "finding.weekly_surge.title":  { en: "{crime} surging statewide",
+                                   kn: "ರಾಜ್ಯಾದ್ಯಂತ {crime} ಹೆಚ್ಚಳ" },
+  "finding.weekly_surge.detail": { en: "{pct}% more {crime} cases this week vs last week",
+                                   kn: "ಕಳೆದ ವಾರಕ್ಕೆ ಹೋಲಿಸಿದರೆ ಈ ವಾರ {pct}% ಹೆಚ್ಚು {crime} ಪ್ರಕರಣಗಳು" },
+
+  "finding.forecast.title":  { en: "{crime} rising in {district}",
+                               kn: "{district} ಜಿಲ್ಲೆಯಲ್ಲಿ {crime} ಏರಿಕೆ" },
+  "finding.forecast.detail": { en: "Trending up ~{slope}/month · projected {projected} next month (vs {recent} this month)",
+                               kn: "ತಿಂಗಳಿಗೆ ~{slope} ಏರಿಕೆ · ಮುಂದಿನ ತಿಂಗಳು {projected} ಎಂದು ಅಂದಾಜು (ಈ ತಿಂಗಳು {recent})" },
+
+  "finding.mo_link.title":  { en: "Cross-district MO lead: {label}",
+                              kn: "ಅಂತರ-ಜಿಲ್ಲಾ ವಿಧಾನ ಸುಳಿವು: {label}" },
+  "finding.mo_link.detail": {
+    en: "{crimeGroup} in {district} ({registered}) is the closest narrative match to {matchLabel} in {matchDistrict}, and closer than 99% of cross-district nearest matches in the corpus. Same offence sub-head. Narratives never name the accused, so this is a method lead to check, not a link between people — neither station can see the other's file.",
+    kn: "{district} ಜಿಲ್ಲೆಯ {crimeGroup} ({registered}) ಪ್ರಕರಣವು {matchDistrict} ಜಿಲ್ಲೆಯ {matchLabel} ಪ್ರಕರಣಕ್ಕೆ ಅತ್ಯಂತ ಹತ್ತಿರದ ವಿವರಣಾತ್ಮಕ ಹೊಂದಾಣಿಕೆಯಾಗಿದೆ — ಸಂಗ್ರಹದ 99% ಅಂತರ-ಜಿಲ್ಲಾ ಹೊಂದಾಣಿಕೆಗಳಿಗಿಂತ ಹತ್ತಿರ. ಒಂದೇ ಅಪರಾಧ ಉಪ-ಶೀರ್ಷಿಕೆ. ವಿವರಣೆಗಳು ಆರೋಪಿಯನ್ನು ಎಂದೂ ಹೆಸರಿಸುವುದಿಲ್ಲ, ಆದ್ದರಿಂದ ಇದು ಪರಿಶೀಲಿಸಬೇಕಾದ ವಿಧಾನದ ಸುಳಿವು, ವ್ಯಕ್ತಿಗಳ ನಡುವಿನ ಕೊಂಡಿಯಲ್ಲ — ಯಾವ ಠಾಣೆಯೂ ಇನ್ನೊಂದರ ಕಡತವನ್ನು ನೋಡಲಾಗದು." },
+
+  "finding.duplicate.title":  { en: "Possible duplicate FIR: {label}",
+                                kn: "ಸಂಭಾವ್ಯ ನಕಲಿ ಎಫ್‌ಐಆರ್: {label}" },
+  "finding.duplicate.detail": {
+    en: "{label} ({registered}) looks like the same incident as {matchLabel} ({matchRegistered}) — {where}. {pct}% likely: {why}.",
+    kn: "{label} ({registered}) ಪ್ರಕರಣವು {matchLabel} ({matchRegistered}) ಪ್ರಕರಣದಂತೆಯೇ ಒಂದೇ ಘಟನೆ ಎಂದು ಕಾಣುತ್ತದೆ — {where}. {pct}% ಸಂಭವನೀಯತೆ: {why}." },
+  // The far district's copy: same finding, name stripped.
+  "finding.duplicate.detailUnnamed": {
+    en: "{label} ({registered}) looks like the same incident as {matchLabel} ({matchRegistered}) — {where}. {pct}% likely: {why}. A person named in both files is out of your posting; the other station holds that record.",
+    kn: "{label} ({registered}) ಪ್ರಕರಣವು {matchLabel} ({matchRegistered}) ಪ್ರಕರಣದಂತೆಯೇ ಒಂದೇ ಘಟನೆ ಎಂದು ಕಾಣುತ್ತದೆ — {where}. {pct}% ಸಂಭವನೀಯತೆ: {why}. ಎರಡೂ ಕಡತಗಳಲ್ಲಿ ಹೆಸರಿಸಲಾದ ವ್ಯಕ್ತಿ ನಿಮ್ಮ ವ್ಯಾಪ್ತಿಯ ಹೊರಗಿದ್ದಾರೆ; ಆ ದಾಖಲೆ ಇನ್ನೊಂದು ಠಾಣೆಯಲ್ಲಿದೆ." },
+  // The "{where}" clause, built at render time so the connector word is in the
+  // reader's language. Station names themselves are proper nouns and stay put.
+  "finding.duplicate.bothAt": { en: "both at {station}", kn: "ಎರಡೂ {station} ಠಾಣೆಯಲ್ಲಿ" },
+  "finding.duplicate.across": { en: "{station} and {matchStation}", kn: "{station} ಮತ್ತು {matchStation}" },
+  "finding.duplicate.reasonFallback": { en: "the narratives and dates line up",
+                                        kn: "ವಿವರಣೆಗಳು ಮತ್ತು ದಿನಾಂಕಗಳು ಹೊಂದಿಕೆಯಾಗುತ್ತವೆ" },
+
+  // Why a pair scored as a duplicate — lib/duplicate-detect.ts labelFor()
+  "dup.reason.narrative":    { en: "Narrative cosine {n} (unrelated same-type pairs median 0.84)",
+                               kn: "ವಿವರಣೆಯ ಸಾಮ್ಯತೆ {n} (ಸಂಬಂಧವಿಲ್ಲದ ಒಂದೇ ಬಗೆಯ ಜೋಡಿಗಳ ಸರಾಸರಿ 0.84)" },
+  "dup.reason.peopleNamed":  { en: "Same person named in both — {label}",
+                               kn: "ಎರಡರಲ್ಲೂ ಒಬ್ಬರೇ ವ್ಯಕ್ತಿಯ ಹೆಸರು — {label}" },
+  "dup.reason.people":       { en: "Complainant or victim name matches",
+                               kn: "ದೂರುದಾರ ಅಥವಾ ಸಂತ್ರಸ್ತರ ಹೆಸರು ಹೊಂದಿಕೆಯಾಗುತ್ತದೆ" },
+  "dup.reason.sameDate":     { en: "Same incident date", kn: "ಒಂದೇ ಘಟನೆಯ ದಿನಾಂಕ" },
+  "dup.reason.dayGapOne":    { en: "Incidents 1 day apart", kn: "ಘಟನೆಗಳ ನಡುವೆ 1 ದಿನ ಅಂತರ" },
+  "dup.reason.dayGap":       { en: "Incidents {n} days apart", kn: "ಘಟನೆಗಳ ನಡುವೆ {n} ದಿನಗಳ ಅಂತರ" },
+  "dup.reason.sameStation":  { en: "Filed at the same station", kn: "ಒಂದೇ ಠಾಣೆಯಲ್ಲಿ ದಾಖಲು" },
+  "dup.reason.sameDistrict": { en: "Filed at a station in the same district",
+                               kn: "ಒಂದೇ ಜಿಲ್ಲೆಯ ಠಾಣೆಯಲ್ಲಿ ದಾಖಲು" },
+  "dup.reason.crimeType":    { en: "Same crime sub-head", kn: "ಒಂದೇ ಅಪರಾಧ ಉಪ-ಶೀರ್ಷಿಕೆ" },
+
+  // ── About the project ───────────────────────────────────────────────────
+  // Product names (Next.js, Mistral AI, PgBouncer) are proper nouns and stay
+  // in Latin script; only the prose around them has keys here.
+  "about.tagline": {
+    en: "Conversational crime intelligence for Karnataka Police — an agentic copilot that plans across SQL, RAG-grounded case retrieval, insights, network/map data, and risk prediction, streamed in real time.",
+    kn: "ಕರ್ನಾಟಕ ಪೊಲೀಸರಿಗಾಗಿ ಸಂವಾದಾತ್ಮಕ ಅಪರಾಧ ಗುಪ್ತಚರ ವ್ಯವಸ್ಥೆ — SQL, RAG-ಆಧಾರಿತ ಪ್ರಕರಣ ಹುಡುಕಾಟ, ಒಳನೋಟಗಳು, ಜಾಲ/ನಕ್ಷೆ ಮಾಹಿತಿ ಮತ್ತು ಅಪಾಯ ಮುನ್ಸೂಚನೆಯ ನಡುವೆ ಯೋಜಿಸುವ ಏಜೆಂಟಿಕ್ ಸಹಾಯಕ, ನೈಜ ಸಮಯದಲ್ಲಿ ಪ್ರಸಾರ." },
+  "about.stat.llm":      { en: "LLM Inference", kn: "LLM ಸಂಸ್ಕರಣೆ" },
+  "about.stat.db":       { en: "DB Engine", kn: "ಡೇಟಾಬೇಸ್ ಎಂಜಿನ್" },
+  "about.stat.latency":  { en: "Response time", kn: "ಪ್ರತಿಕ್ರಿಯೆ ಸಮಯ" },
+  "about.stat.access":   { en: "DB Access", kn: "ಡೇಟಾಬೇಸ್ ಪ್ರವೇಶ" },
+  "about.stat.latencyValue": { en: "< 2s avg", kn: "ಸರಾಸರಿ < 2ಸೆ" },
+  "about.stat.accessValue":  { en: "Read-only", kn: "ಓದಲು-ಮಾತ್ರ" },
+
+  "about.section.how":      { en: "HOW IT WORKS", kn: "ಇದು ಹೇಗೆ ಕೆಲಸ ಮಾಡುತ್ತದೆ" },
+  "about.section.features": { en: "KEY FEATURES", kn: "ಪ್ರಮುಖ ವೈಶಿಷ್ಟ್ಯಗಳು" },
+  "about.section.tech":     { en: "TECH STACK", kn: "ತಂತ್ರಜ್ಞಾನ ಶ್ರೇಣಿ" },
+
+  "about.flow.1.title": { en: "You ask", kn: "ನೀವು ಕೇಳುತ್ತೀರಿ" },
+  "about.flow.1.desc":  { en: "Type a question in plain English about Karnataka crime data",
+                          kn: "ಕರ್ನಾಟಕದ ಅಪರಾಧ ಮಾಹಿತಿಯ ಬಗ್ಗೆ ಸರಳ ಭಾಷೆಯಲ್ಲಿ ಪ್ರಶ್ನೆ ಟೈಪ್ ಮಾಡಿ" },
+  "about.flow.2.title": { en: "Agent plans", kn: "ಏಜೆಂಟ್ ಯೋಜಿಸುತ್ತದೆ" },
+  "about.flow.2.desc":  { en: "Mistral decides which tools to call — SQL, related cases, insights, network/map, risk prediction — and calls them in parallel",
+                          kn: "ಯಾವ ಸಾಧನಗಳನ್ನು ಬಳಸಬೇಕೆಂದು Mistral ನಿರ್ಧರಿಸುತ್ತದೆ — SQL, ಸಂಬಂಧಿತ ಪ್ರಕರಣಗಳು, ಒಳನೋಟಗಳು, ಜಾಲ/ನಕ್ಷೆ, ಅಪಾಯ ಮುನ್ಸೂಚನೆ — ಮತ್ತು ಅವನ್ನು ಸಮಾನಾಂತರವಾಗಿ ಕರೆಯುತ್ತದೆ" },
+  "about.flow.3.title": { en: "Tools ground it", kn: "ಸಾಧನಗಳು ಆಧಾರ ಒದಗಿಸುತ್ತವೆ" },
+  "about.flow.3.desc":  { en: "RAG retrieves similar past questions + case narratives to steer the SQL; query runs read-only via an AST-validated statement; results, cases, and insights come back live",
+                          kn: "SQL ಅನ್ನು ಮಾರ್ಗದರ್ಶಿಸಲು RAG ಹಿಂದಿನ ಸಮಾನ ಪ್ರಶ್ನೆಗಳು ಮತ್ತು ಪ್ರಕರಣ ವಿವರಣೆಗಳನ್ನು ತರುತ್ತದೆ; ಪ್ರಶ್ನೆಯು AST-ಪರಿಶೀಲಿತ ಹೇಳಿಕೆಯ ಮೂಲಕ ಓದಲು-ಮಾತ್ರ ಚಲಿಸುತ್ತದೆ; ಫಲಿತಾಂಶಗಳು, ಪ್ರಕರಣಗಳು ಮತ್ತು ಒಳನೋಟಗಳು ನೇರವಾಗಿ ಬರುತ್ತವೆ" },
+  "about.flow.4.title": { en: "AI synthesizes", kn: "AI ಸಂಯೋಜಿಸುತ್ತದೆ" },
+  "about.flow.4.desc":  { en: "Mistral streams a narrative citing the real numbers, while each step pins to the live Case Board",
+                          kn: "ನೈಜ ಸಂಖ್ಯೆಗಳನ್ನು ಉಲ್ಲೇಖಿಸಿ Mistral ವಿವರಣೆಯನ್ನು ಪ್ರಸಾರ ಮಾಡುತ್ತದೆ, ಮತ್ತು ಪ್ರತಿ ಹಂತವೂ ನೇರ ಪ್ರಕರಣ ಫಲಕಕ್ಕೆ ಸೇರುತ್ತದೆ" },
+
+  "about.feature.copilot.title": { en: "Agentic Investigation Copilot", kn: "ಏಜೆಂಟಿಕ್ ತನಿಖಾ ಸಹಾಯಕ" },
+  "about.feature.copilot.desc":  { en: "Ask a question in plain English. Mistral plans which tools to call — SQL query, related-case search, insights, network/map data — then synthesizes a grounded narrative.",
+                                   kn: "ಸರಳ ಭಾಷೆಯಲ್ಲಿ ಪ್ರಶ್ನೆ ಕೇಳಿ. ಯಾವ ಸಾಧನಗಳನ್ನು ಬಳಸಬೇಕೆಂದು Mistral ಯೋಜಿಸುತ್ತದೆ — SQL ಪ್ರಶ್ನೆ, ಸಂಬಂಧಿತ ಪ್ರಕರಣ ಹುಡುಕಾಟ, ಒಳನೋಟಗಳು, ಜಾಲ/ನಕ್ಷೆ ಮಾಹಿತಿ — ನಂತರ ಆಧಾರಸಹಿತ ವಿವರಣೆಯನ್ನು ಸಂಯೋಜಿಸುತ್ತದೆ." },
+  "about.feature.board.title": { en: "Live Case Board", kn: "ನೇರ ಪ್ರಕರಣ ಫಲಕ" },
+  "about.feature.board.desc":  { en: "Every tool call the agent makes pins to a reasoning-trace panel in real time — pending, done, or failed — so investigators see exactly how an answer was derived.",
+                                 kn: "ಏಜೆಂಟ್ ಮಾಡುವ ಪ್ರತಿ ಸಾಧನ ಕರೆಯೂ ನೈಜ ಸಮಯದಲ್ಲಿ ತಾರ್ಕಿಕ-ಜಾಡು ಫಲಕಕ್ಕೆ ಸೇರುತ್ತದೆ — ಬಾಕಿ, ಮುಗಿದಿದೆ ಅಥವಾ ವಿಫಲ — ಇದರಿಂದ ಉತ್ತರ ಹೇಗೆ ಬಂತು ಎಂಬುದು ತನಿಖಾಧಿಕಾರಿಗಳಿಗೆ ನಿಖರವಾಗಿ ಕಾಣುತ್ತದೆ." },
+  "about.feature.stream.title": { en: "Streaming Intelligence", kn: "ನೇರ ಪ್ರಸಾರ ಗುಪ್ತಚರ" },
+  "about.feature.stream.desc":  { en: "Reasoning steps and the AI narrative both stream over one Server-Sent Events connection — no waiting for the full response.",
+                                  kn: "ತಾರ್ಕಿಕ ಹಂತಗಳು ಮತ್ತು AI ವಿವರಣೆ ಎರಡೂ ಒಂದೇ Server-Sent Events ಸಂಪರ್ಕದ ಮೂಲಕ ಪ್ರಸಾರವಾಗುತ್ತವೆ — ಪೂರ್ಣ ಉತ್ತರಕ್ಕಾಗಿ ಕಾಯುವ ಅಗತ್ಯವಿಲ್ಲ." },
+  "about.feature.briefing.title": { en: "Proactive Briefings", kn: "ಮುಂಚಿತ ವರದಿಗಳು" },
+  "about.feature.briefing.desc":  { en: "Crime spikes, repeat accuseds, and weekly surges are precomputed on a Zoho Catalyst Cron schedule and served from Catalyst Cache.",
+                                    kn: "ಅಪರಾಧ ಏರಿಕೆಗಳು, ಪುನರಾವರ್ತಿತ ಆರೋಪಿಗಳು ಮತ್ತು ವಾರದ ಹೆಚ್ಚಳಗಳನ್ನು Zoho Catalyst Cron ವೇಳಾಪಟ್ಟಿಯಲ್ಲಿ ಮೊದಲೇ ಲೆಕ್ಕಹಾಕಿ Catalyst Cache ನಿಂದ ಒದಗಿಸಲಾಗುತ್ತದೆ." },
+  "about.feature.viz.title": { en: "Smart Visualisation", kn: "ಸ್ಮಾರ್ಟ್ ದೃಶ್ಯೀಕರಣ" },
+  "about.feature.viz.desc":  { en: "Query classifier auto-selects bar, pie, line, or network-graph rendering. District queries open on OpenStreetMap with Google Maps deep-links.",
+                               kn: "ಪ್ರಶ್ನೆ ವರ್ಗೀಕರಣವು ಬಾರ್, ಪೈ, ಲೈನ್ ಅಥವಾ ಜಾಲ-ನಕ್ಷೆಯನ್ನು ತಾನಾಗಿಯೇ ಆಯ್ಕೆ ಮಾಡುತ್ತದೆ. ಜಿಲ್ಲಾ ಪ್ರಶ್ನೆಗಳು Google Maps ಕೊಂಡಿಗಳೊಂದಿಗೆ OpenStreetMap ನಲ್ಲಿ ತೆರೆಯುತ್ತವೆ." },
+  "about.feature.casefile.title": { en: "Full Case File Modal", kn: "ಸಂಪೂರ್ಣ ಪ್ರಕರಣ ಕಡತ" },
+  "about.feature.casefile.desc":  { en: "Every case row opens a rich modal: accused, victims, arrests, chargesheet, act sections, court — sourced from 8 joined tables.",
+                                    kn: "ಪ್ರತಿ ಪ್ರಕರಣದ ಸಾಲು ವಿವರವಾದ ಕಿಟಕಿಯನ್ನು ತೆರೆಯುತ್ತದೆ: ಆರೋಪಿಗಳು, ಸಂತ್ರಸ್ತರು, ಬಂಧನಗಳು, ಆರೋಪಪಟ್ಟಿ, ಕಾಯ್ದೆ ಕಲಂಗಳು, ನ್ಯಾಯಾಲಯ — 8 ಜೋಡಿಸಿದ ಕೋಷ್ಟಕಗಳಿಂದ." },
+  "about.feature.responsible.title": { en: "Responsible AI", kn: "ಜವಾಬ್ದಾರಿಯುತ AI" },
+  "about.feature.responsible.desc":  { en: "Read-only database role. Generated SQL is parsed into an AST and rejected unless it's a single SELECT statement — no regex blocklist to evade. Sessions are HMAC-signed httpOnly cookies, not a spoofable header.",
+                                       kn: "ಓದಲು-ಮಾತ್ರ ಡೇಟಾಬೇಸ್ ಪಾತ್ರ. ರಚಿಸಲಾದ SQL ಅನ್ನು AST ಆಗಿ ವಿಶ್ಲೇಷಿಸಲಾಗುತ್ತದೆ ಮತ್ತು ಅದು ಒಂದೇ SELECT ಹೇಳಿಕೆಯಾಗಿರದಿದ್ದರೆ ತಿರಸ್ಕರಿಸಲಾಗುತ್ತದೆ — ತಪ್ಪಿಸಿಕೊಳ್ಳಬಹುದಾದ ರೆಜೆಕ್ಸ್ ಪಟ್ಟಿ ಇಲ್ಲ. ಸೆಷನ್‌ಗಳು HMAC-ಸಹಿ ಮಾಡಿದ httpOnly ಕುಕೀಗಳು, ನಕಲಿ ಮಾಡಬಹುದಾದ ಹೆಡರ್ ಅಲ್ಲ." },
+
+  "about.tech.frontend":      { en: "Frontend", kn: "ಮುಂಭಾಗ" },
+  "about.tech.agentic":       { en: "Agentic AI", kn: "ಏಜೆಂಟಿಕ್ AI" },
+  "about.tech.data":          { en: "Data & Backend", kn: "ಮಾಹಿತಿ ಮತ್ತು ಹಿಂಭಾಗ" },
+  "about.tech.visualisation": { en: "Visualisation", kn: "ದೃಶ್ಯೀಕರಣ" },
+  "about.tech.orchestrator":  { en: "Bounded agent loop (max 4 iterations), tools run in parallel",
+                                kn: "ಸೀಮಿತ ಏಜೆಂಟ್ ಆವರ್ತನೆ (ಗರಿಷ್ಠ 4 ಸುತ್ತು), ಸಾಧನಗಳು ಸಮಾನಾಂತರವಾಗಿ ಚಲಿಸುತ್ತವೆ" },
+  "about.tech.tools":         { en: "SQL query · related-case search · insights · hotspot forecast · network/map data · risk prediction · similar cases · crew dossier · clarification",
+                                kn: "SQL ಪ್ರಶ್ನೆ · ಸಂಬಂಧಿತ ಪ್ರಕರಣ ಹುಡುಕಾಟ · ಒಳನೋಟಗಳು · ಕೇಂದ್ರಬಿಂದು ಮುನ್ಸೂಚನೆ · ಜಾಲ/ನಕ್ಷೆ ಮಾಹಿತಿ · ಅಪಾಯ ಮುನ್ಸೂಚನೆ · ಸಮಾನ ಪ್ರಕರಣಗಳು · ತಂಡದ ಕಡತ · ಸ್ಪಷ್ಟೀಕರಣ" },
+  "about.tech.rag":           { en: "Mistral embeddings (mistral-embed, 1024-dim) — few-shot SQL grounding + pgvector case-narrative search, FTS/LLM fallback",
+                                kn: "Mistral ಎಂಬೆಡಿಂಗ್‌ಗಳು (mistral-embed, 1024-ಆಯಾಮ) — few-shot SQL ಆಧಾರ ಮತ್ತು pgvector ಪ್ರಕರಣ-ವಿವರಣೆ ಹುಡುಕಾಟ, FTS/LLM ಪರ್ಯಾಯ" },
+  "about.tech.quickml":       { en: "AutoML classifier — charge-sheet likelihood, trained on arrest + gravity + elapsed time",
+                                kn: "AutoML ವರ್ಗೀಕರಣ — ಆರೋಪಪಟ್ಟಿ ಸಂಭವನೀಯತೆ, ಬಂಧನ, ಗಂಭೀರತೆ ಮತ್ತು ಕಳೆದ ಸಮಯದ ಆಧಾರದ ಮೇಲೆ ತರಬೇತಿ" },
+  "about.tech.sse":           { en: "Live reasoning steps + token-by-token narrative over one connection",
+                                kn: "ಒಂದೇ ಸಂಪರ್ಕದಲ್ಲಿ ನೇರ ತಾರ್ಕಿಕ ಹಂತಗಳು ಮತ್ತು ಪದ-ಪದದ ವಿವರಣೆ" },
+  "about.tech.kspdb":         { en: "Real Karnataka Police data schema", kn: "ನೈಜ ಕರ್ನಾಟಕ ಪೊಲೀಸ್ ಮಾಹಿತಿ ರಚನೆ" },
+  "about.tech.catalyst":      { en: "Cache (embeddings + insights) · Cron precompute · Data Store audit log",
+                                kn: "ಸಂಗ್ರಹ (ಎಂಬೆಡಿಂಗ್ ಮತ್ತು ಒಳನೋಟಗಳು) · Cron ಪೂರ್ವಗಣನೆ · Data Store ಲೆಕ್ಕಪರಿಶೋಧನಾ ದಾಖಲೆ" },
+  "about.tech.recharts":      { en: "Bar · Pie · Line charts — auto-selected",
+                                kn: "ಬಾರ್ · ಪೈ · ಲೈನ್ ನಕ್ಷೆಗಳು — ತಾನಾಗಿಯೇ ಆಯ್ಕೆ" },
+  "about.tech.leaflet":       { en: "Crime heatmap · Google Maps deep-links",
+                                kn: "ಅಪರಾಧ ಸಾಂದ್ರತೆ ನಕ್ಷೆ · Google Maps ಕೊಂಡಿಗಳು" },
+  "about.tech.cytoscape":     { en: "Criminal network graph · cose-bilkent layout",
+                                kn: "ಅಪರಾಧಿ ಜಾಲ ನಕ್ಷೆ · cose-bilkent ವಿನ್ಯಾಸ" },
+  "about.tech.drawer":        { en: "Full case file modal with all linked data",
+                                kn: "ಎಲ್ಲಾ ಸಂಬಂಧಿತ ಮಾಹಿತಿಯೊಂದಿಗೆ ಸಂಪೂರ್ಣ ಪ್ರಕರಣ ಕಡತ" },
+
+  "about.responsible.title": { en: "Responsible AI Design", kn: "ಜವಾಬ್ದಾರಿಯುತ AI ವಿನ್ಯಾಸ" },
+  "about.responsible.body": {
+    en: "Khabri AI operates on a read-only database role — no query can modify, insert, or delete data. Generated SQL is parsed into an AST (node-sql-parser) and rejected unless it resolves to a single SELECT statement, closing the gaps a regex blocklist can miss. Sessions are HMAC-SHA256-signed httpOnly cookies verified server-side — not a client-supplied header. Passwords use PBKDF2-SHA512 (100k iterations) stored in Neon — no third-party auth services.",
+    kn: "Khabri AI ಓದಲು-ಮಾತ್ರ ಡೇಟಾಬೇಸ್ ಪಾತ್ರದಲ್ಲಿ ಕೆಲಸ ಮಾಡುತ್ತದೆ — ಯಾವ ಪ್ರಶ್ನೆಯೂ ಮಾಹಿತಿಯನ್ನು ಬದಲಿಸಲು, ಸೇರಿಸಲು ಅಥವಾ ಅಳಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ. ರಚಿಸಲಾದ SQL ಅನ್ನು AST (node-sql-parser) ಆಗಿ ವಿಶ್ಲೇಷಿಸಲಾಗುತ್ತದೆ ಮತ್ತು ಅದು ಒಂದೇ SELECT ಹೇಳಿಕೆಯಾಗಿ ಪರಿಹಾರವಾಗದಿದ್ದರೆ ತಿರಸ್ಕರಿಸಲಾಗುತ್ತದೆ — ರೆಜೆಕ್ಸ್ ಪಟ್ಟಿ ಬಿಡಬಹುದಾದ ಅಂತರಗಳನ್ನು ಇದು ಮುಚ್ಚುತ್ತದೆ. ಸೆಷನ್‌ಗಳು ಸರ್ವರ್‌ನಲ್ಲಿ ಪರಿಶೀಲಿಸಲಾದ HMAC-SHA256-ಸಹಿ ಮಾಡಿದ httpOnly ಕುಕೀಗಳು — ಕ್ಲೈಂಟ್ ಒದಗಿಸಿದ ಹೆಡರ್ ಅಲ್ಲ. ಪಾಸ್‌ವರ್ಡ್‌ಗಳು Neon ನಲ್ಲಿ ಸಂಗ್ರಹಿಸಲಾದ PBKDF2-SHA512 (100k ಸುತ್ತು) ಬಳಸುತ್ತವೆ — ಮೂರನೇ ವ್ಯಕ್ತಿಯ ದೃಢೀಕರಣ ಸೇವೆಗಳಿಲ್ಲ." },
+  "about.footer": { en: "Built for Datathon 2026 · KSP × Hack2Skill Challenge 1 · Karnataka State Police Crime Intelligence",
+                    kn: "Datathon 2026 ಗಾಗಿ ನಿರ್ಮಿಸಲಾಗಿದೆ · KSP × Hack2Skill ಚಾಲೆಂಜ್ 1 · ಕರ್ನಾಟಕ ರಾಜ್ಯ ಪೊಲೀಸ್ ಅಪರಾಧ ಗುಪ್ತಚರ" },
+
+  // ── Case reports table ──────────────────────────────────────────────────
+  "reports.filter":     { en: "Filter by district, crime type, or crime no…",
+                          kn: "ಜಿಲ್ಲೆ, ಅಪರಾಧದ ಬಗೆ ಅಥವಾ ಅಪರಾಧ ಸಂಖ್ಯೆಯಿಂದ ಶೋಧಿಸಿ…" },
+  "reports.count":      { en: "{n} cases", kn: "{n} ಪ್ರಕರಣಗಳು" },
+  "reports.empty":      { en: "No cases found.", kn: "ಯಾವುದೇ ಪ್ರಕರಣ ಸಿಗಲಿಲ್ಲ." },
+  "reports.col.crimeNo":    { en: "Crime No.", kn: "ಅಪರಾಧ ಸಂಖ್ಯೆ" },
+  "reports.col.date":       { en: "Date", kn: "ದಿನಾಂಕ" },
+  "reports.col.crimeGroup": { en: "Crime Group", kn: "ಅಪರಾಧ ಗುಂಪು" },
+  "reports.col.district":   { en: "District", kn: "ಜಿಲ್ಲೆ" },
+  "reports.col.status":     { en: "Status", kn: "ಸ್ಥಿತಿ" },
+  "reports.open":       { en: "OPEN", kn: "ತೆರೆಯಿರಿ" },
+
+  // ── Criminal network ────────────────────────────────────────────────────
+  "network.subtitle":    { en: "Persons linked by shared cases. Crews cluster together; click a node to isolate its associates.",
+                           kn: "ಹಂಚಿಕೊಂಡ ಪ್ರಕರಣಗಳಿಂದ ಜೋಡಿಸಲ್ಪಟ್ಟ ವ್ಯಕ್ತಿಗಳು. ತಂಡಗಳು ಒಟ್ಟಿಗೆ ಗುಂಪಾಗುತ್ತವೆ; ಸಹಚರರನ್ನು ಪ್ರತ್ಯೇಕಿಸಲು ಒಂದು ಬಿಂದುವನ್ನು ಕ್ಲಿಕ್ ಮಾಡಿ." },
+  "network.persons":     { en: "PERSONS", kn: "ವ್ಯಕ್ತಿಗಳು" },
+  "network.links":       { en: "LINKS", kn: "ಕೊಂಡಿಗಳು" },
+  "network.building":    { en: "Building co-offender network…", kn: "ಸಹ-ಅಪರಾಧಿ ಜಾಲವನ್ನು ನಿರ್ಮಿಸಲಾಗುತ್ತಿದೆ…" },
+  "network.loadFailed":  { en: "Failed to load network data", kn: "ಜಾಲದ ಮಾಹಿತಿ ಲೋಡ್ ಆಗಲಿಲ್ಲ" },
+  "network.empty":       { en: "No recurring co-offender links found.", kn: "ಪುನರಾವರ್ತಿತ ಸಹ-ಅಪರಾಧಿ ಕೊಂಡಿಗಳು ಕಂಡುಬಂದಿಲ್ಲ." },
+  "network.pickNode":    { en: "Click a person node to see who they're connected to and why.",
+                           kn: "ಯಾರೊಂದಿಗೆ ಮತ್ತು ಏಕೆ ಸಂಬಂಧವಿದೆ ಎಂದು ನೋಡಲು ವ್ಯಕ್ತಿಯ ಬಿಂದುವನ್ನು ಕ್ಲಿಕ್ ಮಾಡಿ." },
+  "network.person":      { en: "Person", kn: "ವ್ಯಕ್ತಿ" },
+  "network.connections": { en: "Connections", kn: "ಸಂಪರ್ಕಗಳು" },
+  "network.caseHistory": { en: "Case History", kn: "ಪ್ರಕರಣ ಇತಿಹಾಸ" },
+  "network.loadingCases":{ en: "Loading cases…", kn: "ಪ್ರಕರಣಗಳನ್ನು ಲೋಡ್ ಮಾಡಲಾಗುತ್ತಿದೆ…" },
+  "network.legend.person": { en: "Person · size = case count", kn: "ವ್ಯಕ್ತಿ · ಗಾತ್ರ = ಪ್ರಕರಣಗಳ ಸಂಖ್ಯೆ" },
+  "network.legend.shared": { en: "Shared cases · thicker = more", kn: "ಹಂಚಿಕೊಂಡ ಪ್ರಕರಣಗಳು · ದಪ್ಪ = ಹೆಚ್ಚು" },
+  "network.legend.kingpin":{ en: "Kingpin · 3+ associates", kn: "ಪ್ರಮುಖ ಸೂತ್ರಧಾರ · 3+ ಸಹಚರರು" },
+  "network.hint":        { en: "Click a node to isolate · Drag to pan",
+                           kn: "ಪ್ರತ್ಯೇಕಿಸಲು ಕ್ಲಿಕ್ ಮಾಡಿ · ಸರಿಸಲು ಎಳೆಯಿರಿ" },
+
+  // ── Socio-demographic profiling ─────────────────────────────────────────
+  "profiling.subtitle":   { en: "Who offends, who is victimised, who reports — and the typical offender behind each crime type.",
+                            kn: "ಯಾರು ಅಪರಾಧ ಮಾಡುತ್ತಾರೆ, ಯಾರು ಸಂತ್ರಸ್ತರಾಗುತ್ತಾರೆ, ಯಾರು ದೂರು ನೀಡುತ್ತಾರೆ — ಮತ್ತು ಪ್ರತಿ ಅಪರಾಧದ ಹಿಂದಿನ ವಿಶಿಷ್ಟ ಅಪರಾಧಿ." },
+  "profiling.loading":    { en: "Loading profiling…", kn: "ವಿಶ್ಲೇಷಣೆ ಲೋಡ್ ಆಗುತ್ತಿದೆ…" },
+  "profiling.loadFailed": { en: "Failed to load profiling data", kn: "ವಿಶ್ಲೇಷಣೆಯ ಮಾಹಿತಿ ಲೋಡ್ ಆಗಲಿಲ್ಲ" },
+  "profiling.accusedAge":     { en: "Accused · age distribution", kn: "ಆರೋಪಿಗಳು · ವಯಸ್ಸಿನ ಹಂಚಿಕೆ" },
+  "profiling.accusedGender":  { en: "Accused · gender", kn: "ಆರೋಪಿಗಳು · ಲಿಂಗ" },
+  "profiling.victimGender":   { en: "Victims · gender", kn: "ಸಂತ್ರಸ್ತರು · ಲಿಂಗ" },
+  "profiling.occupation":     { en: "Complainants · occupation", kn: "ದೂರುದಾರರು · ವೃತ್ತಿ" },
+  "profiling.religion":       { en: "Complainants · religion", kn: "ದೂರುದಾರರು · ಧರ್ಮ" },
+  "profiling.caste":          { en: "Complainants · caste", kn: "ದೂರುದಾರರು · ಜಾತಿ" },
+  "profiling.behavioural":    { en: "Behavioural profile · typical offender by crime type",
+                                kn: "ವರ್ತನೆಯ ಚಿತ್ರಣ · ಅಪರಾಧದ ಬಗೆಯಂತೆ ವಿಶಿಷ್ಟ ಅಪರಾಧಿ" },
+  "profiling.col.crimeGroup": { en: "Crime group", kn: "ಅಪರಾಧ ಗುಂಪು" },
+  "profiling.col.avgAge":     { en: "Avg age", kn: "ಸರಾಸರಿ ವಯಸ್ಸು" },
+  "profiling.col.malePct":    { en: "% male", kn: "% ಪುರುಷ" },
+  "profiling.col.repeatPct":  { en: "% repeat offender", kn: "% ಪುನರಾವರ್ತಿತ ಅಪರಾಧಿ" },
+  "identity.placeholder":     { en: "Accused record id, or a PersonID", kn: "ಆರೋಪಿ ದಾಖಲೆ ಸಂಖ್ಯೆ, ಅಥವಾ PersonID" },
+  "identity.match":           { en: "MATCH", kn: "ಹೊಂದಿಸಿ" },
+  "identity.failed":          { en: "Failed to resolve identity", kn: "ಗುರುತು ಪತ್ತೆ ಮಾಡಲಾಗಲಿಲ್ಲ" },
+  "identity.checked":         { en: "{n} record(s) checked", kn: "{n} ದಾಖಲೆ(ಗಳು) ಪರಿಶೀಲಿಸಲಾಗಿದೆ" },
+  "chart.cases":              { en: "Cases", kn: "ಪ್ರಕರಣಗಳು" },
+  "chart.count":              { en: "Count", kn: "ಸಂಖ್ಯೆ" },
+
+  // ── Case pipeline ───────────────────────────────────────────────────────
+  "pipeline.allDistricts":   { en: "All districts", kn: "ಎಲ್ಲಾ ಜಿಲ್ಲೆಗಳು" },
+  "pipeline.allCrimeGroups": { en: "All crime groups", kn: "ಎಲ್ಲಾ ಅಪರಾಧ ಗುಂಪುಗಳು" },
+  "pipeline.byDistrict":     { en: "By district", kn: "ಜಿಲ್ಲೆಯಂತೆ" },
+  "pipeline.byCrimeGroup":   { en: "By crime group", kn: "ಅಪರಾಧ ಗುಂಪಿನಂತೆ" },
+  // ── Case file drawer ────────────────────────────────────────────────────
+  "case.loading":       { en: "Retrieving case file…", kn: "ಪ್ರಕರಣ ಕಡತವನ್ನು ತರಲಾಗುತ್ತಿದೆ…" },
+  "case.notFound":      { en: "Case not found", kn: "ಪ್ರಕರಣ ಸಿಗಲಿಲ್ಲ" },
+  "case.section.info":  { en: "Case Information", kn: "ಪ್ರಕರಣದ ಮಾಹಿತಿ" },
+  "case.section.brief": { en: "Brief Facts", kn: "ಸಂಕ್ಷಿಪ್ತ ವಿವರ" },
+  "case.section.chargesheet": { en: "Chargesheet", kn: "ಆರೋಪಪಟ್ಟಿ" },
+  "case.registered":    { en: "Registered", kn: "ದಾಖಲಾದ ದಿನಾಂಕ" },
+  "case.station":       { en: "Station", kn: "ಠಾಣೆ" },
+  "case.district":      { en: "District", kn: "ಜಿಲ್ಲೆ" },
+  "case.crimeGroup":    { en: "Crime Group", kn: "ಅಪರಾಧ ಗುಂಪು" },
+  "case.crimeType":     { en: "Crime Type", kn: "ಅಪರಾಧದ ಬಗೆ" },
+  "case.category":      { en: "Category", kn: "ವರ್ಗ" },
+  "case.gravity":       { en: "Gravity", kn: "ಗಂಭೀರತೆ" },
+  "case.officer":       { en: "Officer", kn: "ಅಧಿಕಾರಿ" },
+  "case.caseNo":        { en: "Case No.", kn: "ಪ್ರಕರಣ ಸಂಖ್ಯೆ" },
+  "case.crimeNo":       { en: "Crime No.", kn: "ಅಪರಾಧ ಸಂಖ್ಯೆ" },
+  "case.status":        { en: "Status", kn: "ಸ್ಥಿತಿ" },
+  "case.court":         { en: "Court", kn: "ನ್ಯಾಯಾಲಯ" },
+  "case.type":          { en: "Type", kn: "ಬಗೆ" },
+  "case.filedOn":       { en: "Filed On", kn: "ಸಲ್ಲಿಸಿದ ದಿನಾಂಕ" },
+  "case.filedBy":       { en: "Filed By", kn: "ಸಲ್ಲಿಸಿದವರು" },
+  "case.offence":       { en: "Offence", kn: "ಅಪರಾಧ" },
+  "case.sections":      { en: "Sections", kn: "ಕಲಂಗಳು" },
+  "case.complainant":   { en: "Complainant", kn: "ದೂರುದಾರ" },
+  "case.victims":       { en: "Victims", kn: "ಸಂತ್ರಸ್ತರು" },
+  "case.accused":       { en: "Accused", kn: "ಆರೋಪಿಗಳು" },
+  "case.arrest":        { en: "Arrest", kn: "ಬಂಧನ" },
+  "case.noAction":      { en: "No arrest and no chargesheet on the record.",
+                          kn: "ದಾಖಲೆಯಲ್ಲಿ ಬಂಧನವೂ ಇಲ್ಲ, ಆರೋಪಪಟ್ಟಿಯೂ ಇಲ್ಲ." },
+  "case.noLinked":      { en: "No linked case found.", kn: "ಸಂಬಂಧಿತ ಪ್ರಕರಣ ಸಿಗಲಿಲ್ಲ." },
+  "case.briefFailed":   { en: "Failed to assemble the brief", kn: "ಟಿಪ್ಪಣಿ ಸಿದ್ಧಪಡಿಸಲಾಗಲಿಲ್ಲ" },
+  "case.linked.method": { en: "Same method", kn: "ಒಂದೇ ವಿಧಾನ" },
+  "case.linked.crew":   { en: "Crew — other files", kn: "ತಂಡ — ಇತರ ಕಡತಗಳು" },
+  "case.linked.dup":    { en: "Possible duplicate FIR", kn: "ಸಂಭಾವ್ಯ ನಕಲಿ ಎಫ್‌ಐಆರ್" },
+  "case.print.method":  { en: "Linked — same method", kn: "ಸಂಬಂಧ — ಒಂದೇ ವಿಧಾನ" },
+  "case.print.dup":     { en: "Linked — possible duplicate FIR", kn: "ಸಂಬಂಧ — ಸಂಭಾವ್ಯ ನಕಲಿ ಎಫ್‌ಐಆರ್" },
+
+  "case.print.crew":    { en: "Linked — crew's other files", kn: "ಸಂಬಂಧ — ತಂಡದ ಇತರ ಕಡತಗಳು" },
+  "case.print.header":  { en: "KSP Intelligence — Handover Brief", kn: "KSP ಗುಪ್ತಚರ — ಹಸ್ತಾಂತರ ಟಿಪ್ಪಣಿ" },
+  "case.print.assembled": { en: "Assembled {when}.", kn: "{when} ರಂದು ಸಿದ್ಧಪಡಿಸಲಾಗಿದೆ." },
+  "case.print.arrest":  { en: "Arrest", kn: "ಬಂಧನ" },
+  "case.print.overdue": { en: "{n} days overdue", kn: "{n} ದಿನ ವಿಳಂಬ" },
+  "case.print.left":    { en: "{n} days left", kn: "{n} ದಿನ ಬಾಕಿ" },
+  "case.print.limit":   { en: "({n}-day limit, basis: {basis})", kn: "({n}-ದಿನಗಳ ಮಿತಿ, ಆಧಾರ: {basis})" },
+
+  // ── Command centre ──────────────────────────────────────────────────────
+  // ── Crew dossier (print) ────────────────────────────────────────────────
+  // Only the columns the print table adds; the on-screen dossier's labels are
+  // already keyed above and are reused rather than duplicated.
+  "crew.print.summary":       { en: "Summary", kn: "ಸಾರಾಂಶ" },
+  "crew.col.date":            { en: "Date", kn: "ದಿನಾಂಕ" },
+  "crew.col.crimeType":       { en: "Crime type", kn: "ಅಪರಾಧದ ಬಗೆ" },
+  "crew.col.districtStation": { en: "District / station", kn: "ಜಿಲ್ಲೆ / ಠಾಣೆ" },
+  "crew.col.linkedBy":        { en: "Linked by", kn: "ಕೊಂಡಿಯ ಆಧಾರ" },
+  "crew.link.narrative":      { en: "Closest narrative", kn: "ಅತಿ ಹತ್ತಿರದ ವಿವರಣೆ" },
+
+  // ── Chat suggestions ────────────────────────────────────────────────────
+  // The agent answers in either language, so the starter questions are offered
+  // in the officer's.
+  "suggest.1": { en: "Which district had the most FIRs last month?", kn: "ಕಳೆದ ತಿಂಗಳು ಯಾವ ಜಿಲ್ಲೆಯಲ್ಲಿ ಅತಿ ಹೆಚ್ಚು ಎಫ್‌ಐಆರ್ ದಾಖಲಾಗಿವೆ?" },
+  "suggest.2": { en: "List top 5 repeat accused by number of cases", kn: "ಪ್ರಕರಣಗಳ ಸಂಖ್ಯೆಯಂತೆ ಅಗ್ರ 5 ಪುನರಾವರ್ತಿತ ಆರೋಪಿಗಳನ್ನು ಪಟ್ಟಿ ಮಾಡಿ" },
+  "suggest.3": { en: "How many cases are still under investigation?", kn: "ಎಷ್ಟು ಪ್ರಕರಣಗಳು ಇನ್ನೂ ತನಿಖೆಯಲ್ಲಿವೆ?" },
+  "suggest.4": { en: "Which crime head has the highest chargesheet rate?", kn: "ಯಾವ ಅಪರಾಧ ಶೀರ್ಷಿಕೆಯಲ್ಲಿ ಆರೋಪಪಟ್ಟಿ ಪ್ರಮಾಣ ಅತಿ ಹೆಚ್ಚು?" },
+  "suggest.5": { en: "Show districts with rising crime this quarter", kn: "ಈ ತ್ರೈಮಾಸಿಕದಲ್ಲಿ ಅಪರಾಧ ಏರುತ್ತಿರುವ ಜಿಲ್ಲೆಗಳನ್ನು ತೋರಿಸಿ" },
+  "suggest.6": { en: "List accused with cases in more than one district", kn: "ಒಂದಕ್ಕಿಂತ ಹೆಚ್ಚು ಜಿಲ್ಲೆಗಳಲ್ಲಿ ಪ್ರಕರಣವಿರುವ ಆರೋಪಿಗಳನ್ನು ಪಟ್ಟಿ ಮಾಡಿ" },
+  "suggest.7": { en: "What's the average time to chargesheet by district?", kn: "ಜಿಲ್ಲೆಯಂತೆ ಆರೋಪಪಟ್ಟಿಗೆ ತಗಲುವ ಸರಾಸರಿ ಸಮಯ ಎಷ್ಟು?" },
+  "suggest.8": { en: "Show victim demographics for cases filed this year", kn: "ಈ ವರ್ಷ ದಾಖಲಾದ ಪ್ರಕರಣಗಳ ಸಂತ್ರಸ್ತರ ಜನಸಂಖ್ಯಾ ವಿವರ ತೋರಿಸಿ" },
+  "chat.noBody":     { en: "No response body", kn: "ಪ್ರತಿಕ್ರಿಯೆ ಬರಲಿಲ್ಲ" },
+  "chat.stopVoice":  { en: "Stop listening", kn: "ಆಲಿಸುವುದನ್ನು ನಿಲ್ಲಿಸಿ" },
+  "chat.startVoice": { en: "Speak your query", kn: "ನಿಮ್ಮ ಪ್ರಶ್ನೆಯನ್ನು ಹೇಳಿ" },
+  "chat.readAloud":  { en: "Read aloud", kn: "ಗಟ್ಟಿಯಾಗಿ ಓದಿ" },
+  "patterns.monthOfYear": { en: "Month of year", kn: "ವರ್ಷದ ತಿಂಗಳು" },
+  "fir.searchSections":   { en: "Search sections by act, number or description",
+                            kn: "ಕಾಯ್ದೆ, ಸಂಖ್ಯೆ ಅಥವಾ ವಿವರಣೆಯಿಂದ ಕಲಂಗಳನ್ನು ಹುಡುಕಿ" },
+  "chat.networkError": { en: "Network error", kn: "ಜಾಲ ದೋಷ" },
+
+  "desk.openCases":        { en: "Open cases", kn: "ತೆರೆದ ಪ್ರಕರಣಗಳು" },
+  "command.cases":         { en: "{n} cases", kn: "{n} ಪ್ರಕರಣಗಳು" },
+  "command.in24h":         { en: "{n} in 24h", kn: "24 ಗಂಟೆಗಳಲ್ಲಿ {n}" },
+  "command.checksFailing": { en: "{n} checks failing", kn: "{n} ಪರಿಶೀಲನೆಗಳು ವಿಫಲ" },
+  "command.dataQuality":   { en: "Data quality", kn: "ಮಾಹಿತಿ ಗುಣಮಟ್ಟ" },
+  "command.people":        { en: "people · {pct}% of cases", kn: "ಜನರು · ಪ್ರಕರಣಗಳ {pct}%" },
+  "command.flat":          { en: "No window stands out — the spread is within ordinary variation (p={p}).",
+                             kn: "ಯಾವುದೇ ಅವಧಿ ಎದ್ದು ಕಾಣುವುದಿಲ್ಲ — ಹಂಚಿಕೆ ಸಾಮಾನ್ಯ ವ್ಯತ್ಯಾಸದ ಮಿತಿಯಲ್ಲಿದೆ (p={p})." },
+  "command.onBaseline":    { en: "+{pct}% on baseline · p<0.05", kn: "ಆಧಾರರೇಖೆಯ ಮೇಲೆ +{pct}% · p<0.05" },
+
+  // ── When crime happens ──────────────────────────────────────────────────
+  // The axis word ("hour", "day of week") is substituted, so each language
+  // controls where it sits in the sentence.
+  "patterns.axis.hour": { en: "hour", kn: "ಗಂಟೆ" },
+  "patterns.axis.week": { en: "week", kn: "ವಾರ" },
+  "patterns.axis.year": { en: "year", kn: "ವರ್ಷ" },
+  "patterns.peakLift":     { en: "{observed} cases against {expected} expected — {sign}{pct}% on the {axis} baseline",
+                             kn: "{expected} ನಿರೀಕ್ಷಿತಕ್ಕೆ ಎದುರಾಗಿ {observed} ಪ್ರಕರಣಗಳು — {axis} ಆಧಾರರೇಖೆಯ ಮೇಲೆ {sign}{pct}%" },
+  "patterns.insufficient": { en: "Too few cases in this selection to test — no window is claimed.",
+                             kn: "ಪರೀಕ್ಷಿಸಲು ಈ ಆಯ್ಕೆಯಲ್ಲಿ ತೀರಾ ಕಡಿಮೆ ಪ್ರಕರಣಗಳಿವೆ — ಯಾವುದೇ ಅವಧಿಯನ್ನು ಹೇಳಲಾಗಿಲ್ಲ." },
+  "patterns.flat":         { en: "No window stands out: the spread across the {axis} is within what ordinary variation produces (χ²={chi2}, df={df}, p={p}). The tallest bar is not a pattern.",
+                             kn: "ಯಾವುದೇ ಅವಧಿ ಎದ್ದು ಕಾಣುವುದಿಲ್ಲ: {axis} ವ್ಯಾಪ್ತಿಯ ಹಂಚಿಕೆ ಸಾಮಾನ್ಯ ವ್ಯತ್ಯಾಸದ ಮಿತಿಯಲ್ಲಿದೆ (χ²={chi2}, df={df}, p={p}). ಅತಿ ಎತ್ತರದ ಬಾರ್ ಒಂದು ಮಾದರಿಯಲ್ಲ." },
+  "patterns.cases":        { en: "{n} cases", kn: "{n} ಪ್ರಕರಣಗಳು" },
+  "patterns.cellTitle":    { en: "{weekday} {hour} — {n} cases", kn: "{weekday} {hour} — {n} ಪ್ರಕರಣಗಳು" },
+  "patterns.loadFailed":   { en: "Could not load patterns.", kn: "ಮಾದರಿಗಳನ್ನು ಲೋಡ್ ಮಾಡಲಾಗಲಿಲ್ಲ." },
+  "patterns.heatNote":     { en: "Darker is busier. Both axes are read off the same instant, so one cell is one claim.",
+                             kn: "ಗಾಢವಾದಷ್ಟೂ ಹೆಚ್ಚು ಕಾರ್ಯಬಾಹುಳ್ಯ. ಎರಡೂ ಅಕ್ಷಗಳನ್ನು ಒಂದೇ ಕ್ಷಣದಿಂದ ಓದಲಾಗುತ್ತದೆ, ಆದ್ದರಿಂದ ಒಂದು ಕೋಶ ಒಂದು ಹೇಳಿಕೆ." },
+  "patterns.noHour":       { en: "Hour of day is unavailable in this corpus. CrimeRegisteredDate is a DATE column — it stores no time — and every value in {source}, the one timestamp column that could carry a clock, falls at midnight. An hour chart drawn on that would be a single bar dressed up as a finding, so it is withheld. Day of week and month below are unaffected.",
+                             kn: "ಈ ಸಂಗ್ರಹದಲ್ಲಿ ದಿನದ ಗಂಟೆ ಲಭ್ಯವಿಲ್ಲ. CrimeRegisteredDate ಎಂಬುದು DATE ಕಾಲಂ — ಅದು ಸಮಯವನ್ನು ಸಂಗ್ರಹಿಸುವುದಿಲ್ಲ — ಮತ್ತು ಗಡಿಯಾರವನ್ನು ಹೊಂದಬಹುದಾದ ಏಕೈಕ ಕಾಲಂ {source} ನಲ್ಲಿನ ಪ್ರತಿ ಮೌಲ್ಯವೂ ಮಧ್ಯರಾತ್ರಿಗೆ ಬರುತ್ತದೆ. ಅದರ ಮೇಲೆ ಚಿತ್ರಿಸಿದ ಗಂಟೆಯ ನಕ್ಷೆ ಒಂದೇ ಬಾರ್ ಅನ್ನು ಶೋಧನೆಯಂತೆ ತೋರಿಸುತ್ತದೆ, ಆದ್ದರಿಂದ ಅದನ್ನು ತಡೆಹಿಡಿಯಲಾಗಿದೆ. ಕೆಳಗಿನ ವಾರದ ದಿನ ಮತ್ತು ತಿಂಗಳು ಇದರಿಂದ ಪ್ರಭಾವಿತವಾಗಿಲ್ಲ." },
+
+  // ── Repeat victims ──────────────────────────────────────────────────────
+  "victims.ofVictims":     { en: "{n} of {total} victims", kn: "{total} ಸಂತ್ರಸ್ತರಲ್ಲಿ {n}" },
+  "victims.repeatCaption": { en: "victimised more than once", kn: "ಒಂದಕ್ಕಿಂತ ಹೆಚ್ಚು ಬಾರಿ ಸಂತ್ರಸ್ತರಾದವರು" },
+  "victims.ofCases":       { en: "{n} of {total} cases", kn: "{total} ಪ್ರಕರಣಗಳಲ್ಲಿ {n}" },
+  "victims.absorbCaption": { en: "of the crime they absorb", kn: "ಅವರು ಅನುಭವಿಸುವ ಅಪರಾಧದ ಪಾಲು" },
+  "victims.againstOne":    { en: "cases against one person", kn: "ಒಬ್ಬ ವ್ಯಕ್ತಿಯ ವಿರುದ್ಧದ ಪ್ರಕರಣಗಳು" },
+  "victims.mostCaption":   { en: "the most victimised individual here", kn: "ಇಲ್ಲಿ ಅತಿ ಹೆಚ್ಚು ಸಂತ್ರಸ್ತರಾದ ವ್ಯಕ್ತಿ" },
+  "victims.minCases":      { en: "Min cases", kn: "ಕನಿಷ್ಠ ಪ್ರಕರಣಗಳು" },
+  "victims.years":         { en: "{n} yrs", kn: "{n} ವರ್ಷ" },
+  "victims.days":          { en: "{n} days", kn: "{n} ದಿನಗಳು" },
+  "victims.cappedCommon":  { en: "Confidence held down — this name is common in the register",
+                             kn: "ವಿಶ್ವಾಸವನ್ನು ಕಡಿಮೆ ಇರಿಸಲಾಗಿದೆ — ಈ ಹೆಸರು ದಾಖಲೆಯಲ್ಲಿ ಸಾಮಾನ್ಯವಾಗಿದೆ" },
+  "victims.cappedMononym": { en: "Confidence held down — a single given name is not an identity",
+                             kn: "ವಿಶ್ವಾಸವನ್ನು ಕಡಿಮೆ ಇರಿಸಲಾಗಿದೆ — ಕೇವಲ ಒಂದು ಹೆಸರು ಗುರುತಲ್ಲ" },
+
+  "pipeline.longest":        { en: "Longest at the slowest step", kn: "ಅತ್ಯಂತ ನಿಧಾನ ಹಂತದಲ್ಲಿ ಅತಿ ಹೆಚ್ಚು ಕಾಲ" },
+  "pipeline.negativeHint":   { en: "Milestone dated before the one it follows — excluded from the median rather than clamped to zero.",
+                               kn: "ಹಿಂದಿನ ಹಂತಕ್ಕಿಂತ ಮೊದಲಿನ ದಿನಾಂಕವಿರುವ ಮೈಲಿಗಲ್ಲು — ಶೂನ್ಯಕ್ಕೆ ಇಳಿಸುವ ಬದಲು ಸರಾಸರಿಯಿಂದ ಹೊರಗಿಡಲಾಗಿದೆ." },
+  // Server-side methodology notes, rendered here so the numbers in them can be
+  // placed where each language wants them (see lib/pipeline.ts).
+  "pipeline.note.court": {
+    en: "Not measurable from this schema. CaseMaster.CourtID is the court with jurisdiction, set on every case including False Case ones, and Court carries no date column — there is no committal, hearing or disposal date to measure against. Shown so the missing step is visible rather than silently dropped.",
+    kn: "ಈ ರಚನೆಯಿಂದ ಅಳೆಯಲಾಗದು. CaseMaster.CourtID ಎಂಬುದು ವ್ಯಾಪ್ತಿ ಹೊಂದಿರುವ ನ್ಯಾಯಾಲಯ, ಸುಳ್ಳು ಪ್ರಕರಣ ಸೇರಿದಂತೆ ಪ್ರತಿ ಪ್ರಕರಣಕ್ಕೂ ಇದನ್ನು ನಿಗದಿಪಡಿಸಲಾಗಿದೆ, ಮತ್ತು Court ನಲ್ಲಿ ದಿನಾಂಕದ ಕಾಲಂ ಇಲ್ಲ — ಅಳೆಯಲು ಯಾವುದೇ ಒಪ್ಪಿಸುವಿಕೆ, ವಿಚಾರಣೆ ಅಥವಾ ಇತ್ಯರ್ಥದ ದಿನಾಂಕವಿಲ್ಲ. ಕಾಣೆಯಾದ ಹಂತವು ಮೌನವಾಗಿ ಬಿಟ್ಟುಹೋಗದೆ ಕಾಣುವಂತೆ ಇದನ್ನು ತೋರಿಸಲಾಗಿದೆ." },
+  // Two keys purely for the English singular ("1 duration was excluded");
+  // Kannada uses the same clause for both counts.
+  "pipeline.methodOne": {
+    en: "FIRs registered in the last {windowMonths} months. Arrest = earliest ArrestSurrenderDate on the case; chargesheet = earliest ChargesheetDetails.csdate. Durations are medians and p90s, never means. 1 duration was excluded as negative (a milestone dated before the one it follows). Drop-off counts cases that have not reached the stage YET as well as those that never will — a case registered last week is not a failure, and the schema carries no expected-completion date to separate them. The court stage is named but not measured: CaseMaster.CourtID is a jurisdiction set on every case and Court has no date column.",
+    kn: "ಕಳೆದ {windowMonths} ತಿಂಗಳಲ್ಲಿ ದಾಖಲಾದ ಎಫ್‌ಐಆರ್‌ಗಳು. ಬಂಧನ = ಪ್ರಕರಣದ ಮೊದಲ ArrestSurrenderDate; ಆರೋಪಪಟ್ಟಿ = ಮೊದಲ ChargesheetDetails.csdate. ಅವಧಿಗಳು ಮಧ್ಯಕ ಮತ್ತು p90, ಎಂದಿಗೂ ಸರಾಸರಿ ಅಲ್ಲ. 1 ಅವಧಿಯನ್ನು ಋಣಾತ್ಮಕವೆಂದು ಹೊರಗಿಡಲಾಗಿದೆ (ಹಿಂದಿನ ಹಂತಕ್ಕಿಂತ ಮೊದಲಿನ ದಿನಾಂಕವಿರುವ ಮೈಲಿಗಲ್ಲು). ಇಳಿಕೆಯ ಎಣಿಕೆಯಲ್ಲಿ ಇನ್ನೂ ಆ ಹಂತ ತಲುಪದ ಪ್ರಕರಣಗಳೂ, ಎಂದಿಗೂ ತಲುಪದವೂ ಸೇರಿವೆ — ಕಳೆದ ವಾರ ದಾಖಲಾದ ಪ್ರಕರಣ ವೈಫಲ್ಯವಲ್ಲ, ಮತ್ತು ಅವನ್ನು ಬೇರ್ಪಡಿಸಲು ರಚನೆಯಲ್ಲಿ ನಿರೀಕ್ಷಿತ ಪೂರ್ಣಗೊಳಿಸುವ ದಿನಾಂಕವಿಲ್ಲ. ನ್ಯಾಯಾಲಯದ ಹಂತವನ್ನು ಹೆಸರಿಸಲಾಗಿದೆ ಆದರೆ ಅಳೆಯಲಾಗಿಲ್ಲ: CaseMaster.CourtID ಪ್ರತಿ ಪ್ರಕರಣಕ್ಕೂ ನಿಗದಿಪಡಿಸಿದ ವ್ಯಾಪ್ತಿ ಮತ್ತು Court ನಲ್ಲಿ ದಿನಾಂಕದ ಕಾಲಂ ಇಲ್ಲ." },
+  "pipeline.method": {
+    en: "FIRs registered in the last {windowMonths} months. Arrest = earliest ArrestSurrenderDate on the case; chargesheet = earliest ChargesheetDetails.csdate. Durations are medians and p90s, never means. {negatives} durations were excluded as negative (a milestone dated before the one it follows). Drop-off counts cases that have not reached the stage YET as well as those that never will — a case registered last week is not a failure, and the schema carries no expected-completion date to separate them. The court stage is named but not measured: CaseMaster.CourtID is a jurisdiction set on every case and Court has no date column.",
+    kn: "ಕಳೆದ {windowMonths} ತಿಂಗಳಲ್ಲಿ ದಾಖಲಾದ ಎಫ್‌ಐಆರ್‌ಗಳು. ಬಂಧನ = ಪ್ರಕರಣದ ಮೊದಲ ArrestSurrenderDate; ಆರೋಪಪಟ್ಟಿ = ಮೊದಲ ChargesheetDetails.csdate. ಅವಧಿಗಳು ಮಧ್ಯಕ ಮತ್ತು p90, ಎಂದಿಗೂ ಸರಾಸರಿ ಅಲ್ಲ. {negatives} ಅವಧಿಗಳನ್ನು ಋಣಾತ್ಮಕವೆಂದು ಹೊರಗಿಡಲಾಗಿದೆ (ಹಿಂದಿನ ಹಂತಕ್ಕಿಂತ ಮೊದಲಿನ ದಿನಾಂಕವಿರುವ ಮೈಲಿಗಲ್ಲು). ಇಳಿಕೆಯ ಎಣಿಕೆಯಲ್ಲಿ ಇನ್ನೂ ಆ ಹಂತ ತಲುಪದ ಪ್ರಕರಣಗಳೂ, ಎಂದಿಗೂ ತಲುಪದವೂ ಸೇರಿವೆ — ಕಳೆದ ವಾರ ದಾಖಲಾದ ಪ್ರಕರಣ ವೈಫಲ್ಯವಲ್ಲ, ಮತ್ತು ಅವನ್ನು ಬೇರ್ಪಡಿಸಲು ರಚನೆಯಲ್ಲಿ ನಿರೀಕ್ಷಿತ ಪೂರ್ಣಗೊಳಿಸುವ ದಿನಾಂಕವಿಲ್ಲ. ನ್ಯಾಯಾಲಯದ ಹಂತವನ್ನು ಹೆಸರಿಸಲಾಗಿದೆ ಆದರೆ ಅಳೆಯಲಾಗಿಲ್ಲ: CaseMaster.CourtID ಪ್ರತಿ ಪ್ರಕರಣಕ್ಕೂ ನಿಗದಿಪಡಿಸಿದ ವ್ಯಾಪ್ತಿ ಮತ್ತು Court ನಲ್ಲಿ ದಿನಾಂಕದ ಕಾಲಂ ಇಲ್ಲ." },
 } as const;
 
 export type StringKey = keyof typeof STRINGS;
 
 export function t(key: StringKey, lang: Lang): string {
   return STRINGS[key][lang] ?? STRINGS[key].en;
+}
+
+/**
+ * Renders a string that may or may not be a translation key. Used where one
+ * list mixes prose with things that must never be translated — "Bounded agent
+ * loop (max 4 iterations)" has a key; "App Router · Turbopack · SSR + RSC" is
+ * four product names and is written literally.
+ */
+export function tk(s: string, lang: Lang): string {
+  return s in STRINGS ? t(s as StringKey, lang) : s;
+}
+
+export type Params = Record<string, string | number | null | undefined>;
+
+/**
+ * `t` with `{placeholder}` substitution, for strings whose numbers and names
+ * are only known at runtime. Kannada puts them in a different order than
+ * English, which is the whole reason the detectors store parameters and let
+ * this build the sentence rather than concatenating one server-side.
+ *
+ * An unknown placeholder is left as written — a visible `{foo}` is a bug
+ * report, where an empty string would read as a finished sentence.
+ */
+export function tf(key: StringKey, lang: Lang, params: Params): string {
+  return t(key, lang).replace(/\{(\w+)\}/g, (whole, name: string) => {
+    const v = params[name];
+    return v === null || v === undefined ? whole : String(v);
+  });
+}
+
+// ── Data values ─────────────────────────────────────────────────────────────
+// The reference tables are English-only in the KSP schema, so the labels are
+// mapped here rather than joined. Every set is closed and small; these are the
+// complete contents of CrimeHead.CrimeGroupName, CaseStatusMaster,
+// District, OccupationMaster and ReligionMaster as of 2026-08-29.
+
+export const CRIME_GROUP_KN: Record<string, string> = {
+  "Crimes Against Body": "ದೇಹದ ವಿರುದ್ಧದ ಅಪರಾಧಗಳು",
+  "Crimes Against Property": "ಆಸ್ತಿ ವಿರುದ್ಧದ ಅಪರಾಧಗಳು",
+  "Crimes Against Women": "ಮಹಿಳೆಯರ ವಿರುದ್ಧದ ಅಪರಾಧಗಳು",
+  "Cybercrimes": "ಸೈಬರ್ ಅಪರಾಧಗಳು",
+  "Economic Offences": "ಆರ್ಥಿಕ ಅಪರಾಧಗಳು",
+  "Narcotics": "ಮಾದಕ ವಸ್ತು ಅಪರಾಧಗಳು",
+  "Other IPC Crimes": "ಇತರ ಐಪಿಸಿ ಅಪರಾಧಗಳು",
+  "Road Accidents": "ರಸ್ತೆ ಅಪಘಾತಗಳು",
+};
+
+export const STATUS_KN: Record<string, string> = {
+  "Under Investigation": "ತನಿಖೆಯಲ್ಲಿದೆ",
+  "Charge Sheeted": "ಆರೋಪಪಟ್ಟಿ ಸಲ್ಲಿಸಲಾಗಿದೆ",
+  "Closed": "ಮುಕ್ತಾಯಗೊಂಡಿದೆ",
+  "False Case": "ಸುಳ್ಳು ಪ್ರಕರಣ",
+  // ChargesheetDetails.cstype labels (lib/caseStatus.ts CSTYPE)
+  "Chargesheet Filed": "ಆರೋಪಪಟ್ಟಿ ಸಲ್ಲಿಸಲಾಗಿದೆ",
+  "Undetected": "ಪತ್ತೆಯಾಗಿಲ್ಲ",
+};
+
+export const DISTRICT_KN: Record<string, string> = {
+  "Bagalkote": "ಬಾಗಲಕೋಟೆ",
+  "Ballari": "ಬಳ್ಳಾರಿ",
+  "Belagavi": "ಬೆಳಗಾವಿ",
+  "Bengaluru Rural": "ಬೆಂಗಳೂರು ಗ್ರಾಮಾಂತರ",
+  "Bengaluru Urban": "ಬೆಂಗಳೂರು ನಗರ",
+  "Bidar": "ಬೀದರ್",
+  "Chamarajanagara": "ಚಾಮರಾಜನಗರ",
+  "Chikkaballapura": "ಚಿಕ್ಕಬಳ್ಳಾಪುರ",
+  "Chikkamagaluru": "ಚಿಕ್ಕಮಗಳೂರು",
+  "Dakshina Kannada": "ದಕ್ಷಿಣ ಕನ್ನಡ",
+  "Davangere": "ದಾವಣಗೆರೆ",
+  "Dharwad": "ಧಾರವಾಡ",
+  "Gadag": "ಗದಗ",
+  "Hassan": "ಹಾಸನ",
+  "Haveri": "ಹಾವೇರಿ",
+  "Kalaburagi": "ಕಲಬುರಗಿ",
+  "Kodagu": "ಕೊಡಗು",
+  "Kolar": "ಕೋಲಾರ",
+  "Koppal": "ಕೊಪ್ಪಳ",
+  "Mandya": "ಮಂಡ್ಯ",
+  "Mysuru": "ಮೈಸೂರು",
+  "Raichur": "ರಾಯಚೂರು",
+  "Ramanagara": "ರಾಮನಗರ",
+  "Shivamogga": "ಶಿವಮೊಗ್ಗ",
+  "Tumakuru": "ತುಮಕೂರು",
+  "Udupi": "ಉಡುಪಿ",
+  "Uttara Kannada": "ಉತ್ತರ ಕನ್ನಡ",
+  "Vijayanagara": "ವಿಜಯನಗರ",
+  "Vijayapura": "ವಿಜಯಪುರ",
+  "Yadgir": "ಯಾದಗಿರಿ",
+};
+
+export const OCCUPATION_KN: Record<string, string> = {
+  "Business": "ವ್ಯಾಪಾರ",
+  "Daily Wage Labour": "ದಿನಗೂಲಿ ಕಾರ್ಮಿಕ",
+  "Farmer": "ರೈತ",
+  "Government Employee": "ಸರ್ಕಾರಿ ನೌಕರ",
+  "Private Employee": "ಖಾಸಗಿ ನೌಕರ",
+  "Student": "ವಿದ್ಯಾರ್ಥಿ",
+  "Unemployed": "ನಿರುದ್ಯೋಗಿ",
+};
+
+export const RELIGION_KN: Record<string, string> = {
+  "Buddhist": "ಬೌದ್ಧ",
+  "Christian": "ಕ್ರಿಶ್ಚಿಯನ್",
+  "Hindu": "ಹಿಂದೂ",
+  "Jain": "ಜೈನ",
+  "Muslim": "ಮುಸ್ಲಿಂ",
+  "Other": "ಇತರ",
+};
+
+export const GENDER_KN: Record<string, string> = {
+  "Male": "ಪುರುಷ",
+  "Female": "ಮಹಿಳೆ",
+  "Transgender": "ತೃತೀಯ ಲಿಂಗಿ",
+};
+
+/** Stand-ins a detector writes when the record has no crime group or no date.
+ *  Kept here so they translate like any other value rather than freezing as
+ *  English inside a Kannada sentence. */
+export const PLACEHOLDER_KN: Record<string, string> = {
+  "Case": "ಪ್ರಕರಣ",
+  "recent": "ಇತ್ತೀಚಿನ",
+};
+
+// ponytail: one flat namespace, because no value appears in two of the sets
+// above. Split into per-domain lookups if a literal ever collides.
+const VALUE_KN: Record<string, string> = {
+  ...PLACEHOLDER_KN,
+  ...CRIME_GROUP_KN,
+  ...STATUS_KN,
+  ...DISTRICT_KN,
+  ...OCCUPATION_KN,
+  ...RELIGION_KN,
+  ...GENDER_KN,
+};
+
+/**
+ * Translates a value that came out of the database — a district, a crime
+ * group, a case status. Unknown values pass through unchanged: a district
+ * added to the reference table after this map was written should render as
+ * its English name, not vanish.
+ */
+export function tv(value: string | null | undefined, lang: Lang): string {
+  if (!value) return "";
+  if (lang === "en") return value;
+  return VALUE_KN[value] ?? value;
+}
+
+// ponytail: no number-formatting helper. `kn-IN` formats 1234567 as 1,234,567
+// — Western grouping — while `en-IN` gives the 12,34,567 that Karnataka police
+// records actually use. Numbers keep their existing en-IN formatting in both
+// languages; revisit only if a reviewer asks for Kannada digits (-u-nu-knda).
+
+/** BCP-47 locale for dates. Month and weekday names come from the locale;
+ *  numbers deliberately do not — see the note above on lakh grouping. */
+export function dateLocale(lang: Lang): string {
+  return lang === "kn" ? "kn-IN" : "en-IN";
 }
 
 /** BCP-47 locale for Web Speech STT/TTS. */

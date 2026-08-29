@@ -4,7 +4,7 @@ import { useChatStore, type VizType, type ChatMessage } from "@/store/chat";
 import { MessageBubble } from "./MessageBubble";
 import { InsightPanel } from "@/components/insights/InsightPanel";
 import { chatHeaders } from "@/lib/chat-api";
-import { t, speechLocale } from "@/lib/i18n";
+import { t, speechLocale, type StringKey } from "@/lib/i18n";
 import { useRefreshChatSessions } from "./ChatHistory";
 
 function sessionTitle(text: string): string {
@@ -18,15 +18,9 @@ function toolsRan(): string[] {
   return Array.from(new Set(useChatStore.getState().caseBoardSteps.map((s) => s.tool)));
 }
 
-const QUERY_POOL = [
-  "Which district had the most FIRs last month?",
-  "List top 5 repeat accused by number of cases",
-  "How many cases are still under investigation?",
-  "Which crime head has the highest chargesheet rate?",
-  "Show districts with rising crime this quarter",
-  "List accused with cases in more than one district",
-  "What's the average time to chargesheet by district?",
-  "Show victim demographics for cases filed this year",
+const QUERY_POOL: StringKey[] = [
+  "suggest.1", "suggest.2", "suggest.3", "suggest.4",
+  "suggest.5", "suggest.6", "suggest.7", "suggest.8",
 ];
 
 export function ChatWindow() {
@@ -83,7 +77,7 @@ export function ChatWindow() {
   }, [draft, setDraft]);
 
   const generateQuery = () => {
-    const pool = QUERY_POOL.filter((q) => q !== input);
+    const pool = QUERY_POOL.map((k) => t(k, lang)).filter((q) => q !== input);
     const pick = pool[Math.floor(Math.random() * pool.length)];
     setInput(pick);
     textareaRef.current?.focus();
@@ -187,7 +181,7 @@ export function ChatWindow() {
       const [sessionResult, res] = await Promise.all([sessionPromise, chatPromise]);
       sessionId = sessionResult;
 
-      if (!res.body) throw new Error("No response body");
+      if (!res.body) throw new Error(t("chat.noBody", lang));
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -346,7 +340,7 @@ export function ChatWindow() {
           <button
             onClick={toggleMic}
             disabled={sending}
-            title={listening ? "Stop listening" : "Speak your query"}
+            title={t(listening ? "chat.stopVoice" : "chat.startVoice", lang)}
             className="shrink-0 w-11 h-11 rounded-md flex items-center justify-center transition-all"
             style={{
               background: listening ? "var(--red-dim)" : "var(--bg-raised)",

@@ -6,7 +6,7 @@ import { CrewDossier } from "../crew/CrewDossier";
 // import must never survive into the browser bundle.
 import type { HandoverBrief as Brief, OutstandingItem, HandoverLinkedCase } from "@/lib/handover";
 import { useChatStore } from "@/store/chat";
-import { t } from "@/lib/i18n";
+import { dateLocale, t, tf, tv } from "@/lib/i18n";
 
 interface CaseData {
   case: Record<string, unknown>;
@@ -72,7 +72,7 @@ export function CaseDrawer({ caseId: requestedId, onClose }: { caseId: number | 
     fetch(`/api/case?id=${caseId}`)
       .then(async (r) => {
         const body = await r.json().catch(() => ({}));
-        if (!r.ok || !body?.case) throw new Error(body?.error || "Case not found");
+        if (!r.ok || !body?.case) throw new Error(body?.error || t("case.notFound", lang));
         return body as CaseData;
       })
       .then((d) => { if (!cancelled) { setData(d); setLoading(false); } })
@@ -147,7 +147,7 @@ export function CaseDrawer({ caseId: requestedId, onClose }: { caseId: number | 
                 <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
                 <path d="M12 2a10 10 0 0110 10" stroke="var(--red)" strokeWidth="3" strokeLinecap="round" />
               </svg>
-              <span className="text-sm font-data">Retrieving case file…</span>
+              <span className="text-sm font-data">{t("case.loading", lang)}</span>
             </div>
           </div>
         )}
@@ -161,20 +161,20 @@ export function CaseDrawer({ caseId: requestedId, onClose }: { caseId: number | 
         {!loading && data && c && (
           <div className="overflow-y-auto p-5 space-y-5 animate-fade-up" style={{ maxHeight: "calc(88vh - 72px)" }}>
             {/* Case info */}
-            <Section title="Case Information">
-              <Row label="Crime No." value={c.crime_no} mono />
-              <Row label="Case No." value={c.case_no} mono />
-              <Row label="Registered"
+            <Section title={t("case.section.info", lang)}>
+              <Row label={t("case.crimeNo", lang)} value={c.crime_no} mono />
+              <Row label={t("case.caseNo", lang)} value={c.case_no} mono />
+              <Row label={t("case.registered", lang)}
                 value={c.crimeregistereddate
                   ? new Date(c.crimeregistereddate as string).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
                   : undefined}
               />
-              <Row label="Station" value={c.station} />
-              <Row label="District" value={c.district} />
-              <Row label="Crime Group" value={c.crime_group} />
-              <Row label="Crime Type" value={c.crime_name} />
-              <Row label="Category" value={c.case_category} />
-              <Row label="Gravity">
+              <Row label={t("case.station", lang)} value={c.station} />
+              <Row label={t("case.district", lang)} value={tv(c.district as string, lang)} />
+              <Row label={t("case.crimeGroup", lang)} value={tv(c.crime_group as string, lang)} />
+              <Row label={t("case.crimeType", lang)} value={c.crime_name} />
+              <Row label={t("case.category", lang)} value={c.case_category} />
+              <Row label={t("case.gravity", lang)}>
                 <span
                   className="text-xs px-2 py-0.5 rounded font-data font-bold"
                   style={
@@ -186,23 +186,23 @@ export function CaseDrawer({ caseId: requestedId, onClose }: { caseId: number | 
                   {(c.gravity as string) || "—"}
                 </span>
               </Row>
-              <Row label="Status">
+              <Row label={t("case.status", lang)}>
                 {(() => {
                   const st = c.status as string;
                   const s = STATUS_STYLE[st] ?? { color: "var(--text-muted)", bg: "var(--bg-raised)" };
                   return (
                     <span className="text-xs px-2 py-0.5 rounded font-data font-bold" style={{ color: s.color, background: s.bg }}>
-                      {st || "—"}
+                      {tv(st, lang) || "—"}
                     </span>
                   );
                 })()}
               </Row>
-              <Row label="Officer" value={c.officer_name} />
-              <Row label="Court" value={c.court} />
+              <Row label={t("case.officer", lang)} value={c.officer_name} />
+              <Row label={t("case.court", lang)} value={c.court} />
             </Section>
 
             {Boolean(c.brieffacts) && (
-              <Section title="Brief Facts">
+              <Section title={t("case.section.brief", lang)}>
                 <p className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>
                   {c.brieffacts as string}
                 </p>
@@ -377,12 +377,12 @@ export function CaseDrawer({ caseId: requestedId, onClose }: { caseId: number | 
             )}
 
             {data.chargesheet.length > 0 && (
-              <Section title="Chargesheet">
+              <Section title={t("case.section.chargesheet", lang)}>
                 {data.chargesheet.map((cs, i) => (
                   <div key={i} className="py-1.5">
-                    <Row label="Type" value={CSTYPE[cs.cstype as string] ?? cs.cstype} />
-                    <Row label="Filed On" value={cs.csdate ? new Date(cs.csdate as string).toLocaleDateString("en-IN") : undefined} />
-                    <Row label="Filed By" value={cs.filed_by} />
+                    <Row label={t("case.type", lang)} value={CSTYPE[cs.cstype as string] ?? cs.cstype} />
+                    <Row label={t("case.filedOn", lang)} value={cs.csdate ? new Date(cs.csdate as string).toLocaleDateString("en-IN") : undefined} />
+                    <Row label={t("case.filedBy", lang)} value={cs.filed_by} />
                   </div>
                 ))}
               </Section>
@@ -438,7 +438,7 @@ function HandoverPanel({ caseId, onClose, onOpenCase }: { caseId: number; onClos
         return body;
       })
       .then((body) => { if (!cancelled) setBrief(body.brief ?? null); })
-      .catch((e: Error) => { if (!cancelled) setError(e.message || "Failed to assemble the brief"); });
+      .catch((e: Error) => { if (!cancelled) setError(e.message || t("case.briefFailed", lang)); });
     return () => { cancelled = true; };
   }, [caseId]);
 
@@ -502,19 +502,19 @@ function HandoverPanel({ caseId, onClose, onOpenCase }: { caseId: number; onClos
               <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{t("handover.caveat", lang)}</p>
 
               <Section title={t("handover.whatHappened", lang)}>
-                <Row label="Crime No." value={brief.crimeNo} mono />
-                <Row label="Registered" value={fmtDay(brief.registered)} />
-                <Row label="Station" value={brief.station} />
-                <Row label="District" value={brief.district} />
-                <Row label="Offence" value={[brief.crimeGroup, brief.crimeType].filter(Boolean).join(" · ")} />
-                <Row label="Gravity" value={brief.gravity} />
-                <Row label="Status" value={brief.status} />
-                <Row label="Court" value={brief.court} />
-                <Row label="Officer" value={brief.officer} />
-                <Row label="Sections" value={w.sections.map((s) => `${s.act} §${s.section}`).join(", ")} />
-                <Row label="Complainant" value={w.complainants.map((p) => p.name).join(", ")} />
-                <Row label="Victims" value={w.victims.map((p) => p.name).join(", ")} />
-                <Row label="Accused" value={w.accused.map((p) => p.name).join(", ")} />
+                <Row label={t("case.crimeNo", lang)} value={brief.crimeNo} mono />
+                <Row label={t("case.registered", lang)} value={fmtDay(brief.registered)} />
+                <Row label={t("case.station", lang)} value={brief.station} />
+                <Row label={t("case.district", lang)} value={tv(brief.district, lang)} />
+                <Row label={t("case.offence", lang)} value={[tv(brief.crimeGroup, lang), brief.crimeType].filter(Boolean).join(" · ")} />
+                <Row label={t("case.gravity", lang)} value={brief.gravity} />
+                <Row label={t("case.status", lang)} value={tv(brief.status, lang)} />
+                <Row label={t("case.court", lang)} value={brief.court} />
+                <Row label={t("case.officer", lang)} value={brief.officer} />
+                <Row label={t("case.sections", lang)} value={w.sections.map((s) => `${s.act} §${s.section}`).join(", ")} />
+                <Row label={t("case.complainant", lang)} value={w.complainants.map((p) => p.name).join(", ")} />
+                <Row label={t("case.victims", lang)} value={w.victims.map((p) => p.name).join(", ")} />
+                <Row label={t("case.accused", lang)} value={w.accused.map((p) => p.name).join(", ")} />
                 {w.narrative && (
                   <p className="text-xs leading-relaxed pt-2" style={{ color: "var(--text-secondary)" }}>{w.narrative}</p>
                 )}
@@ -522,13 +522,13 @@ function HandoverPanel({ caseId, onClose, onOpenCase }: { caseId: number; onClos
 
               <Section title={t("handover.doneSoFar", lang)}>
                 {brief.doneSoFar.arrests.length === 0 && brief.doneSoFar.chargesheets.length === 0 && (
-                  <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>No arrest and no chargesheet on the record.</p>
+                  <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{t("case.noAction", lang)}</p>
                 )}
                 {brief.doneSoFar.arrests.map((a, i) => (
-                  <Row key={`a${i}`} label={a.name ?? "Arrest"} value={`${fmtDay(a.date)}${a.district ? ` · ${a.district}` : ""}`} />
+                  <Row key={`a${i}`} label={a.name ?? t("case.arrest", lang)} value={`${fmtDay(a.date)}${a.district ? ` · ${a.district}` : ""}`} />
                 ))}
                 {brief.doneSoFar.chargesheets.map((cs, i) => (
-                  <Row key={`c${i}`} label={cs.type ?? "Chargesheet"} value={`${fmtDay(cs.date)}${cs.filedBy ? ` · ${cs.filedBy}` : ""}`} />
+                  <Row key={`c${i}`} label={cs.type ?? t("case.section.chargesheet", lang)} value={`${fmtDay(cs.date)}${cs.filedBy ? ` · ${cs.filedBy}` : ""}`} />
                 ))}
               </Section>
 
@@ -554,13 +554,13 @@ function HandoverPanel({ caseId, onClose, onOpenCase }: { caseId: number; onClos
               </Section>
 
               <Section title={t("handover.linked", lang)}>
-                <LinkedList rows={brief.linked.moMatches} heading="Same method" onOpenCase={onOpenCase} />
-                <LinkedList rows={brief.linked.crew?.cases ?? []} heading="Crew — other files" onOpenCase={onOpenCase} />
-                <LinkedList rows={brief.linked.duplicates} heading="Possible duplicate FIR" onOpenCase={onOpenCase} />
+                <LinkedList rows={brief.linked.moMatches} heading={t("case.linked.method", lang)} onOpenCase={onOpenCase} />
+                <LinkedList rows={brief.linked.crew?.cases ?? []} heading={t("case.linked.crew", lang)} onOpenCase={onOpenCase} />
+                <LinkedList rows={brief.linked.duplicates} heading={t("case.linked.dup", lang)} onOpenCase={onOpenCase} />
                 {brief.linked.moMatches.length === 0 &&
                   !brief.linked.crew?.cases.length &&
                   brief.linked.duplicates.length === 0 && (
-                    <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>No linked case found.</p>
+                    <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{t("case.noLinked", lang)}</p>
                   )}
               </Section>
             </>
@@ -607,6 +607,7 @@ function LinkedList({ rows, heading, onOpenCase }: { rows: HandoverLinkedCase[];
  * that happens to be mounted elsewhere on the page.
  */
 function PrintHandover({ brief, caveat }: { brief: Brief; caveat: string }) {
+  const lang = useChatStore((s) => s.lang);
   const w = brief.whatHappened;
   const linkedRows = (rows: HandoverLinkedCase[], heading: string) =>
     rows.length ? (
@@ -623,53 +624,53 @@ function PrintHandover({ brief, caveat }: { brief: Brief; caveat: string }) {
   return (
     <div className="print-root print-handover">
       <div className="print-header">
-        <strong>KHABRI AI</strong> · KSP Intelligence — Handover Brief · {brief.crimeNo ?? `#${brief.caseId}`}
+        <strong>KHABRI AI</strong> · {t("case.print.header", lang)} · {brief.crimeNo ?? `#${brief.caseId}`}
       </div>
-      <div className="print-note">{caveat} Assembled {new Date(brief.generatedAt).toLocaleString("en-IN")}.</div>
+      <div className="print-note">{caveat} {tf("case.print.assembled", lang, { when: new Date(brief.generatedAt).toLocaleString(dateLocale(lang)) })}</div>
 
       <div className="print-section">
-        <div className="print-section-title">What happened</div>
-        <div className="print-kv">Crime No. {brief.crimeNo ?? "—"} · Case No. {brief.caseNo ?? "—"} · Registered {fmtDay(brief.registered)}</div>
+        <div className="print-section-title">{t("handover.whatHappened", lang)}</div>
+        <div className="print-kv">{t("case.crimeNo", lang)} {brief.crimeNo ?? "—"} · {t("case.caseNo", lang)} {brief.caseNo ?? "—"} · {t("case.registered", lang)} {fmtDay(brief.registered)}</div>
         <div className="print-kv">{[brief.station, brief.district].filter(Boolean).join(" · ") || "—"}</div>
-        <div className="print-kv">Offence {[brief.crimeGroup, brief.crimeType].filter(Boolean).join(" · ") || "—"} · Gravity {brief.gravity ?? "—"} · Status {brief.status ?? "—"}</div>
-        <div className="print-kv">Court {brief.court ?? "—"} · Officer {brief.officer ?? "—"}</div>
-        <div className="print-kv">Sections {w.sections.map((s) => `${s.act} §${s.section}`).join(", ") || "—"}</div>
-        <div className="print-kv">Complainant {w.complainants.map((p) => p.name).join(", ") || "—"}</div>
-        <div className="print-kv">Victims {w.victims.map((p) => p.name).join(", ") || "—"}</div>
-        <div className="print-kv">Accused {w.accused.map((p) => p.name).join(", ") || "—"}</div>
+        <div className="print-kv">{t("case.offence", lang)} {[tv(brief.crimeGroup, lang), brief.crimeType].filter(Boolean).join(" · ") || "—"} · {t("case.gravity", lang)} {brief.gravity ?? "—"} · {t("case.status", lang)} {tv(brief.status, lang) || "—"}</div>
+        <div className="print-kv">{t("case.court", lang)} {brief.court ?? "—"} · {t("case.officer", lang)} {brief.officer ?? "—"}</div>
+        <div className="print-kv">{t("case.sections", lang)} {w.sections.map((s) => `${s.act} §${s.section}`).join(", ") || "—"}</div>
+        <div className="print-kv">{t("case.complainant", lang)} {w.complainants.map((p) => p.name).join(", ") || "—"}</div>
+        <div className="print-kv">{t("case.victims", lang)} {w.victims.map((p) => p.name).join(", ") || "—"}</div>
+        <div className="print-kv">{t("case.accused", lang)} {w.accused.map((p) => p.name).join(", ") || "—"}</div>
         {w.narrative && <div className="print-content">{w.narrative}</div>}
       </div>
 
       <div className="print-section">
-        <div className="print-section-title">Done so far</div>
+        <div className="print-section-title">{t("handover.doneSoFar", lang)}</div>
         {brief.doneSoFar.arrests.length === 0 && brief.doneSoFar.chargesheets.length === 0 && (
-          <div className="print-kv">No arrest and no chargesheet on the record.</div>
+          <div className="print-kv">{t("case.noAction", lang)}</div>
         )}
         {brief.doneSoFar.arrests.map((a, i) => (
-          <div key={`a${i}`} className="print-kv">Arrest — {a.name ?? "—"} · {fmtDay(a.date)}{a.district ? ` · ${a.district}` : ""}</div>
+          <div key={`a${i}`} className="print-kv">{t("case.print.arrest", lang)} — {a.name ?? "—"} · {fmtDay(a.date)}{a.district ? ` · ${a.district}` : ""}</div>
         ))}
         {brief.doneSoFar.chargesheets.map((cs, i) => (
-          <div key={`c${i}`} className="print-kv">{cs.type ?? "Chargesheet"} — {fmtDay(cs.date)}{cs.filedBy ? ` · ${cs.filedBy}` : ""}</div>
+          <div key={`c${i}`} className="print-kv">{cs.type ?? t("case.section.chargesheet", lang)} — {fmtDay(cs.date)}{cs.filedBy ? ` · ${cs.filedBy}` : ""}</div>
         ))}
       </div>
 
       <div className="print-section">
-        <div className="print-section-title">Outstanding</div>
+        <div className="print-section-title">{t("handover.outstanding", lang)}</div>
         {brief.clock && !brief.doneSoFar.chargesheetFiled && (
           <div className="print-kv">
-            Next deadline —{" "}
+            {t("handover.deadline", lang)} —{" "}
             {brief.clock.state === "overdue"
-              ? `${brief.clock.daysOverdue} days overdue`
-              : `${brief.clock.daysRemaining} days left`}{" "}
-            ({brief.clock.limitDays}-day limit, basis: {brief.clock.basis})
+              ? tf("case.print.overdue", lang, { n: brief.clock.daysOverdue })
+              : tf("case.print.left", lang, { n: brief.clock.daysRemaining })}{" "}
+            {tf("case.print.limit", lang, { n: brief.clock.limitDays, basis: brief.clock.basis })}
           </div>
         )}
         {brief.outstanding.items.map((o, i) => <div key={i} className="print-kv">• {o.label}</div>)}
       </div>
 
-      {linkedRows(brief.linked.moMatches, "Linked — same method")}
-      {linkedRows(brief.linked.crew?.cases ?? [], "Linked — crew's other files")}
-      {linkedRows(brief.linked.duplicates, "Linked — possible duplicate FIR")}
+      {linkedRows(brief.linked.moMatches, t("case.print.method", lang))}
+      {linkedRows(brief.linked.crew?.cases ?? [], t("case.print.crew", lang))}
+      {linkedRows(brief.linked.duplicates, t("case.print.dup", lang))}
     </div>
   );
 }

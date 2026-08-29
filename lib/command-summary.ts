@@ -42,6 +42,8 @@ export function dataOf<T>(r: PanelResult<T> | null | undefined): T | null {
 // ---- Severity ---------------------------------------------------------------
 
 import type { IncidentPoint, IncidentPointResult } from "./map-points";
+import { tf, tv } from "./i18n";
+import type { Lang } from "@/store/chat";
 
 export type Tone = "critical" | "warning" | "info" | "neutral";
 
@@ -173,10 +175,12 @@ export function pickHottestDistrict(districts: ForecastDistrict[] | null | undef
  */
 export function formatBottleneck(
   b: BottleneckPayload | null | undefined,
-  label: (stageId: string) => string
+  label: (stageId: string) => string,
+  lang: Lang = "en"
 ): string | null {
   if (!b) return null;
-  return `${label(b.fromStage)} → ${label(b.stage)} · ${b.reached.toLocaleString("en-IN")} cases`;
+  const reached = tf("command.cases", lang, { n: b.reached.toLocaleString("en-IN") });
+  return `${label(b.fromStage)} → ${label(b.stage)} · ${reached}`;
 }
 
 /** The confidence of the hottest district, when it has one — the forecast never asserts without it. */
@@ -190,7 +194,7 @@ export function hottestTone(d: ForecastDistrict | null): Tone {
  * blank value — the officer should see that the number is missing, not that it
  * is zero — but a figure this caller is not entitled to is dropped entirely.
  */
-export function buildFigures(inputs: FigureInputs, label: (stageId: string) => string): Figure[] {
+export function buildFigures(inputs: FigureInputs, label: (stageId: string) => string, lang: Lang = "en"): Figure[] {
   const desk = dataOf(inputs.pendency)?.summary ?? null;
   const custody = dataOf(inputs.custody)?.summary ?? null;
   const alerts = dataOf(inputs.alerts);
@@ -229,15 +233,15 @@ export function buildFigures(inputs: FigureInputs, label: (stageId: string) => s
       id: "unreadAlerts",
       label: { key: "alerts.title" },
       value: count(unread),
-      note: note(alerts?.last24h, (v) => `${v} in 24h`),
+      note: note(alerts?.last24h, (v) => tf("command.in24h", lang, { n: v })),
       tone: unread ? "critical" : "neutral",
       view: "chat",
     },
     {
       id: "hottestDistrict",
       label: { key: "hotspot.predicted30" },
-      value: hottest ? hottest.district : null,
-      note: hottest ? `${count(hottest.predicted30)} cases` : null,
+      value: hottest ? tv(hottest.district, lang) : null,
+      note: hottest ? tf("command.cases", lang, { n: count(hottest.predicted30) }) : null,
       tone: hottestTone(hottest),
       view: "map",
     },
@@ -245,7 +249,7 @@ export function buildFigures(inputs: FigureInputs, label: (stageId: string) => s
       id: "bottleneck",
       label: { key: "pipeline.bottleneck" },
       value: pipeline?.bottleneck ? `${count(pipeline.bottleneck.medianDays)}d` : null,
-      note: formatBottleneck(pipeline?.bottleneck, label),
+      note: formatBottleneck(pipeline?.bottleneck, label, lang),
       tone: pipeline?.bottleneck ? "warning" : "neutral",
       view: "pipeline",
     },
@@ -258,10 +262,9 @@ export function buildFigures(inputs: FigureInputs, label: (stageId: string) => s
     const score = report?.score ?? null;
     figures.push({
       id: "dataQuality",
-      // The admin screens carry no translations; a key here would be the only one.
-      label: { text: "Data quality" },
+      label: { key: "command.dataQuality" },
       value: typeof score === "number" ? `${Math.round(score)}` : null,
-      note: note(report?.failingChecks, (v) => `${v} checks failing`),
+      note: note(report?.failingChecks, (v) => tf("command.checksFailing", lang, { n: v })),
       tone: typeof score === "number" && score < 70 ? "warning" : "neutral",
       view: "reports",
     });

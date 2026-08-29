@@ -1,10 +1,11 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { useChatStore } from "@/store/chat";
-import { t, type StringKey } from "@/lib/i18n";
+import { t, tf, tv, type StringKey } from "@/lib/i18n";
 // Shared with the bell: this map was duplicated, and the copy here silently
 // lacked the duplicate-FIR kind, so those alerts rendered as a generic "ALERT".
 import { KIND_LABEL } from "@/lib/alertKinds";
+import { renderFinding } from "@/lib/alertText";
 import { ConfidenceChip } from "./PatrolPriorities";
 import {
   buildFigures,
@@ -34,6 +35,8 @@ interface Alert {
   severity: string;
   title: string;
   detail: string;
+  /** The values behind the sentence; renderFinding rebuilds it in `lang`. */
+  params?: Record<string, string | number> | null;
   query: string;
   createdAt: string;
   readAt: string | null;
@@ -133,7 +136,8 @@ export function CommandView({ onNavigate }: { onNavigate?: (view: string) => voi
 
   const figures = buildFigures(
     { pendency, custody, alerts, forecast, pipeline, quality },
-    (stage) => t(stageKey(stage), lang)
+    (stage) => t(stageKey(stage), lang),
+    lang
   );
 
   return (
@@ -193,7 +197,7 @@ export function CommandView({ onNavigate }: { onNavigate?: (view: string) => voi
                   {districts.map((x) => (
                     <div key={x.districtId}>
                       <div className="flex items-baseline gap-2">
-                        <span className="text-xs font-bold truncate" style={{ color: "var(--text-primary)" }}>{x.district}</span>
+                        <span className="text-xs font-bold truncate" style={{ color: "var(--text-primary)" }}>{tv(x.district, lang)}</span>
                         <ConfidenceChip level={x.confidence} />
                         <span className="font-data text-xs ml-auto shrink-0" style={{ color: "var(--text-primary)" }}>
                           {Math.round(x.predicted30).toLocaleString()}
@@ -245,7 +249,7 @@ export function CommandView({ onNavigate }: { onNavigate?: (view: string) => voi
                   <div className="space-y-1.5">
                     {shares.map((s) => (
                       <div key={s.district} className="flex items-center gap-2">
-                        <span className="text-xs truncate" style={{ width: 110, color: "var(--text-primary)" }}>{s.district}</span>
+                        <span className="text-xs truncate" style={{ width: 110, color: "var(--text-primary)" }}>{tv(s.district, lang)}</span>
                         <div className="flex-1 h-1.5 rounded-sm overflow-hidden" style={{ background: "var(--bg-raised)" }}>
                           <div className="h-full rounded-sm" style={{ width: `${s.share * 100}%`, background: "var(--blue)", opacity: 0.8 }} />
                         </div>
@@ -326,7 +330,7 @@ export function CommandView({ onNavigate }: { onNavigate?: (view: string) => voi
                         {dist.repeatPeople.toLocaleString()}
                       </span>
                       <span className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                        {`people · ${Math.round((dist.repeatCaseShare ?? 0) * 100)}% of cases`}
+                        {tf("command.people", lang, { pct: Math.round((dist.repeatCaseShare ?? 0) * 100) })}
                       </span>
                     </div>
                     <p className="text-[11px] mt-1 leading-relaxed" style={{ color: "var(--text-muted)" }}>{t("victims.caveat", lang)}</p>
@@ -357,12 +361,12 @@ export function CommandView({ onNavigate }: { onNavigate?: (view: string) => voi
                         <p className="text-xs mt-0.5" style={{ color: "var(--text-primary)" }}>
                           <b style={{ color: "var(--red)" }}>{d.weekday.peakLabel}</b>{" "}
                           <span style={{ color: "var(--text-secondary)" }}>
-                            {`+${Math.round((peak.lift - 1) * 100)}% on baseline · p<0.05`}
+                            {tf("command.onBaseline", lang, { pct: Math.round((peak.lift - 1) * 100) })}
                           </span>
                         </p>
                       ) : (
                         <p className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>
-                          {`No window stands out — the spread is within ordinary variation (p=${peak.p.toFixed(2)}).`}
+                          {tf("command.flat", lang, { p: peak.p.toFixed(2) })}
                         </p>
                       )}
                     </div>
@@ -488,6 +492,7 @@ function AlertList({ result, lang, onPick }: { result: PanelResult<AlertFeed> | 
             {rows.map((a) => {
               const color = severityColor(a.severity);
               const isRead = Boolean(a.readAt) || read.has(a.id);
+              const { title, detail } = renderFinding(a, lang);
               return (
                 <button
                   key={a.id}
@@ -505,8 +510,8 @@ function AlertList({ result, lang, onPick }: { result: PanelResult<AlertFeed> | 
                     </span>
                     <span className="font-data text-[10px] shrink-0" style={{ color: "var(--text-muted)" }}>{ago(a.createdAt)}</span>
                   </div>
-                  <p className="text-xs font-semibold mt-0.5" style={{ color: "var(--text-primary)" }}>{a.title}</p>
-                  <p className="text-xs mt-0.5 leading-relaxed line-clamp-2" style={{ color: "var(--text-secondary)" }}>{a.detail}</p>
+                  <p className="text-xs font-semibold mt-0.5" style={{ color: "var(--text-primary)" }}>{title}</p>
+                  <p className="text-xs mt-0.5 leading-relaxed line-clamp-2" style={{ color: "var(--text-secondary)" }}>{detail}</p>
                   <p className="font-data text-[10px] mt-1" style={{ color }}>{t("alerts.investigate", lang)}</p>
                 </button>
               );

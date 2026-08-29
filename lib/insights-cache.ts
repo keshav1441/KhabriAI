@@ -2,8 +2,13 @@ import { cacheGet, cacheSet } from "./catalyst-cache";
 
 export type InsightItem = {
   type: string;
+  /** English rendering. `params` is what makes the finding translatable — see
+   *  lib/alertText.ts; these two stay as the fallback and the export text. */
   title: string;
   detail: string;
+  /** The values behind the sentence, keyed to the `finding.<type>.*`
+   *  templates in lib/i18n.ts. */
+  params?: Record<string, string | number> | null;
   query: string;
   /** Where the finding sits, so the alert engine can route it to the officers
    *  posted there. null = statewide finding, relevant to everyone. */

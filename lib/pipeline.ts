@@ -1,4 +1,5 @@
 import type { Db } from "./db";
+import { t, tf, type StringKey } from "./i18n";
 
 /**
  * The throughput of justice — FIR → arrest → chargesheet → court.
@@ -81,6 +82,8 @@ export interface PipelineStage {
   measured: boolean;
   /** Present only when measured is false — why the schema cannot answer. */
   note?: string;
+  /** i18n key for `note`, so the client can render it in Kannada. */
+  noteKey?: StringKey;
 }
 
 export interface Bottleneck {
@@ -112,6 +115,8 @@ export interface Pipeline {
   /** The longest-running cases at the bottleneck step, newest-slowest first. */
   slowest: SlowCase[];
   method: string;
+  /** Values behind `method`, for the "pipeline.method" template. */
+  methodParams: { windowMonths: number; negatives: number };
   generatedAt: string;
 }
 
@@ -253,13 +258,15 @@ export function buildStages(rows: CaseTimeline[]): PipelineStage[] {
       p90TransitionDays: null,
       excludedNegative: 0,
       measured: false,
-      note:
-        "Not measurable from this schema. CaseMaster.CourtID is the court with jurisdiction, " +
-        "set on every case including False Case ones, and Court carries no date column — there is " +
-        "no committal, hearing or disposal date to measure against. Shown so the missing step is " +
-        "visible rather than silently dropped.",
+      noteKey: "pipeline.note.court",
+      note: t("pipeline.note.court", "en"),
     },
   ];
+}
+
+/** English pluralises the excluded-durations clause; Kannada does not. */
+export function methodKey(negatives: number): StringKey {
+  return negatives === 1 ? "pipeline.methodOne" : "pipeline.method";
 }
 
 /**
@@ -437,13 +444,8 @@ export async function computePipeline(db: Db, opts: PipelineOptions = {}): Promi
     byDistrict: buildBreakdown(rows, (r) => r.district),
     byCrimeGroup: buildBreakdown(rows, (r) => r.crimeGroup),
     slowest: bottleneck ? slowestForStage(rows, bottleneck.stage) : [],
-    method:
-      `FIRs registered in the last ${windowMonths} months. Arrest = earliest ArrestSurrenderDate on the case; ` +
-      `chargesheet = earliest ChargesheetDetails.csdate. Durations are medians and p90s, never means. ` +
-      `${negatives} duration${negatives === 1 ? " was" : "s were"} excluded as negative (a milestone dated before the one it follows). ` +
-      `Drop-off counts cases that have not reached the stage YET as well as those that never will — a case registered last week ` +
-      `is not a failure, and the schema carries no expected-completion date to separate them. ` +
-      `The court stage is named but not measured: CaseMaster.CourtID is a jurisdiction set on every case and Court has no date column.`,
+    method: tf(methodKey(negatives), "en", { windowMonths, negatives }),
+    methodParams: { windowMonths, negatives },
     generatedAt: now.toISOString(),
   };
 }

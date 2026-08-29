@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import { NetworkGraph, type CoOffenderNode, type CoOffenderEdge } from "../viz/NetworkGraph";
 import { CaseDrawer } from "../viz/CaseDrawer";
 import { STATUS_STYLE } from "@/lib/caseStatus";
+import { useChatStore } from "@/store/chat";
+import { dateLocale, t, tv } from "@/lib/i18n";
 
 interface PersonCase {
   id: number; crimeNo: string; crimeName: string; crimeGroup: string;
@@ -17,7 +19,8 @@ interface PersonDetail {
 export function NetworkView() {
   const [graph, setGraph] = useState<{ nodes: CoOffenderNode[]; edges: CoOffenderEdge[] }>({ nodes: [], edges: [] });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [failed, setFailed] = useState(false);
+  const lang = useChatStore((s) => s.lang);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<PersonDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -27,7 +30,7 @@ export function NetworkView() {
     fetch("/api/network-data")
       .then((r) => r.json())
       .then((d) => { setGraph({ nodes: d.nodes ?? [], edges: d.edges ?? [] }); setLoading(false); })
-      .catch(() => { setError("Failed to load network data"); setLoading(false); });
+      .catch(() => { setFailed(true); setLoading(false); });
   }, []);
 
   useEffect(() => {
@@ -53,7 +56,7 @@ export function NetworkView() {
     : [];
 
   const fmtDate = (d: string | null) =>
-    d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+    d ? new Date(d).toLocaleDateString(dateLocale(lang), { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
   return (
     <div className="flex flex-col h-full">
@@ -67,16 +70,16 @@ export function NetworkView() {
             ಅಪರಾಧಿ ಜಾಲ · CRIMINAL NETWORK
           </h2>
           <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
-            Persons linked by shared cases. Crews cluster together; click a node to isolate its associates.
+            {t("network.subtitle", lang)}
           </p>
         </div>
-        {!loading && !error && (
+        {!loading && !failed && (
           <div className="text-right shrink-0">
             <div className="font-display font-bold" style={{ color: "var(--ink)", fontSize: "1.4rem", lineHeight: 1 }}>
               {graph.nodes.length}
             </div>
             <div className="font-data" style={{ color: "var(--text-muted)", fontSize: "0.6rem", letterSpacing: "0.1em" }}>
-              PERSONS · {crews} LINKS
+              {t("network.persons", lang)} · {crews} {t("network.links", lang)}
             </div>
           </div>
         )}
@@ -88,21 +91,21 @@ export function NetworkView() {
           {loading && (
             <div className="h-full flex items-center justify-center">
               <span className="font-data text-sm" style={{ color: "var(--text-muted)" }}>
-                Building co-offender network…
+                {t("network.building", lang)}
               </span>
             </div>
           )}
-          {error && (
+          {failed && (
             <div className="h-full flex items-center justify-center">
-              <span className="text-sm" style={{ color: "var(--red)" }}>{error}</span>
+              <span className="text-sm" style={{ color: "var(--red)" }}>{t("network.loadFailed", lang)}</span>
             </div>
           )}
-          {!loading && !error && graph.nodes.length === 0 && (
+          {!loading && !failed && graph.nodes.length === 0 && (
             <div className="h-full flex items-center justify-center">
-              <span className="text-sm" style={{ color: "var(--text-muted)" }}>No recurring co-offender links found.</span>
+              <span className="text-sm" style={{ color: "var(--text-muted)" }}>{t("network.empty", lang)}</span>
             </div>
           )}
-          {!loading && !error && graph.nodes.length > 0 && (
+          {!loading && !failed && graph.nodes.length > 0 && (
             <div style={{ height: "100%" }}>
               <NetworkGraph graph={graph} onSelect={setSelectedId} />
             </div>
@@ -110,7 +113,7 @@ export function NetworkView() {
         </div>
 
         {/* Detail panel — populated on node click */}
-        {!loading && !error && graph.nodes.length > 0 && (
+        {!loading && !failed && graph.nodes.length > 0 && (
           <div
             className="w-80 shrink-0 flex flex-col overflow-hidden"
             style={{ borderLeft: "1px solid var(--border)", background: "var(--bg-surface)" }}
@@ -118,7 +121,7 @@ export function NetworkView() {
             {!selectedNode ? (
               <div className="flex-1 flex items-center justify-center p-6 text-center">
                 <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  Click a person node to see who they&apos;re connected to and why.
+                  {t("network.pickNode", lang)}
                 </span>
               </div>
             ) : (
@@ -127,7 +130,7 @@ export function NetworkView() {
                 <div className="px-4 py-3 shrink-0" style={{ borderBottom: "1px solid var(--border)" }}>
                   <div className="flex items-center gap-2">
                     <p className="font-data text-xs font-bold tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>
-                      Person
+                      {t("network.person", lang)}
                     </p>
                     {selectedNode.degree >= 3 && (
                       <span
@@ -147,7 +150,7 @@ export function NetworkView() {
                       <span className="text-xs font-data" style={{ color: "var(--text-secondary)" }}>{detail.age} yrs</span>
                     )}
                     {detail?.gender && (
-                      <span className="text-xs font-data" style={{ color: "var(--text-secondary)" }}>· {detail.gender}</span>
+                      <span className="text-xs font-data" style={{ color: "var(--text-secondary)" }}>· {tv(detail.gender, lang)}</span>
                     )}
                     <span className="text-xs font-data" style={{ color: "var(--text-muted)" }}>· PID {selectedNode.id}</span>
                   </div>
@@ -160,7 +163,7 @@ export function NetworkView() {
                           className="text-xs px-1.5 py-0.5 rounded"
                           style={{ background: "var(--bg-raised)", border: "1px solid var(--border-subtle)", color: "var(--text-secondary)" }}
                         >
-                          {g}
+                          {tv(g, lang)}
                         </span>
                       ))}
                     </div>
@@ -195,7 +198,7 @@ export function NetworkView() {
                   {/* Connections */}
                   <div className="px-4 py-2 shrink-0 sticky top-0" style={{ borderBottom: "1px solid var(--border-subtle)", background: "var(--bg-surface)" }}>
                     <p className="font-data text-xs font-bold tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>
-                      Connections ({links.length})
+                      {t("network.connections", lang)} ({links.length})
                     </p>
                   </div>
                   {links.map(({ edge, other }) => (
@@ -230,12 +233,12 @@ export function NetworkView() {
                   {/* Full case history */}
                   <div className="px-4 py-2 shrink-0 sticky top-0" style={{ borderBottom: "1px solid var(--border-subtle)", background: "var(--bg-surface)" }}>
                     <p className="font-data text-xs font-bold tracking-widest uppercase" style={{ color: "var(--text-muted)" }}>
-                      Case History {detail ? `(${detail.cases.length})` : ""}
+                      {t("network.caseHistory", lang)} {detail ? `(${detail.cases.length})` : ""}
                     </p>
                   </div>
                   {detailLoading && (
                     <div className="px-4 py-4">
-                      <span className="text-xs font-data" style={{ color: "var(--text-muted)" }}>Loading cases…</span>
+                      <span className="text-xs font-data" style={{ color: "var(--text-muted)" }}>{t("network.loadingCases", lang)}</span>
                     </div>
                   )}
                   {detail?.cases.map((c) => {
@@ -252,7 +255,7 @@ export function NetworkView() {
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-xs font-medium font-data truncate" style={{ color: "var(--text-primary)" }}>{c.crimeNo}</span>
                           <span className="text-[0.65rem] px-1.5 py-0.5 rounded font-data font-bold shrink-0" style={{ color: s.color, background: s.bg }}>
-                            {c.status}
+                            {tv(c.status, lang)}
                           </span>
                         </div>
                         <p className="text-xs mt-0.5 truncate" style={{ color: "var(--text-secondary)" }}>{c.crimeName}</p>
@@ -274,16 +277,16 @@ export function NetworkView() {
       </div>
 
       {/* Legend */}
-      {!loading && !error && graph.nodes.length > 0 && (
+      {!loading && !failed && graph.nodes.length > 0 && (
         <div
           className="shrink-0 px-6 py-2 flex items-center gap-5 flex-wrap"
           style={{ borderTop: "1px solid var(--border)" }}
         >
-          <LegendDot color="var(--ink)" label="Person · size = case count" />
-          <LegendDot color="var(--border)" line label="Shared cases · thicker = more" />
-          <LegendDot color="var(--red)" ring label="Kingpin · 3+ associates" />
+          <LegendDot color="var(--ink)" label={t("network.legend.person", lang)} />
+          <LegendDot color="var(--border)" line label={t("network.legend.shared", lang)} />
+          <LegendDot color="var(--red)" ring label={t("network.legend.kingpin", lang)} />
           <p className="ml-auto text-xs font-data" style={{ color: "var(--text-muted)" }}>
-            Click a node to isolate · Drag to pan
+            {t("network.hint", lang)}
           </p>
         </div>
       )}

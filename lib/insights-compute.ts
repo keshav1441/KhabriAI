@@ -1,5 +1,6 @@
 import { prisma } from "./db";
 import type { InsightItem } from "./insights-cache";
+import { english } from "./alertText";
 import { computeForecasts } from "./forecast";
 import { nameTokens, scoreAgainst, type AccusedRecord, type IdentityCandidate } from "./identity-resolve";
 
@@ -39,10 +40,11 @@ export async function computeInsights(): Promise<InsightItem[]> {
     const thisMonth = Number(row.this_month);
     const lastMonth = Number(row.last_month);
     const pct = lastMonth > 0 ? Math.round(((thisMonth - lastMonth) / lastMonth) * 100) : 0;
+    const spikeParams = { district: String(row.district_name), pct, thisMonth, lastMonth };
     insights.push({
       type: "spike",
-      title: `Crime spike in ${row.district_name}`,
-      detail: `${pct}% jump last month (${thisMonth} vs ${lastMonth} the month before)`,
+      ...english("spike", spikeParams),
+      params: spikeParams,
       query: `Show crime breakdown in ${row.district_name} for the last 2 months`,
       districtId: Number(row.district_id),
       districtName: row.district_name,
@@ -66,14 +68,17 @@ export async function computeInsights(): Promise<InsightItem[]> {
   // cluster. Following that module's posture, the alert offers a candidate with
   // the reasons behind it and never asserts that the records are one person.
   for (const c of await repeatAccusedClusters()) {
+    const repeatParams = {
+      name: c.name,
+      caseCount: c.caseCount,
+      confidence: c.confidence.toFixed(2),
+      why: c.why,
+      crimeTypes: c.crimeTypes,
+    };
     insights.push({
       type: "repeat_suspect",
-      title: `Possible repeat accused: ${c.name}`,
-      detail:
-        `${c.caseCount} cases in the last 30 days name someone who scores as the same person ` +
-        `(confidence ${c.confidence.toFixed(2)} on the weakest link in the cluster; matched on ${c.why}). ` +
-        `${c.crimeTypes}. Identity is inferred from the name, age and gender on each FIR, ` +
-        `not from a shared record - verify before treating these as one offender.`,
+      ...english("repeat_suspect", repeatParams),
+      params: repeatParams,
       query: `Show all cases linked to accused ${c.name} in the last 30 days`,
       // Active in more than one district: a statewide finding, so nobody sees
       // only half of it.
@@ -109,10 +114,11 @@ export async function computeInsights(): Promise<InsightItem[]> {
     const lastWeek = Number(row.last_week);
     if (thisWeek > lastWeek * 1.3) {
       const pct = lastWeek > 0 ? Math.round(((thisWeek - lastWeek) / lastWeek) * 100) : 0;
+      const surgeParams = { crime: String(row.crime_type), pct };
       insights.push({
         type: "weekly_surge",
-        title: `${row.crime_type} surging statewide`,
-        detail: `${pct}% more ${row.crime_type} cases this week vs last week`,
+        ...english("weekly_surge", surgeParams),
+        params: surgeParams,
         query: `Show ${row.crime_type} hotspots in the last 7 days with map`,
         districtId: null,
         districtName: null,

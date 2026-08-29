@@ -2,11 +2,14 @@
 import { useEffect, useState } from "react";
 import { useChatStore } from "@/store/chat";
 import { t, type StringKey } from "@/lib/i18n";
+import { renderFinding } from "@/lib/alertText";
 
 interface Insight {
   type: string;
   title: string;
   detail: string;
+  /** The values behind the sentence; renderFinding rebuilds it in `lang`. */
+  params?: Record<string, string | number> | null;
   query: string;
 }
 
@@ -80,6 +83,7 @@ export function InsightPanel({ onQuerySelect }: { onQuerySelect: (q: string) => 
              style={{ background: "var(--bg-raised)" }}>
           {shown.map((insight, i) => {
             const cfg = TYPE_CONFIG[insight.type] ?? DEFAULT_CONFIG;
+            const { title, detail } = renderFinding(insight, lang);
             return (
               <button
                 key={i}
@@ -104,10 +108,10 @@ export function InsightPanel({ onQuerySelect }: { onQuerySelect: (q: string) => 
                   </span>
                 </div>
                 <p className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
-                  {insight.title}
+                  {title}
                 </p>
                 <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-                  {insight.detail}
+                  {detail}
                 </p>
                 <p className="font-data text-xs mt-1.5" style={{ color: cfg.color }}>
                   {t("insight.investigate", lang)}

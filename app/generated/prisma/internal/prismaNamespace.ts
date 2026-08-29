@@ -3290,6 +3290,7 @@ export const AlertScalarFieldEnum = {
   severity: 'severity',
   title: 'title',
   detail: 'detail',
+  params: 'params',
   query: 'query',
   districtId: 'districtId',
   caseId: 'caseId',

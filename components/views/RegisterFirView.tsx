@@ -118,7 +118,7 @@ export function RegisterFirView({ onAskAssistant }: { onAskAssistant: () => void
       applyDraft(data);
       setDocName(file ? file.name : null);
     } catch {
-      setDocError("Network error");
+      setDocError(t("chat.networkError", lang));
     } finally {
       setDocBusy(false);
     }
@@ -149,7 +149,7 @@ export function RegisterFirView({ onAskAssistant }: { onAskAssistant: () => void
       if (!res.ok) { setSuggestError(data.error ?? `HTTP ${res.status}`); return; }
       setSuggestions(data.suggestions ?? []);
     } catch {
-      setSuggestError("Network error");
+      setSuggestError(t("chat.networkError", lang));
     } finally {
       setSuggestBusy(false);
     }
@@ -210,7 +210,7 @@ export function RegisterFirView({ onAskAssistant }: { onAskAssistant: () => void
       if (!res.ok) { setError(data.error ?? `HTTP ${res.status}`); return; }
       setDone(data);
     } catch {
-      setError("Network error");
+      setError(t("chat.networkError", lang));
     } finally {
       setSubmitting(false);
     }
@@ -455,7 +455,7 @@ export function RegisterFirView({ onAskAssistant }: { onAskAssistant: () => void
           <input
             value={sectionSearch}
             onChange={(e) => setSectionSearch(e.target.value)}
-            placeholder="Search sections by act, number or description"
+            placeholder={t("fir.searchSections", lang)}
             className={`${inputClass} mt-2`}
             style={inputStyle}
             onFocus={focus}

@@ -3,6 +3,8 @@ import {
   BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
+import { useChatStore, type Lang } from "@/store/chat";
+import { dateLocale, t, tv } from "@/lib/i18n";
 
 interface Props {
   rows: Record<string, unknown>[];
@@ -26,11 +28,26 @@ function detectKeys(rows: Record<string, unknown>[]) {
   return { labelKey, valueKey, numKeys };
 }
 
-function formatLabel(val: unknown): string {
+/**
+ * Clips to `max` visible characters. Splits on grapheme clusters, not code
+ * units: Kannada writes a syllable as a base letter plus combining vowel and
+ * consonant marks, and `"ಬೆಂಗಳೂರು".slice(0, 13)` can cut one in half, leaving a
+ * mark with nothing to attach to.
+ */
+function clip(s: string, max: number): string {
+  const units =
+    typeof Intl !== "undefined" && "Segmenter" in Intl
+      ? Array.from(new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(s), (g) => g.segment)
+      : Array.from(s);
+  return units.length > max ? units.slice(0, max - 1).join("") + "…" : s;
+}
+
+function formatLabel(val: unknown, lang: Lang): string {
   if (val instanceof Date)
-    return val.toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
-  const s = String(val ?? "");
-  return s.length > 14 ? s.slice(0, 13) + "…" : s;
+    return val.toLocaleDateString(dateLocale(lang), { month: "short", year: "2-digit" });
+  // Translate before clipping — a district clipped in English then translated
+  // would be neither. Values with no mapping pass through unchanged.
+  return clip(tv(String(val ?? ""), lang), 14);
 }
 
 // Shared tooltip style (works in both themes via CSS vars)
@@ -44,6 +61,7 @@ const TIP_STYLE = {
 const TIP_LABEL_STYLE = { color: "var(--text-secondary)" };
 
 export function CrimeChart({ rows }: Props) {
+  const lang = useChatStore((st) => st.lang);
   if (!rows.length) return null;
 
   const { labelKey, valueKey, numKeys } = detectKeys(rows);
@@ -58,7 +76,7 @@ export function CrimeChart({ rows }: Props) {
   const isPie = !isTimeSeries && rows.length <= 14 && numKeys.length === 1;
 
   const data = rows.slice(0, 30).map((r) => ({
-    name: formatLabel(r[labelKey]),
+    name: formatLabel(r[labelKey], lang),
     value: Number(r[valueKey] ?? 0),
     // Extra numeric keys for multi-bar
     ...Object.fromEntries(numKeys.slice(1).map((k) => [k, Number(r[k] ?? 0)])),
@@ -116,7 +134,7 @@ export function CrimeChart({ rows }: Props) {
                   labelStyle={TIP_LABEL_STYLE}
                   formatter={(v) => {
                     const n = Number(v) || 0;
-                    return [`${n.toLocaleString()} (${((n / total) * 100).toFixed(1)}%)`, "Count"];
+                    return [`${n.toLocaleString()} (${((n / total) * 100).toFixed(1)}%)`, t("chart.count", lang)];
                   }}
                 />
               </PieChart>
@@ -160,7 +178,7 @@ export function CrimeChart({ rows }: Props) {
             <Line
               type="monotone"
               dataKey="value"
-              name="Cases"
+              name={t("chart.cases", lang)}
               stroke="#E63946"
               strokeWidth={2.5}
               dot={{ r: 3, fill: "#E63946" }}
@@ -194,7 +212,7 @@ export function CrimeChart({ rows }: Props) {
               <Bar key={k} dataKey={k} fill={PALETTE[i % PALETTE.length]} radius={[3, 3, 0, 0]} />
             ))
           ) : (
-            <Bar dataKey="value" name="Cases" radius={[4, 4, 0, 0]}>
+            <Bar dataKey="value" name={t("chart.cases", lang)} radius={[4, 4, 0, 0]}>
               {data.map((_, i) => (
                 <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
               ))}

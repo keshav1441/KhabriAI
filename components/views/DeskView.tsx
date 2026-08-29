@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useChatStore } from "@/store/chat";
-import { t, type StringKey } from "@/lib/i18n";
+import { t, tv, type StringKey } from "@/lib/i18n";
 import { STATUS_STYLE, STALE_ACTION_DAYS } from "@/lib/caseStatus";
 import { CaseDrawer } from "../viz/CaseDrawer";
 // Type-only: lib/pendency imports Prisma types, which must never reach the bundle.
@@ -180,7 +180,7 @@ export function DeskView() {
 
       {/* Summary strip — always the whole desk, even while a filter is on */}
       <div className="shrink-0 grid grid-cols-6 gap-px px-6 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
-        <Stat label="Open cases" value={summary?.openCases} loading={loading && !summary} />
+        <Stat label={t("desk.openCases", lang)} value={summary?.openCases} loading={loading && !summary} />
         <Stat label={t("desk.csOverdue", lang)} value={summary?.overdue} loading={loading && !summary} color="var(--red)" />
         <Stat label={t("desk.noArrest", lang)} value={summary?.noArrest} loading={loading && !summary} color="var(--amber)" />
         <Stat label={`Median ${t("desk.age", lang).toLowerCase()}`} value={summary?.medianAgeDays ?? undefined} loading={loading && !summary} />
@@ -253,7 +253,7 @@ function DeskRow({ c, custody, lang, onOpen }: { c: DeskItem; custody?: CustodyP
             className="font-data text-[10px] font-bold px-1.5 py-0.5 rounded"
             style={{ color: status.color, background: status.bg }}
           >
-            {c.status}
+            {tv(c.status, lang)}
           </span>
         )}
       </div>

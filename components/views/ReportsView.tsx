@@ -2,6 +2,16 @@
 import { useEffect, useState, useCallback } from "react";
 import { CaseDrawer } from "../viz/CaseDrawer";
 import { STATUS_STYLE } from "@/lib/caseStatus";
+import { useChatStore } from "@/store/chat";
+import { dateLocale, t, tf, tv, type StringKey } from "@/lib/i18n";
+
+const COLUMNS: StringKey[] = [
+  "reports.col.crimeNo",
+  "reports.col.date",
+  "reports.col.crimeGroup",
+  "reports.col.district",
+  "reports.col.status",
+];
 
 type CaseRow = {
   case_id: number;
@@ -19,6 +29,7 @@ export function ReportsView() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const lang = useChatStore((s) => s.lang);
 
   // Debounce search
   useEffect(() => {
@@ -53,7 +64,7 @@ export function ReportsView() {
           </svg>
           <input
             type="text"
-            placeholder="Filter by district, crime type, or crime no…"
+            placeholder={t("reports.filter", lang)}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-3 py-1.5 text-xs rounded-md outline-none transition-all"
@@ -70,7 +81,7 @@ export function ReportsView() {
           <span className="inline-block h-3 w-16 rounded animate-pulse" style={{ background: "var(--bg-raised)" }} />
         ) : (
           <span className="font-data text-xs" style={{ color: "var(--text-muted)" }}>
-            {`${cases.length} cases`}
+            {tf("reports.count", lang, { n: cases.length })}
           </span>
         )}
       </div>
@@ -96,13 +107,13 @@ export function ReportsView() {
           </table>
         ) : cases.length === 0 ? (
           <div className="flex items-center justify-center h-40">
-            <span className="text-sm" style={{ color: "var(--text-muted)" }}>No cases found.</span>
+            <span className="text-sm" style={{ color: "var(--text-muted)" }}>{t("reports.empty", lang)}</span>
           </div>
         ) : (
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr style={{ background: "var(--bg-raised)", position: "sticky", top: 0, zIndex: 1 }}>
-                {["Crime No.", "Date", "Crime Group", "District", "Status", ""].map((h) => (
+                {[...COLUMNS.map((k) => t(k, lang)), ""].map((h) => (
                   <th
                     key={h}
                     className="text-left px-4 py-2.5 font-data font-bold tracking-widest uppercase"
@@ -132,16 +143,16 @@ export function ReportsView() {
                   </td>
                   <td className="px-4 py-2.5 font-data whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>
                     {c.date_registered
-                      ? new Date(c.date_registered).toLocaleDateString("en-IN", {
+                      ? new Date(c.date_registered).toLocaleDateString(dateLocale(lang), {
                           day: "2-digit", month: "short", year: "2-digit",
                         })
                       : "—"}
                   </td>
                   <td className="px-4 py-2.5" style={{ color: "var(--text-primary)", maxWidth: 180 }}>
-                    <span className="truncate block">{c.crime_group}</span>
+                    <span className="truncate block">{tv(c.crime_group, lang)}</span>
                   </td>
                   <td className="px-4 py-2.5" style={{ color: "var(--text-secondary)" }}>
-                    {c.district}
+                    {tv(c.district, lang)}
                   </td>
                   <td className="px-4 py-2.5">
                     <span
@@ -152,7 +163,7 @@ export function ReportsView() {
                         fontSize: "0.65rem",
                       }}
                     >
-                      {c.status}
+                      {tv(c.status, lang)}
                     </span>
                   </td>
                   <td className="px-4 py-2.5 text-right">
@@ -160,7 +171,7 @@ export function ReportsView() {
                       className="font-data text-xs font-bold px-2 py-0.5 rounded transition-all"
                       style={{ color: "var(--red)", background: "var(--red-dim)" }}
                     >
-                      OPEN ↗
+                      {t("reports.open", lang)} ↗
                     </span>
                   </td>
                 </tr>

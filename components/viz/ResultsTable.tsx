@@ -1,9 +1,12 @@
 "use client";
 import { useState } from "react";
 import { CaseDrawer } from "./CaseDrawer";
+import { useChatStore } from "@/store/chat";
+import { dateLocale, t, tv } from "@/lib/i18n";
 
 export function ResultsTable({ rows }: { rows: Record<string, unknown>[] }) {
   const [activeCaseId, setActiveCaseId] = useState<number | null>(null);
+  const lang = useChatStore((s) => s.lang);
 
   if (!rows.length) return null;
   const columns = Object.keys(rows[0]);
@@ -65,8 +68,10 @@ export function ResultsTable({ rows }: { rows: Record<string, unknown>[] }) {
                     style={{ color: "var(--text-secondary)" }}
                   >
                     {row[col] instanceof Date
-                      ? (row[col] as Date).toLocaleDateString("en-IN")
-                      : String(row[col] ?? "—")}
+                      ? (row[col] as Date).toLocaleDateString(dateLocale(lang))
+                      // A result cell may hold a district or a case status; tv
+                      // passes anything it does not recognise through unchanged.
+                      : tv(String(row[col] ?? "—"), lang)}
                   </td>
                 ))}
                 {caseIdCol && (
@@ -76,7 +81,7 @@ export function ResultsTable({ rows }: { rows: Record<string, unknown>[] }) {
                       style={{ color: "var(--red)", background: "var(--red-dim)" }}
                       onClick={(e) => { e.stopPropagation(); handleRowClick(row); }}
                     >
-                      OPEN ↗
+                      {t("reports.open", lang)} ↗
                     </button>
                   </td>
                 )}

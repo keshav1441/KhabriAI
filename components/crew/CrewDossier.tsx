@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import type { CrewDossier as Dossier, CrewCase } from "@/lib/crew";
 import { STATUS_STYLE } from "@/lib/caseStatus";
 import { useChatStore, type Lang } from "@/store/chat";
-import { t } from "@/lib/i18n";
+import { t, tv } from "@/lib/i18n";
 
 interface Props {
   caseId?: number | null;
@@ -373,6 +373,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
  * floated dossier is the one the officer is looking at, so it beats an inline.
  */
 function PrintDossier({ d, floating }: { d: Dossier; floating?: boolean }) {
+  const lang = useChatStore((st) => st.lang);
   const s = d.summary;
   return (
     <div className={`print-root print-dossier${floating ? " print-dossier-float" : ""}`}>
@@ -381,7 +382,7 @@ function PrintDossier({ d, floating }: { d: Dossier; floating?: boolean }) {
       </div>
 
       <div className="print-section">
-        <div className="print-section-title">Summary</div>
+        <div className="print-section-title">{t("crew.print.summary", lang)}</div>
         <div className="print-kv">
           Cases {s.cases} · Members {s.members} · Districts {s.districts} · Arrested {s.arrested} ·
           Chargesheeted {s.chargesheeted} · Open {s.open}
@@ -392,22 +393,22 @@ function PrintDossier({ d, floating }: { d: Dossier; floating?: boolean }) {
             ? `CROSSES DISTRICT BOUNDARIES — ${d.districts.join(", ")}`
             : `Contained within one district${d.districts[0] ? ` — ${d.districts[0]}` : ""}`}
         </div>
-        {d.truncated && <div className="print-note">Walk stopped at the cap — the real network is larger.</div>}
+        {d.truncated && <div className="print-note">{t("crew.truncated", lang)}</div>}
       </div>
 
       {d.signature.length > 0 && (
         <div className="print-section">
-          <div className="print-section-title">Signature</div>
-          <div className="print-note">Details repeated across the crew&apos;s own FIR narratives.</div>
+          <div className="print-section-title">{t("crew.signature", lang)}</div>
+          <div className="print-note">{t("crew.signatureNote", lang)}</div>
           {d.signature.map((p) => <div key={p} className="print-kv">• {p}</div>)}
         </div>
       )}
 
       <div className="print-section">
-        <div className="print-section-title">Members ({d.members.length})</div>
+        <div className="print-section-title">{t("crew.members", lang)} ({d.members.length})</div>
         <table className="print-table">
           <thead>
-            <tr><th>Name</th><th>Person ID</th><th>Age / gender</th><th>In crew</th><th>Total cases</th><th>Districts</th><th>Arrests</th></tr>
+            <tr><th>{t("crew.col.name", lang)}</th><th>{t("crew.col.personId", lang)}</th><th>{t("crew.col.age", lang)}</th><th>{t("crew.col.inCrew", lang)}</th><th>{t("crew.col.total", lang)}</th><th>{t("crew.col.districts", lang)}</th><th>{t("crew.col.arrests", lang)}</th></tr>
           </thead>
           <tbody>
             {d.members.map((m) => (
@@ -417,7 +418,7 @@ function PrintDossier({ d, floating }: { d: Dossier; floating?: boolean }) {
                 <td>{m.age ?? "—"} / {m.gender ?? "—"}</td>
                 <td>{m.casesInCrew}</td>
                 <td>{m.totalCases}</td>
-                <td>{m.districts.join(", ")}</td>
+                <td>{m.districts.map((x) => tv(x, lang)).join(", ")}</td>
                 <td>{m.arrests}</td>
               </tr>
             ))}
@@ -426,10 +427,10 @@ function PrintDossier({ d, floating }: { d: Dossier; floating?: boolean }) {
       </div>
 
       <div className="print-section">
-        <div className="print-section-title">Case timeline ({d.cases.length})</div>
+        <div className="print-section-title">{t("crew.timeline", lang)} ({d.cases.length})</div>
         <table className="print-table">
           <thead>
-            <tr><th>Date</th><th>Crime No.</th><th>Crime type</th><th>District / station</th><th>Status</th><th>Linked by</th></tr>
+            <tr><th>{t("crew.col.date", lang)}</th><th>{t("case.crimeNo", lang)}</th><th>{t("crew.col.crimeType", lang)}</th><th>{t("crew.col.districtStation", lang)}</th><th>{t("case.status", lang)}</th><th>{t("crew.col.linkedBy", lang)}</th></tr>
           </thead>
           <tbody>
             {d.cases.map((c) => (
@@ -437,12 +438,12 @@ function PrintDossier({ d, floating }: { d: Dossier; floating?: boolean }) {
                 <td>{fmtDate(c.date)}</td>
                 <td>{c.crimeNo}</td>
                 <td>{c.crimeType ?? "—"}</td>
-                <td>{[c.district, c.station].filter(Boolean).join(" / ") || "—"}</td>
-                <td>{c.status ?? "—"}</td>
+                <td>{[tv(c.district, lang), c.station].filter(Boolean).join(" / ") || "—"}</td>
+                <td>{tv(c.status, lang) || "—"}</td>
                 <td>
-                  {c.link === "seed" ? "Seed"
-                    : c.link === "co-accused" ? "Co-accused"
-                    : `Closest narrative${c.linkRank != null ? ` #${c.linkRank}` : ""}`}
+                  {c.link === "seed" ? t("crew.link.seed", lang)
+                    : c.link === "co-accused" ? t("crew.link.coAccused", lang)
+                    : `${t("crew.link.narrative", lang)}${c.linkRank != null ? ` #${c.linkRank}` : ""}`}
                 </td>
               </tr>
             ))}

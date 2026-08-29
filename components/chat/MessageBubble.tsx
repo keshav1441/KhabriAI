@@ -394,7 +394,7 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
           {!message.loading && message.content && (
             <button
               onClick={() => speak(message.content.replace(/\*\*/g, ""), speechLocale(lang))}
-              title="Read aloud"
+              title={t("chat.readAloud", lang)}
               className="mt-2 inline-flex items-center gap-1 text-xs font-data transition-colors"
               style={{ color: "var(--text-muted)" }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--ink)"; }}

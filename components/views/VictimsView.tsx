@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { CaseDrawer } from "../viz/CaseDrawer";
 import { useChatStore, type Lang } from "@/store/chat";
-import { t } from "@/lib/i18n";
+import { dateLocale, t, tf, tv } from "@/lib/i18n";
 
 /**
  * The repeat-victimisation screen. Two things have to survive the design: the
@@ -37,8 +37,8 @@ type Distribution = {
   repeatShare: number; repeatCases: number; repeatCaseShare: number; maxCases: number;
 };
 
-const fmtDate = (d: string | null) =>
-  d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+const fmtDate = (d: string | null, lang: Lang) =>
+  d ? new Date(d).toLocaleDateString(dateLocale(lang), { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
 const pct = (n: number) => `${(n * 100).toFixed(n < 0.1 ? 1 : 0)}%`;
 
@@ -102,26 +102,26 @@ export function VictimsView() {
           <>
             <Headline
               value={pct(dist.repeatShare)}
-              label={`${dist.repeatPeople.toLocaleString("en-IN")} of ${dist.people.toLocaleString("en-IN")} victims`}
-              caption="victimised more than once"
+              label={tf("victims.ofVictims", lang, { n: dist.repeatPeople.toLocaleString("en-IN"), total: dist.people.toLocaleString("en-IN") })}
+              caption={t("victims.repeatCaption", lang)}
               accent="var(--amber)"
             />
             <span className="font-data text-lg" style={{ color: "var(--text-muted)" }}>→</span>
             <Headline
               value={pct(dist.repeatCaseShare)}
-              label={`${dist.repeatCases.toLocaleString("en-IN")} of ${dist.cases.toLocaleString("en-IN")} cases`}
-              caption="of the crime they absorb"
+              label={tf("victims.ofCases", lang, { n: dist.repeatCases.toLocaleString("en-IN"), total: dist.cases.toLocaleString("en-IN") })}
+              caption={t("victims.absorbCaption", lang)}
               accent="var(--red)"
             />
             <Headline
               value={String(dist.maxCases)}
-              label="cases against one person"
-              caption="the most victimised individual here"
+              label={t("victims.againstOne", lang)}
+              caption={t("victims.mostCaption", lang)}
               accent="var(--text-primary)"
             />
             <div className="ml-auto flex items-center gap-2">
               <label className="font-data uppercase tracking-widest" style={{ color: "var(--text-muted)", fontSize: "0.6rem" }}>
-                Min cases
+                {t("victims.minCases", lang)}
               </label>
               {[2, 3, 4].map((n) => (
                 <button
@@ -220,7 +220,7 @@ function ClusterRow({
             {c.person.name}
           </span>
           <span className="block font-data truncate" style={{ color: "var(--text-muted)", fontSize: "0.65rem" }}>
-            {[c.person.age != null ? `${c.person.age} yrs` : null, c.person.gender, c.districts.join(", ")]
+            {[c.person.age != null ? tf("victims.years", lang, { n: c.person.age }) : null, tv(c.person.gender, lang), c.districts.map((d) => tv(d, lang)).join(", ")]
               .filter(Boolean)
               .join(" · ")}
           </span>
@@ -237,10 +237,10 @@ function ClusterRow({
 
         <span className="shrink-0 text-right hidden md:block" style={{ width: 190 }}>
           <span className="font-data block" style={{ color: "var(--text-secondary)", fontSize: "0.65rem" }}>
-            {t("victims.span", lang)} {fmtDate(c.first)} – {fmtDate(c.last)}
+            {t("victims.span", lang)} {fmtDate(c.first, lang)} – {fmtDate(c.last, lang)}
           </span>
           <span className="font-data block" style={{ color: "var(--text-muted)", fontSize: "0.6rem" }}>
-            {c.spanDays != null ? `${c.spanDays} days` : "—"}
+            {c.spanDays != null ? tf("victims.days", lang, { n: c.spanDays }) : "—"}
           </span>
         </span>
 
@@ -271,8 +271,8 @@ function ClusterRow({
                 style={{ background: "var(--amber-dim)", color: "var(--amber)", fontSize: "0.62rem" }}
               >
                 {c.capped === "common-name"
-                  ? "Confidence held down — this name is common in the register"
-                  : "Confidence held down — a single given name is not an identity"}
+                  ? t("victims.cappedCommon", lang)
+                  : t("victims.cappedMononym", lang)}
               </span>
             )}
           </div>
@@ -288,7 +288,7 @@ function ClusterRow({
                   onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
                 >
                   <td className="px-2 py-2 font-data whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>
-                    {fmtDate(k.date)}
+                    {fmtDate(k.date, lang)}
                   </td>
                   <td className="px-2 py-2 font-data" style={{ color: "var(--text-primary)" }}>{k.crimeNo ?? "—"}</td>
                   <td className="px-2 py-2" style={{ color: "var(--text-primary)" }}>{k.crimeType ?? "—"}</td>

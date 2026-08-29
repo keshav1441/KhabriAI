@@ -1,6 +1,9 @@
 import { prisma } from "./db";
 import { computeInsights } from "./insights-compute";
 import { scanDuplicates } from "./duplicate-detect";
+import { english } from "./alertText";
+import { t, tf } from "./i18n";
+import type { Lang } from "@/store/chat";
 import type { InsightItem } from "./insights-cache";
 
 /**
@@ -23,6 +26,9 @@ export type AlertRow = {
   severity: string;
   title: string;
   detail: string;
+  /** Rendered into the reader's language by lib/alertText.ts. Null on rows
+   *  written before findings became translatable. */
+  params: Record<string, string | number> | null;
   query: string;
   districtId: number | null;
   caseId: number | null;
@@ -38,6 +44,9 @@ export type AlertInsert = {
   severity: string;
   title: string;
   detail: string;
+  /** Omitted, not null: Prisma writes SQL NULL for an absent Json field but
+   *  rejects a literal `null` (that is `Prisma.DbNull`). */
+  params?: Record<string, string | number>;
   query: string;
   districtId: number | null;
   caseId: number | null;
@@ -149,13 +158,25 @@ async function computeMoLinkAlerts(): Promise<Candidate[]> {
   for (const r of rows) {
     const label = r.crime_no ?? `case ${r.case_id}`;
     const matchLabel = r.match_crime_no ?? `case ${r.match_id}`;
+    // No percentage in the wording. The cosine is not calibrated
+    // (lib/case-retrieval.ts), so what is claimed is what was measured: this
+    // pair is an outlier against the corpus's own distribution, and the two
+    // files are the same offence.
+    const moParams = {
+      label,
+      matchLabel,
+      // "Case" and "recent" are placeholders for a missing crime group or
+      // date; both are in the value map, so they translate like any other
+      // reference value rather than freezing as English.
+      crimeGroup: r.crime_group ?? "Case",
+      district: r.district_name,
+      matchDistrict: r.match_district_name,
+      registered: r.registered ?? "recent",
+    };
     const base = {
       type: "mo_link",
-      title: `Cross-district MO lead: ${label}`,
-      // No percentage. The cosine is not calibrated (lib/case-retrieval.ts), so
-      // what is claimed is what was measured: this pair is an outlier against
-      // the corpus's own distribution, and the two files are the same offence.
-      detail: `${r.crime_group ?? "Case"} in ${r.district_name} (${r.registered ?? "recent"}) is the closest narrative match to ${matchLabel} in ${r.match_district_name}, and closer than 99% of cross-district nearest matches in the corpus. Same offence sub-head. Narratives never name the accused, so this is a method lead to check, not a link between people — neither station can see the other's file.`,
+      ...english("mo_link", moParams),
+      params: moParams,
       query: `Find cases with the same modus operandi as FIR ${r.crime_no ?? r.case_id}`,
       caseId: r.case_id,
       // Downgraded from "critical". A narrative lead worth an hour is not an
@@ -190,23 +211,40 @@ async function computeDuplicateAlerts(): Promise<Candidate[]> {
     const pct = Math.round(h.likelihood * 100);
     const label = h.crimeNo ?? `case ${h.caseId}`;
     const matchLabel = h.matchCrimeNo ?? `case ${h.matchId}`;
-    const where = h.sameStation
-      ? `both at ${h.station ?? h.districtName}`
-      : `${h.station ?? h.districtName} and ${h.matchStation ?? h.matchDistrictName}`;
+    const whereParams = {
+      station: h.station ?? h.districtName,
+      matchStation: h.matchStation ?? h.matchDistrictName,
+    };
+    const where = (lang: Lang) =>
+      tf(h.sameStation ? "finding.duplicate.bothAt" : "finding.duplicate.across", lang, whereParams);
     // The people reason carries a complainant or victim's actual name. That name
     // belongs to one of the two files, so it must not be written into the other
     // district's alert row - the pair of CrimeNos is enough to act on either
     // side, and the officer who owns the file can see the name in it.
-    const reasonText = (withName: boolean) =>
+    const reasonText = (withName: boolean, lang: Lang) =>
       h.reasons
         .filter((r) => withName || r.signal !== "people")
-        .map((r) => r.label.toLowerCase())
+        .map((r) => (lang === "kn" ? r.labelKn : r.label.toLowerCase()))
         .join("; ");
-    const why = reasonText(true);
+    // Both languages are rendered here, not at read time: the reason clause is
+    // built from signal values this row does not carry (see DuplicateReason).
+    const dupParams = (withName: boolean) => ({
+      label,
+      matchLabel,
+      registered: h.registered ?? "recent",
+      matchRegistered: h.matchRegistered ?? "recent",
+      pct,
+      where: where("en"),
+      whereKn: where("kn"),
+      why: reasonText(withName, "en") || t("finding.duplicate.reasonFallback", "en"),
+      whyKn: reasonText(withName, "kn") || t("finding.duplicate.reasonFallback", "kn"),
+      ...(withName ? {} : { unnamed: 1 }),
+    });
+    const nearParams = dupParams(true);
     const base = {
       type: "duplicate",
-      title: `Possible duplicate FIR: ${label}`,
-      detail: `${label} (${h.registered ?? "recent"}) looks like the same incident as ${matchLabel} (${h.matchRegistered ?? "recent"}) — ${where}. ${pct}% likely: ${why}.`,
+      ...english("duplicate", nearParams),
+      params: nearParams,
       query: `Compare FIR ${h.crimeNo ?? h.caseId} and FIR ${h.matchCrimeNo ?? h.matchId} — are these the same incident filed twice?`,
       caseId: h.caseId,
       // Near-certain wastes two investigations and double-counts the crime
@@ -220,12 +258,12 @@ async function computeDuplicateAlerts(): Promise<Candidate[]> {
     out.push({ ...base, districtId: h.districtId, districtName: h.districtName, dedupe });
     if (h.matchDistrictId !== h.districtId) {
       const named = h.reasons.some((r) => r.signal === "people");
+      // Same finding, but the far district's copy is stripped of the name.
+      const farParams = named ? dupParams(false) : nearParams;
       out.push({
         ...base,
-        // Same finding, but the far district's copy is stripped of the name.
-        detail: named
-          ? `${label} (${h.registered ?? "recent"}) looks like the same incident as ${matchLabel} (${h.matchRegistered ?? "recent"}) — ${where}. ${pct}% likely: ${reasonText(false) || "the narratives and dates line up"}. A person named in both files is out of your posting; the other station holds that record.`
-          : base.detail,
+        ...(named ? english("duplicate", farParams) : { detail: base.detail }),
+        params: farParams,
         districtId: h.matchDistrictId,
         districtName: h.matchDistrictName,
         dedupe,
@@ -274,6 +312,7 @@ export function fanOut(
         severity: c.severity,
         title: c.title,
         detail: c.detail,
+        ...(c.params ? { params: c.params } : {}),
         query: c.query,
         districtId: c.districtId ?? null,
         caseId: c.caseId ?? null,

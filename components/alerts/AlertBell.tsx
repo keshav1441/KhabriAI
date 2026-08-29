@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useChatStore } from "@/store/chat";
 import { t } from "@/lib/i18n";
+import { renderFinding } from "@/lib/alertText";
 import { KIND_LABEL } from "@/lib/alertKinds";
 
 interface Alert {
@@ -10,6 +11,8 @@ interface Alert {
   severity: "critical" | "warning" | "info" | string;
   title: string;
   detail: string;
+  /** The values behind the sentence; renderFinding rebuilds it in `lang`. */
+  params?: Record<string, string | number> | null;
   query: string;
   districtId: number | null;
   caseId: number | null;
@@ -172,6 +175,7 @@ export function AlertBell({ onInvestigate }: { onInvestigate: (query: string) =>
             )}
             {alerts.map((a) => {
               const color = SEVERITY_COLOR[a.severity] ?? "var(--khaki)";
+              const { title, detail } = renderFinding(a, lang);
               return (
                 <button
                   key={a.id}
@@ -194,8 +198,8 @@ export function AlertBell({ onInvestigate }: { onInvestigate: (query: string) =>
                       {ago(a.createdAt)}
                     </span>
                   </div>
-                  <p className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>{a.title}</p>
-                  <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--text-secondary)" }}>{a.detail}</p>
+                  <p className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>{title}</p>
+                  <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--text-secondary)" }}>{detail}</p>
                   <p className="font-data text-[10px] mt-1" style={{ color }}>{t("alerts.investigate", lang)}</p>
                 </button>
               );

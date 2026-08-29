@@ -1,5 +1,7 @@
 import { scopedClient, type Db } from "./db";
 import { similarity } from "./entity-resolve";
+import { t, tf } from "./i18n";
+import type { Lang } from "@/store/chat";
 
 /**
  * Duplicate FIR detection — the mirror image of modus-operandi linking.
@@ -49,6 +51,12 @@ export interface DuplicateReason {
   /** How much this signal contributed to the likelihood, 0..1. */
   weight: number;
   label: string;
+  /** ponytail: the Kannada wording, rendered here rather than stored as a key
+   *  plus arguments. A reason carries numbers the caller no longer has (the
+   *  cosine, the day gap), so re-rendering it downstream would mean passing the
+   *  whole signal set along with it. Two languages, both built once. A third
+   *  language means adding a field here and re-running the detector. */
+  labelKn: string;
 }
 
 export type DuplicateCap = "no-person" | "weak-narrative" | null;
@@ -182,31 +190,37 @@ export function scoreDuplicate(s: DuplicateSignals): DuplicateScore {
 
   const reasons: DuplicateReason[] = names
     .filter((k) => sub[k] >= DUP.reasonFires)
-    .map((k) => ({ signal: k, weight: Number((sub[k] * WEIGHTS[k]).toFixed(3)), label: labelFor(k, s) }))
+    .map((k) => ({
+      signal: k,
+      weight: Number((sub[k] * WEIGHTS[k]).toFixed(3)),
+      label: labelFor(k, s, "en"),
+      labelKn: labelFor(k, s, "kn"),
+    }))
     .sort((a, b) => b.weight - a.weight);
 
   return { likelihood: Number(likelihood.toFixed(3)), isProbable: likelihood >= DUP.threshold, reasons, capped };
 }
 
-function labelFor(k: DuplicateSignalName, s: DuplicateSignals): string {
+function labelFor(k: DuplicateSignalName, s: DuplicateSignals, lang: Lang): string {
   switch (k) {
     case "narrative":
       // Not "92% alike" — the cosine is not a probability of anything. Show the
       // raw number next to what unrelated files of the same crime group score,
       // so the officer can see how little it separates.
-      return `Narrative cosine ${s.narrative.toFixed(2)} (unrelated same-type pairs median 0.84)`;
+      return tf("dup.reason.narrative", lang, { n: s.narrative.toFixed(2) });
     case "people":
       return s.personLabel
-        ? `Same person named in both — ${s.personLabel}`
-        : "Complainant or victim name matches";
+        ? tf("dup.reason.peopleNamed", lang, { label: s.personLabel })
+        : t("dup.reason.people", lang);
     case "date": {
       const g = Math.round(Math.abs(s.dayGap ?? 0));
-      return g === 0 ? "Same incident date" : `Incidents ${g} day${g === 1 ? "" : "s"} apart`;
+      if (g === 0) return t("dup.reason.sameDate", lang);
+      return g === 1 ? t("dup.reason.dayGapOne", lang) : tf("dup.reason.dayGap", lang, { n: g });
     }
     case "station":
-      return s.station === "same" ? "Filed at the same station" : "Filed at a station in the same district";
+      return t(s.station === "same" ? "dup.reason.sameStation" : "dup.reason.sameDistrict", lang);
     case "crimeType":
-      return "Same crime sub-head";
+      return t("dup.reason.crimeType", lang);
   }
 }
 
