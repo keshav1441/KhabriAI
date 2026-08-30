@@ -19,7 +19,17 @@ export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams;
   const personId = q.get("personId");
   const crimeNo = q.get("crimeNo");
-  let caseId = Number(q.get("caseId")) || null;
+  // A caseId past int4 is a CrimeNo someone sent to the wrong parameter. Reject
+  // it here rather than letting Postgres raise "value out of range for type
+  // integer" and surface as a 500.
+  const rawCaseId = q.get("caseId");
+  let caseId = rawCaseId ? Number(rawCaseId) : null;
+  if (caseId !== null && (!Number.isSafeInteger(caseId) || caseId <= 0 || caseId > 2147483647)) {
+    return Response.json(
+      { error: "That looks like a Crime No. rather than a case id — pass it as crimeNo" },
+      { status: 400 }
+    );
+  }
 
   if (!caseId && !personId && !crimeNo) {
     return Response.json({ error: "Pass caseId, crimeNo or personId" }, { status: 400 });

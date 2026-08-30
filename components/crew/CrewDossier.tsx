@@ -9,6 +9,9 @@ import { t, tv } from "@/lib/i18n";
 
 interface Props {
   caseId?: number | null;
+  /** A CrimeNo is 18 digits — past Number.MAX_SAFE_INTEGER, so it stays a string
+      the whole way to Postgres. Coercing it loses the last two digits. */
+  crimeNo?: string | null;
   personId?: string | null;
   onClose: () => void;
   /** Lets the host swap to a full case file when a timeline row is clicked. */
@@ -20,15 +23,19 @@ interface Props {
 const fmtDate = (d: string | null) =>
   d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
-export function CrewDossier({ caseId, personId, onClose, onOpenCase, inline }: Props) {
+export function CrewDossier({ caseId, crimeNo, personId, onClose, onOpenCase, inline }: Props) {
   const lang = useChatStore((s) => s.lang);
   const [data, setData] = useState<Dossier | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!caseId && !personId) { setData(null); return; }
-    const qs = caseId ? `caseId=${caseId}` : `personId=${encodeURIComponent(String(personId))}`;
+    if (!caseId && !crimeNo && !personId) { setData(null); return; }
+    const qs = caseId
+      ? `caseId=${caseId}`
+      : crimeNo
+        ? `crimeNo=${encodeURIComponent(crimeNo)}`
+        : `personId=${encodeURIComponent(String(personId))}`;
     let cancelled = false;
     setData(null);
     setError("");
@@ -42,14 +49,14 @@ export function CrewDossier({ caseId, personId, onClose, onOpenCase, inline }: P
       .then((body) => { if (!cancelled) { setData(body.dossier ?? null); setLoading(false); } })
       .catch((e: Error) => { if (!cancelled) { setError(e.message); setLoading(false); } });
     return () => { cancelled = true; };
-  }, [caseId, personId]);
+  }, [caseId, crimeNo, personId]);
 
-  if (!caseId && !personId) return null;
+  if (!caseId && !crimeNo && !personId) return null;
 
   const body = (
     <>
       <Header
-        label={data?.seed.label ?? (caseId ? `#${caseId}` : String(personId ?? ""))}
+        label={data?.seed.label ?? (caseId ? `#${caseId}` : crimeNo ? `#${crimeNo}` : String(personId ?? ""))}
         lang={lang}
         onClose={onClose}
       />

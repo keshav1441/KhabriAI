@@ -8,15 +8,27 @@ import { t } from "@/lib/i18n";
 export function CrewView() {
   const lang = useChatStore((s) => s.lang);
   const [input, setInput] = useState("");
-  const [seed, setSeed] = useState<{ caseId: number | null; personId: string | null } | null>(null);
+  const [seed, setSeed] = useState<{ caseId: number | null; crimeNo: string | null; personId: string | null } | null>(null);
   const [openCaseId, setOpenCaseId] = useState<number | null>(null);
 
-  // A digits-only seed is a case id; anything else is a PersonID from the network view.
+  // Three shapes arrive in this box. A CaseMasterID is a small integer. A CrimeNo
+  // is eighteen digits — larger than Number.MAX_SAFE_INTEGER and larger than the
+  // int4 the id column uses, so coercing one loses its last digits and then
+  // overflows the column. It stays a string and is looked up by CrimeNo instead.
+  // Anything not all-digits is a PersonID from the network view.
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const v = input.trim();
     if (!v) return;
-    setSeed(/^\d+$/.test(v) ? { caseId: Number(v), personId: null } : { caseId: null, personId: v });
+    if (!/^\d+$/.test(v)) {
+      setSeed({ caseId: null, crimeNo: null, personId: v });
+      return;
+    }
+    const n = Number(v);
+    const isCaseId = Number.isSafeInteger(n) && n > 0 && n <= 2147483647;
+    setSeed(isCaseId
+      ? { caseId: n, crimeNo: null, personId: null }
+      : { caseId: null, crimeNo: v, personId: null });
   };
 
   return (
@@ -60,9 +72,10 @@ export function CrewView() {
         ) : (
           <div className="h-full max-w-5xl mx-auto">
             <CrewDossier
-              key={seed.caseId ?? seed.personId}
+              key={seed.caseId ?? seed.crimeNo ?? seed.personId}
               inline
               caseId={seed.caseId}
+              crimeNo={seed.crimeNo}
               personId={seed.personId}
               onClose={() => { setSeed(null); setInput(""); }}
               onOpenCase={setOpenCaseId}
